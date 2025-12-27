@@ -77,3 +77,14 @@ Types: `[Feat]`, `[Fix]`, `[Refactor]`, `[Design]`, `[Setting]`, `[Chore]`, `[Do
 - 모든 작업은 GitHub Issue로 등록
 - 커밋 시 `Close #이슈번호`로 연결
 - 템플릿: `docs/git/issue-template.md`
+- 라벨 가이드: `docs/git/issue-labels.md`
+
+### Milestones
+| Phase | 설명 | 주요 기능 |
+|-------|------|-----------|
+| Phase 1: Foundation | 기반 구축 | 소켓 연결, Protobuf, Bonjour |
+| Phase 2: Essentials | 기본 기능 | 트랙패드, 키보드, 미디어 |
+| Phase 3: Productivity | 생산성 기능 | 윈도우 스냅, 앱 스위처, 매크로 |
+| Phase 4: Polish | 완성도 | 레이저 포인터, 보이스, UI |
+
+상세: `docs/git/milestones.md`
