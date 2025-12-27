@@ -45,3 +45,35 @@ Uses Accessibility API (`AXUIElement`) and `CGEvent` for system control. Require
 - iOS 17.0+
 - macOS 14.0+
 - Swift 6.2
+
+## Git Workflow
+
+### Branch Convention
+```
+{type}/{description}  (kebab-case)
+```
+- `feat/login-with-social-account`
+- `fix/image-caching-error`
+- `refactor/separate-viewmodel-logic`
+
+### Commit Convention
+```
+[Type]: 제목 (50자 이내, 명령문, 마침표 없음)
+
+- 세부 내용
+
+Close #이슈번호
+```
+
+Types: `[Feat]`, `[Fix]`, `[Refactor]`, `[Design]`, `[Setting]`, `[Chore]`, `[Docs]`, `[Test]`, `[Perf]`, `[Add]`, `[Del]`, `[Remove]`
+
+### Workflow
+1. develop 브랜치에서 feature 브랜치 생성
+2. 마이크로 커밋으로 작업 (하나의 논리적 변경 = 하나의 커밋)
+3. PR 생성 후 스쿼시 머지
+4. develop → main 릴리즈 시 태그 생성
+
+### Issue Management
+- 모든 작업은 GitHub Issue로 등록
+- 커밋 시 `Close #이슈번호`로 연결
+- 템플릿: `docs/git/issue-template.md`
