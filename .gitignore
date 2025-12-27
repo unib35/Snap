@@ -1,0 +1,31 @@
+# .gitignore
+
+# Mac OS
+.DS_Store
+
+# Xcode
+build/
+*.project
+*.xcodeproj
+*.xcworkspace
+*.xccheckout
+DerivedData/
+*.moved-aside
+*.pro
+*.essentials
+*.xcuserstate
+
+# Swift Package Manager
+.build/
+Packages/
+Package.resolved
+
+# Tuist
+.tuist-bin
+*.tuist-version
+Tuist/Dependencies/
+Tuist/Derived/
+graph.png
+
+# Generated Files (Protobuf 등 자동 생성 파일은 로컬에만)
+*.pb.swift
