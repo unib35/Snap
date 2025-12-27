@@ -25,6 +25,7 @@ Package.resolved
 *.tuist-version
 Tuist/Dependencies/
 Tuist/Derived/
+Derived/
 graph.png
 
 # Generated Files (Protobuf 등 자동 생성 파일은 로컬에만)
