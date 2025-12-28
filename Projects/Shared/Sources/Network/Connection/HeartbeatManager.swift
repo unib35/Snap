@@ -3,7 +3,7 @@ import Foundation
 /// 하트비트 매니저 델리게이트
 public protocol HeartbeatManagerDelegate: AnyObject, Sendable {
     func heartbeatManagerDidTimeout(_ manager: HeartbeatManager)
-    func heartbeatManager(_ manager: HeartbeatManager, shouldSendHeartbeat: @escaping () -> Void)
+    func heartbeatManager(_ manager: HeartbeatManager, shouldSendHeartbeat: @escaping @Sendable () -> Void)
 }
 
 /// 하트비트 관리자
