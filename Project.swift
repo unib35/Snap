@@ -1,5 +1,19 @@
 import ProjectDescription
 
+// MARK: - SwiftLint Script
+
+let swiftLintScript = TargetScript.post(
+    script: """
+    if command -v swiftlint >/dev/null 2>&1; then
+        swiftlint lint --config "${SRCROOT}/.swiftlint.yml" --quiet
+    else
+        echo "warning: SwiftLint not installed. Install via 'brew install swiftlint'"
+    fi
+    """,
+    name: "SwiftLint",
+    basedOnDependencyAnalysis: false
+)
+
 // MARK: - Project
 
 let project = Project(
@@ -28,7 +42,8 @@ let project = Project(
             deploymentTargets: .multiplatform(iOS: "17.0", macOS: "14.0"),
             sources: ["Projects/Shared/Sources/**"],
             resources: ["Projects/Shared/Resources/**"],
-            dependencies: []
+            dependencies: [],
+            scripts: [swiftLintScript]
         ),
 
         // MARK: - App (iOS)
@@ -55,6 +70,7 @@ let project = Project(
                 .target(name: "Shared"),
                 .external(name: "ComposableArchitecture"),
             ],
+            scripts: [swiftLintScript],
             settings: .settings(
                 base: [
                     "DEVELOPMENT_TEAM": "",
@@ -97,6 +113,7 @@ let project = Project(
             dependencies: [
                 .target(name: "Shared"),
             ],
+            scripts: [swiftLintScript],
             settings: .settings(
                 base: [
                     "DEVELOPMENT_TEAM": "",
