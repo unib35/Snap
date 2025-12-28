@@ -44,7 +44,37 @@ Uses Accessibility API (`AXUIElement`) and `CGEvent` for system control. Require
 ## Platform Requirements
 - iOS 17.0+
 - macOS 14.0+
-- Swift 6.2
+- Swift 6.0
+
+## Code Quality Tools
+
+### SwiftLint
+프로젝트에 SwiftLint가 통합되어 있습니다. 빌드 시 자동으로 실행됩니다.
+
+```bash
+# 수동 실행
+swiftlint lint --config .swiftlint.yml
+
+# 자동 수정 (가능한 경우)
+swiftlint --fix --config .swiftlint.yml
+```
+
+설정 파일: `.swiftlint.yml`
+
+### SourceKit-LSP
+VS Code에서 Swift 개발 시 SourceKit-LSP를 사용합니다.
+
+**필수 확장 프로그램:**
+- Swift (sswg.swift-lang)
+
+**설정 확인:**
+- `.vscode/settings.json` - SourceKit-LSP 설정
+- `.vscode/extensions.json` - 추천 확장 프로그램
+
+**사용 전 필수:**
+```bash
+tuist generate  # Xcode 프로젝트 생성 필요
+```
 
 ## Git Workflow
 
