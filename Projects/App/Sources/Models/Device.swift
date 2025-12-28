@@ -2,12 +2,12 @@ import Foundation
 
 /// 발견된 디바이스 정보
 public struct Device: Equatable, Identifiable, Sendable {
-    public let id: UUID
-    public let name: String
+    public var id: String
+    public var name: String
     public let host: String
     public let port: UInt16
 
-    public init(id: UUID = UUID(), name: String, host: String, port: UInt16) {
+    public init(id: String, name: String, host: String, port: UInt16) {
         self.id = id
         self.name = name
         self.host = host
@@ -61,6 +61,8 @@ public enum SignalStrength: Equatable, Sendable {
 public enum ConnectionError: Error, Equatable, Sendable {
     case discoveryFailed(String)
     case connectionFailed(String)
+    case connectionLost(String)
+    case serverError(String)
     case timeout
     case disconnected
     case protocolError(String)
