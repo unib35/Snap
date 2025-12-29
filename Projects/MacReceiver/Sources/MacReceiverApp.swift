@@ -46,10 +46,19 @@ struct MenuBarLabel: View {
 
 struct MenuBarView: View {
     @ObservedObject var serverManager: ServerManager
+    @ObservedObject private var accessibilityManager = AccessibilityManager.shared
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // Accessibility Warning
+            if !accessibilityManager.isAccessibilityEnabled {
+                accessibilityWarningSection
+                    .padding()
+
+                Divider()
+            }
+
             // Status Section
             statusSection
                 .padding()
@@ -66,6 +75,37 @@ struct MenuBarView: View {
             actionsSection
         }
         .frame(width: 280)
+        .onAppear {
+            accessibilityManager.checkAccessibility()
+        }
+    }
+
+    @ViewBuilder
+    private var accessibilityWarningSection: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("접근성 권한 필요")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Text("입력 제어를 위해 권한이 필요합니다")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button("허용") {
+                accessibilityManager.requestAccessibility()
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        }
+        .padding(8)
+        .background(Color.orange.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     @ViewBuilder
@@ -207,6 +247,7 @@ struct SettingsView: View {
 
 struct GeneralSettingsView: View {
     @ObservedObject var serverManager: ServerManager
+    @ObservedObject private var accessibilityManager = AccessibilityManager.shared
 
     var body: some View {
         Form {
@@ -230,9 +271,36 @@ struct GeneralSettingsView: View {
                     Text(serverManager.connectedDevice ?? "없음")
                 }
             }
+
+            Section("권한") {
+                HStack {
+                    LabeledContent("접근성 권한") {
+                        HStack(spacing: 8) {
+                            Image(systemName: accessibilityManager.isAccessibilityEnabled
+                                  ? "checkmark.circle.fill"
+                                  : "exclamationmark.triangle.fill")
+                                .foregroundStyle(accessibilityManager.isAccessibilityEnabled ? .green : .orange)
+
+                            Text(accessibilityManager.isAccessibilityEnabled ? "허용됨" : "필요함")
+                                .foregroundStyle(accessibilityManager.isAccessibilityEnabled ? .green : .orange)
+                        }
+                    }
+
+                    if !accessibilityManager.isAccessibilityEnabled {
+                        Button("설정 열기") {
+                            accessibilityManager.openSystemPreferences()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                }
+            }
         }
         .formStyle(.grouped)
         .padding()
+        .onAppear {
+            accessibilityManager.checkAccessibility()
+        }
     }
 }
 
