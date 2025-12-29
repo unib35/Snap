@@ -4,6 +4,7 @@ import ProjectDescription
 
 let swiftLintScript = TargetScript.post(
     script: """
+    export PATH="/opt/homebrew/bin:$PATH"
     if command -v swiftlint >/dev/null 2>&1; then
         swiftlint lint --config "${SRCROOT}/.swiftlint.yml" --quiet
     else
@@ -42,8 +43,8 @@ let project = Project(
             deploymentTargets: .multiplatform(iOS: "17.0", macOS: "14.0"),
             sources: ["Projects/Shared/Sources/**"],
             resources: ["Projects/Shared/Resources/**"],
-            dependencies: [],
-            scripts: [swiftLintScript]
+            scripts: [swiftLintScript],
+            dependencies: []
         ),
 
         // MARK: - App (iOS)
@@ -66,11 +67,11 @@ let project = Project(
             ]),
             sources: ["Projects/App/Sources/**"],
             resources: ["Projects/App/Resources/**"],
+            scripts: [swiftLintScript],
             dependencies: [
                 .target(name: "Shared"),
                 .external(name: "ComposableArchitecture"),
             ],
-            scripts: [swiftLintScript],
             settings: .settings(
                 base: [
                     "DEVELOPMENT_TEAM": "",
@@ -110,10 +111,10 @@ let project = Project(
             sources: ["Projects/MacReceiver/Sources/**"],
             resources: ["Projects/MacReceiver/Resources/**"],
             entitlements: .file(path: "Projects/MacReceiver/MacReceiver.entitlements"),
+            scripts: [swiftLintScript],
             dependencies: [
                 .target(name: "Shared"),
             ],
-            scripts: [swiftLintScript],
             settings: .settings(
                 base: [
                     "DEVELOPMENT_TEAM": "",

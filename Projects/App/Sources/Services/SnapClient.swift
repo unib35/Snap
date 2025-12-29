@@ -1,5 +1,8 @@
 import Foundation
+import os
 import Shared
+
+private let logger = Logger(subsystem: "com.snap.app", category: "SnapClient")
 
 /// Snap 클라이언트 델리게이트
 public protocol SnapClientDelegate: AnyObject {
@@ -260,7 +263,7 @@ extension SnapClient: TCPConnectionDelegate {
 
 extension SnapClient: UDPSocketDelegate {
     public func udpSocketDidReady(_ socket: UDPSocket) {
-        print("[Client] UDP socket ready")
+        logger.debug("UDP socket ready")
     }
 
     public func udpSocket(_ socket: UDPSocket, didReceive packet: DecodedPacket, from endpoint: NetworkEndpoint) {
@@ -276,7 +279,7 @@ extension SnapClient: UDPSocketDelegate {
 
 extension SnapClient: HeartbeatManagerDelegate {
     public func heartbeatManagerDidTimeout(_ manager: HeartbeatManager) {
-        print("[Client] Heartbeat timeout")
+        logger.warning("Heartbeat timeout")
         cleanup()
         delegate?.clientDidDisconnect(self, error: ConnectionError.timeout)
     }

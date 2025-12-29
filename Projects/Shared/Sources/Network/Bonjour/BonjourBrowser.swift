@@ -1,5 +1,8 @@
 import Foundation
 import Network
+import os
+
+private let logger = Logger(subsystem: "com.snap.shared", category: "BonjourBrowser")
 
 /// 발견된 서비스 정보
 public struct DiscoveredService: Sendable, Equatable, Identifiable {
@@ -85,7 +88,7 @@ public final class BonjourBrowser: @unchecked Sendable {
             break
 
         case .ready:
-            print("[Bonjour Browser] Ready")
+            logger.debug("Ready")
 
         case .failed(let error):
             isSearching = false
@@ -95,7 +98,7 @@ public final class BonjourBrowser: @unchecked Sendable {
             isSearching = false
 
         case .waiting(let error):
-            print("[Bonjour Browser] Waiting: \(error.localizedDescription)")
+            logger.debug("Waiting: \(error.localizedDescription)")
 
         @unknown default:
             break
@@ -144,7 +147,6 @@ public final class BonjourBrowser: @unchecked Sendable {
                 if let path = connection?.currentPath,
                    let endpoint = path.remoteEndpoint,
                    case .hostPort(let host, let port) = endpoint {
-
                     var txtRecord: [String: String] = [:]
                     if case .bonjour(let record) = result.metadata {
                         txtRecord = self.parseTXTRecord(record)

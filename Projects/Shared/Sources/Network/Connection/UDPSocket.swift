@@ -1,5 +1,8 @@
 import Foundation
 import Network
+import os
+
+private let logger = Logger(subsystem: "com.snap.shared", category: "UDPSocket")
 
 /// UDP 소켓 델리게이트
 public protocol UDPSocketDelegate: AnyObject, Sendable {
@@ -37,7 +40,7 @@ public final class UDPSocket: @unchecked Sendable {
         let targetPort = port ?? self.port
         let endpoint = NWEndpoint.hostPort(
             host: NWEndpoint.Host(host),
-            port: NWEndpoint.Port(rawValue: targetPort)!
+            port: NWEndpoint.Port(rawValue: targetPort) ?? .any
         )
 
         let parameters = NWParameters.udp
@@ -63,7 +66,10 @@ public final class UDPSocket: @unchecked Sendable {
         parameters.prohibitedInterfaceTypes = [.cellular]
         parameters.allowLocalEndpointReuse = true
 
-        listener = try NWListener(using: parameters, on: NWEndpoint.Port(rawValue: port)!)
+        guard let nwPort = NWEndpoint.Port(rawValue: port) else {
+            throw NetworkError.connectionFailed(NSError(domain: "UDPSocket", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid port"]))
+        }
+        listener = try NWListener(using: parameters, on: nwPort)
 
         listener?.stateUpdateHandler = { [weak self] state in
             self?.handleListenerState(state)
@@ -159,7 +165,7 @@ public final class UDPSocket: @unchecked Sendable {
         case .ready:
             isReady = true
             if let port = listener?.port {
-                print("[UDP] Listening on port \(port.rawValue)")
+                logger.info("Listening on port \(port.rawValue)")
             }
             delegate?.udpSocketDidReady(self)
 
@@ -200,7 +206,7 @@ public final class UDPSocket: @unchecked Sendable {
                 if case .posix(let code) = error, code == .ECANCELED {
                     return
                 }
-                print("[UDP] Receive error: \(error)")
+                logger.error("Receive error: \(error.localizedDescription)")
                 return
             }
 
@@ -221,7 +227,7 @@ public final class UDPSocket: @unchecked Sendable {
                 delegate?.udpSocket(self, didReceive: packet, from: endpoint)
             }
         } catch {
-            print("[UDP] Packet decode error: \(error)")
+            logger.error("Packet decode error: \(error.localizedDescription)")
         }
     }
 }

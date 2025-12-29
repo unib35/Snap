@@ -1,5 +1,8 @@
 import Foundation
+import os
 import Shared
+
+private let logger = Logger(subsystem: "com.snap.receiver", category: "SnapServer")
 
 /// Snap 서버 델리게이트
 public protocol SnapServerDelegate: AnyObject {
@@ -183,7 +186,7 @@ public final class SnapServer: @unchecked Sendable {
 extension SnapServer: TCPServerDelegate {
     public func tcpServer(_ server: TCPServer, didAccept connection: TCPConnection) {
         connection.delegate = self
-        print("[Server] Accepted TCP connection")
+        logger.debug("Accepted TCP connection")
     }
 
     public func tcpServer(_ server: TCPServer, didFailWithError error: Error) {
@@ -238,7 +241,7 @@ extension SnapServer: TCPConnectionDelegate {
 
 extension SnapServer: UDPSocketDelegate {
     public func udpSocketDidReady(_ socket: UDPSocket) {
-        print("[Server] UDP socket ready")
+        logger.debug("UDP socket ready")
     }
 
     public func udpSocket(_ socket: UDPSocket, didReceive packet: DecodedPacket, from endpoint: NetworkEndpoint) {
@@ -257,7 +260,7 @@ extension SnapServer: UDPSocketDelegate {
 
 extension SnapServer: BonjourAdvertiserDelegate {
     public func bonjourAdvertiserDidStart(_ advertiser: BonjourAdvertiser) {
-        print("[Server] Bonjour advertising started: \(deviceName)")
+        logger.info("Bonjour advertising started: \(deviceName)")
     }
 
     public func bonjourAdvertiser(_ advertiser: BonjourAdvertiser, didFailWithError error: Error) {
@@ -269,7 +272,7 @@ extension SnapServer: BonjourAdvertiserDelegate {
 
 extension SnapServer: HeartbeatManagerDelegate {
     public func heartbeatManagerDidTimeout(_ manager: HeartbeatManager) {
-        print("[Server] Heartbeat timeout")
+        logger.warning("Heartbeat timeout")
         disconnectClient()
     }
 

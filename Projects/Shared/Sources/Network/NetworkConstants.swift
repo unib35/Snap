@@ -3,10 +3,10 @@ import Foundation
 /// 네트워크 관련 상수 정의
 public enum NetworkConstants {
     /// TCP 제어 채널 포트
-    public static let tcpPort: UInt16 = 51234
+    public static let tcpPort: UInt16 = 51_234
 
     /// UDP 데이터 채널 포트
-    public static let udpPort: UInt16 = 51235
+    public static let udpPort: UInt16 = 51_235
 
     /// Bonjour 서비스 타입 (TCP)
     public static let bonjourServiceTypeTCP = "_snap._tcp."
@@ -33,7 +33,7 @@ public enum NetworkConstants {
     public static let connectionTimeout: TimeInterval = 15.0
 
     /// 최대 패킷 크기 (bytes)
-    public static let maxPacketSize: Int = 65536
+    public static let maxPacketSize: Int = 65_536
 
     /// 패킷 헤더 크기 (bytes)
     public static let packetHeaderSize: Int = 16

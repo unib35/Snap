@@ -1,5 +1,8 @@
 import Foundation
 import Network
+import os
+
+private let logger = Logger(subsystem: "com.snap.shared", category: "TCPConnection")
 
 /// TCP 연결 델리게이트
 public protocol TCPConnectionDelegate: AnyObject, Sendable {
@@ -25,7 +28,7 @@ public final class TCPConnection: @unchecked Sendable {
     public init(host: String, port: UInt16) {
         let endpoint = NWEndpoint.hostPort(
             host: NWEndpoint.Host(host),
-            port: NWEndpoint.Port(rawValue: port)!
+            port: NWEndpoint.Port(rawValue: port) ?? .any
         )
         let parameters = NWParameters.tcp
         parameters.prohibitExpensivePaths = false
@@ -108,8 +111,7 @@ public final class TCPConnection: @unchecked Sendable {
             startReceiving()
 
         case .waiting(let error):
-            // 재연결 대기 중
-            print("[TCP] Waiting: \(error.localizedDescription)")
+            logger.debug("Waiting: \(error.localizedDescription)")
 
         case .failed(let error):
             state = .disconnected
@@ -203,7 +205,7 @@ public final class TCPConnection: @unchecked Sendable {
             let packet = try PacketDecoder.decode(data)
             delegate?.tcpConnection(self, didReceive: packet)
         } catch {
-            print("[TCP] Packet decode error: \(error)")
+            logger.error("Packet decode error: \(error.localizedDescription)")
         }
     }
 
@@ -212,6 +214,6 @@ public final class TCPConnection: @unchecked Sendable {
             // 정상 종료
             return
         }
-        print("[TCP] Receive error: \(error.localizedDescription)")
+        logger.error("Receive error: \(error.localizedDescription)")
     }
 }
