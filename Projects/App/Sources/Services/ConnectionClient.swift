@@ -100,8 +100,8 @@ extension ConnectionClient: DependencyKey {
     }
 }
 
-extension DependencyValues {
-    public var connectionClient: ConnectionClient {
+public extension DependencyValues {
+    var connectionClient: ConnectionClient {
         get { self[ConnectionClient.self] }
         set { self[ConnectionClient.self] = newValue }
     }
