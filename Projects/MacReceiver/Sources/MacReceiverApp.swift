@@ -6,10 +6,264 @@ struct MacReceiverApp: App {
     @StateObject private var serverManager = ServerManager()
 
     var body: some Scene {
-        WindowGroup {
-            ContentView(serverManager: serverManager)
+        MenuBarExtra {
+            MenuBarView(serverManager: serverManager)
+        } label: {
+            MenuBarLabel(serverManager: serverManager)
         }
-        .windowResizability(.contentSize)
+        .menuBarExtraStyle(.window)
+
+        Settings {
+            SettingsView(serverManager: serverManager)
+        }
+    }
+}
+
+// MARK: - MenuBar Label
+
+struct MenuBarLabel: View {
+    @ObservedObject var serverManager: ServerManager
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: iconName)
+                .symbolRenderingMode(.hierarchical)
+        }
+    }
+
+    private var iconName: String {
+        if serverManager.connectedDevice != nil {
+            return "antenna.radiowaves.left.and.right"
+        } else if serverManager.isRunning {
+            return "antenna.radiowaves.left.and.right.slash"
+        } else {
+            return "xmark.circle"
+        }
+    }
+}
+
+// MARK: - MenuBar View
+
+struct MenuBarView: View {
+    @ObservedObject var serverManager: ServerManager
+    @Environment(\.openSettings) private var openSettings
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Status Section
+            statusSection
+                .padding()
+
+            Divider()
+
+            // Connection Section
+            connectionSection
+                .padding()
+
+            Divider()
+
+            // Actions
+            actionsSection
+        }
+        .frame(width: 280)
+    }
+
+    @ViewBuilder
+    private var statusSection: some View {
+        HStack {
+            Circle()
+                .fill(statusColor)
+                .frame(width: 10, height: 10)
+
+            Text(statusText)
+                .font(.headline)
+
+            Spacer()
+
+            Button(serverManager.isRunning ? "중지" : "시작") {
+                serverManager.toggleServer()
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        }
+    }
+
+    private var statusColor: Color {
+        if serverManager.connectedDevice != nil {
+            return .green
+        } else if serverManager.isRunning {
+            return .orange
+        } else {
+            return .red
+        }
+    }
+
+    private var statusText: String {
+        if serverManager.connectedDevice != nil {
+            return "연결됨"
+        } else if serverManager.isRunning {
+            return "대기 중"
+        } else {
+            return "중지됨"
+        }
+    }
+
+    @ViewBuilder
+    private var connectionSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let device = serverManager.connectedDevice {
+                HStack {
+                    Image(systemName: "iphone")
+                        .foregroundStyle(.blue)
+                    Text(device)
+                        .font(.subheadline)
+                    Spacer()
+                    Button {
+                        serverManager.disconnectClient()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            } else {
+                HStack {
+                    Image(systemName: "iphone.slash")
+                        .foregroundStyle(.secondary)
+                    Text("연결된 디바이스 없음")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if let error = serverManager.lastError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+
+            Text("포트: \(NetworkConstants.tcpPort)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var actionsSection: some View {
+        VStack(spacing: 0) {
+            Button {
+                openSettings()
+            } label: {
+                HStack {
+                    Image(systemName: "gear")
+                    Text("설정...")
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+
+            Divider()
+
+            Button {
+                NSApplication.shared.terminate(nil)
+            } label: {
+                HStack {
+                    Image(systemName: "power")
+                    Text("종료")
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+        }
+    }
+}
+
+// MARK: - Settings View
+
+struct SettingsView: View {
+    @ObservedObject var serverManager: ServerManager
+
+    var body: some View {
+        TabView {
+            GeneralSettingsView(serverManager: serverManager)
+                .tabItem {
+                    Label("일반", systemImage: "gear")
+                }
+
+            LogSettingsView(serverManager: serverManager)
+                .tabItem {
+                    Label("로그", systemImage: "doc.text")
+                }
+        }
+        .frame(width: 450, height: 300)
+    }
+}
+
+struct GeneralSettingsView: View {
+    @ObservedObject var serverManager: ServerManager
+
+    var body: some View {
+        Form {
+            Section {
+                LabeledContent("서버 상태") {
+                    Text(serverManager.isRunning ? "실행 중" : "중지됨")
+                        .foregroundStyle(serverManager.isRunning ? .green : .red)
+                }
+
+                LabeledContent("TCP 포트") {
+                    Text("\(NetworkConstants.tcpPort)")
+                }
+
+                LabeledContent("UDP 포트") {
+                    Text("\(NetworkConstants.udpPort)")
+                }
+            }
+
+            Section {
+                LabeledContent("연결된 디바이스") {
+                    Text(serverManager.connectedDevice ?? "없음")
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
+    }
+}
+
+struct LogSettingsView: View {
+    @ObservedObject var serverManager: ServerManager
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("활동 로그")
+                    .font(.headline)
+                Spacer()
+                Button("지우기") {
+                    serverManager.receivedPackets.removeAll()
+                }
+            }
+
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 2) {
+                    ForEach(serverManager.receivedPackets, id: \.self) { log in
+                        Text(log)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .background(Color(.textBackgroundColor).opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .padding()
     }
 }
 

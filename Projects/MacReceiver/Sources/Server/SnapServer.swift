@@ -260,7 +260,7 @@ extension SnapServer: UDPSocketDelegate {
 
 extension SnapServer: BonjourAdvertiserDelegate {
     public func bonjourAdvertiserDidStart(_ advertiser: BonjourAdvertiser) {
-        logger.info("Bonjour advertising started: \(deviceName)")
+        logger.info("Bonjour advertising started: \(self.deviceName)")
     }
 
     public func bonjourAdvertiser(_ advertiser: BonjourAdvertiser, didFailWithError error: Error) {

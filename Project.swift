@@ -104,7 +104,7 @@ let project = Project(
                 "CFBundleDisplayName": "Snap Receiver",
                 "CFBundleShortVersionString": "1.0.0",
                 "CFBundleVersion": "1",
-                "LSUIElement": false,
+                "LSUIElement": true,
                 "NSLocalNetworkUsageDescription": "Snap Receiver uses local network to receive commands from iOS.",
                 "NSBonjourServices": ["_snap._tcp.", "_snap._udp."],
             ]),
