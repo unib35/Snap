@@ -1,34 +1,20 @@
-import SwiftUI
 import ComposableArchitecture
+import SwiftUI
 
 @main
 struct SnapApp: App {
+    @State private var store = Store(initialState: AppFeature.State()) {
+        AppFeature()
+    }
+
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AppView(store: store)
+                .onChange(of: scenePhase) { _, newPhase in
+                    store.send(.scenePhaseChanged(newPhase))
+                }
         }
     }
-}
-
-struct ContentView: View {
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "hand.tap.fill")
-                .font(.system(size: 60))
-                .foregroundStyle(.blue)
-
-            Text("Snap")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-
-            Text("iOS Remote Controller")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .padding()
-    }
-}
-
-#Preview {
-    ContentView()
 }

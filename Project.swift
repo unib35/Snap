@@ -28,9 +28,7 @@ let project = Project(
             deploymentTargets: .multiplatform(iOS: "17.0", macOS: "14.0"),
             sources: ["Projects/Shared/Sources/**"],
             resources: ["Projects/Shared/Resources/**"],
-            dependencies: [
-                .external(name: "SwiftProtobuf"),
-            ]
+            dependencies: []
         ),
 
         // MARK: - App (iOS)
