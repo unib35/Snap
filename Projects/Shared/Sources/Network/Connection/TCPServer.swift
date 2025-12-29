@@ -1,5 +1,8 @@
 import Foundation
 import Network
+import os
+
+private let logger = Logger(subsystem: "com.snap.shared", category: "TCPServer")
 
 /// TCP 서버 델리게이트
 public protocol TCPServerDelegate: AnyObject, Sendable {
@@ -37,7 +40,10 @@ public final class TCPServer: @unchecked Sendable {
         parameters.prohibitedInterfaceTypes = [.cellular]
         parameters.allowLocalEndpointReuse = true
 
-        listener = try NWListener(using: parameters, on: NWEndpoint.Port(rawValue: port)!)
+        guard let nwPort = NWEndpoint.Port(rawValue: port) else {
+            throw NetworkError.connectionFailed(NSError(domain: "TCPServer", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid port"]))
+        }
+        listener = try NWListener(using: parameters, on: nwPort)
 
         listener?.stateUpdateHandler = { [weak self] state in
             self?.handleListenerState(state)
@@ -66,12 +72,12 @@ public final class TCPServer: @unchecked Sendable {
             break
 
         case .waiting(let error):
-            print("[TCP Server] Waiting: \(error.localizedDescription)")
+            logger.debug("Waiting: \(error.localizedDescription)")
 
         case .ready:
             isListening = true
             if let port = listener?.port {
-                print("[TCP Server] Listening on port \(port.rawValue)")
+                logger.info("Listening on port \(port.rawValue)")
             }
 
         case .failed(let error):

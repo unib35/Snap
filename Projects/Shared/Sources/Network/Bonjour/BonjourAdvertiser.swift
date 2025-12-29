@@ -1,5 +1,8 @@
 import Foundation
 import Network
+import os
+
+private let logger = Logger(subsystem: "com.snap.shared", category: "BonjourAdvertiser")
 
 /// Bonjour 광고자 델리게이트
 public protocol BonjourAdvertiserDelegate: AnyObject, Sendable {
@@ -19,7 +22,7 @@ public final class BonjourAdvertiser: @unchecked Sendable {
     private let port: UInt16
     private let queue: DispatchQueue
 
-    private var txtRecord: NWTXTRecord = NWTXTRecord()
+    private var txtRecord = NWTXTRecord()
 
     public private(set) var isAdvertising: Bool = false
 
@@ -50,7 +53,10 @@ public final class BonjourAdvertiser: @unchecked Sendable {
         let parameters = NWParameters.tcp
         parameters.allowLocalEndpointReuse = true
 
-        listener = try NWListener(using: parameters, on: NWEndpoint.Port(rawValue: port)!)
+        guard let nwPort = NWEndpoint.Port(rawValue: port) else {
+            throw NetworkError.connectionFailed(NSError(domain: "BonjourAdvertiser", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid port"]))
+        }
+        listener = try NWListener(using: parameters, on: nwPort)
 
         // Bonjour 서비스 등록
         listener?.service = NWListener.Service(
@@ -86,12 +92,12 @@ public final class BonjourAdvertiser: @unchecked Sendable {
             break
 
         case .waiting(let error):
-            print("[Bonjour Advertiser] Waiting: \(error.localizedDescription)")
+            logger.debug("Waiting: \(error.localizedDescription)")
 
         case .ready:
             isAdvertising = true
             if let port = listener?.port {
-                print("[Bonjour Advertiser] Advertising '\(serviceName)' on port \(port.rawValue)")
+                logger.info("Advertising '\(self.serviceName)' on port \(port.rawValue)")
             }
             delegate?.bonjourAdvertiserDidStart(self)
 
@@ -111,12 +117,12 @@ public final class BonjourAdvertiser: @unchecked Sendable {
         switch change {
         case .add(let endpoint):
             if case .service(let name, let type, let domain, _) = endpoint {
-                print("[Bonjour] Registered: \(name).\(type)\(domain)")
+                logger.info("Registered: \(name).\(type)\(domain)")
             }
 
         case .remove(let endpoint):
             if case .service(let name, let type, let domain, _) = endpoint {
-                print("[Bonjour] Unregistered: \(name).\(type)\(domain)")
+                logger.info("Unregistered: \(name).\(type)\(domain)")
             }
 
         @unknown default:

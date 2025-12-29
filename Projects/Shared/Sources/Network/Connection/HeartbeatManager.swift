@@ -30,7 +30,7 @@ public final class HeartbeatManager: @unchecked Sendable {
     private var timeoutTimer: DispatchSourceTimer?
     private let queue: DispatchQueue
 
-    private var lastReceivedTime: Date = Date()
+    private var lastReceivedTime = Date()
     private var isRunning: Bool = false
 
     // MARK: - Initialization
