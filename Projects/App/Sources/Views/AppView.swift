@@ -34,21 +34,21 @@ public struct AppView: View {
                             )
                         }
 
+                    MediaView(store: store.scope(state: \.media, action: \.media))
+                        .tag(AppFeature.Tab.media)
+                        .tabItem {
+                            Label(
+                                AppFeature.Tab.media.title,
+                                systemImage: AppFeature.Tab.media.icon
+                            )
+                        }
+
                     ProductivityTabView()
                         .tag(AppFeature.Tab.productivity)
                         .tabItem {
                             Label(
                                 AppFeature.Tab.productivity.title,
                                 systemImage: AppFeature.Tab.productivity.icon
-                            )
-                        }
-
-                    PresenterTabView()
-                        .tag(AppFeature.Tab.presenter)
-                        .tabItem {
-                            Label(
-                                AppFeature.Tab.presenter.title,
-                                systemImage: AppFeature.Tab.presenter.icon
                             )
                         }
                 }

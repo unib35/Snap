@@ -416,7 +416,7 @@ final class ServerManager: ObservableObject {
             logPacket("KeyCombo: \(combo.keyCodes)")
 
         case .mediaControl(let media, _):
-            // TODO: Implement media control
+            MediaController.shared.execute(command: media.command, volume: media.volume)
             logPacket("MediaControl: \(media.command)")
 
         case .windowSnap(let snap, _):
