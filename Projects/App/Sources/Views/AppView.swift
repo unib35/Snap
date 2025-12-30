@@ -17,11 +17,20 @@ public struct AppView: View {
                 // Main Content
                 TabView(selection: $store.selectedTab.sending(\.tabSelected)) {
                     TrackpadView(store: store.scope(state: \.trackpad, action: \.trackpad))
-                        .tag(AppFeature.Tab.essentials)
+                        .tag(AppFeature.Tab.trackpad)
                         .tabItem {
                             Label(
-                                AppFeature.Tab.essentials.title,
-                                systemImage: AppFeature.Tab.essentials.icon
+                                AppFeature.Tab.trackpad.title,
+                                systemImage: AppFeature.Tab.trackpad.icon
+                            )
+                        }
+
+                    KeyboardView(store: store.scope(state: \.keyboard, action: \.keyboard))
+                        .tag(AppFeature.Tab.keyboard)
+                        .tabItem {
+                            Label(
+                                AppFeature.Tab.keyboard.title,
+                                systemImage: AppFeature.Tab.keyboard.icon
                             )
                         }
 
