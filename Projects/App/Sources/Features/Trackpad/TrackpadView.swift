@@ -28,7 +28,13 @@ public struct TrackpadView: View {
             quickActions
                 .padding()
         }
-        .background(Color.black)
+        .background(
+            LinearGradient(
+                colors: [Color(white: 0.08), Color.black],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
     }
 
     // MARK: - Mode Toggle
@@ -47,10 +53,10 @@ public struct TrackpadView: View {
             }
         }
         .padding(4)
-        .background(Color.white.opacity(0.05))
+        .background(Color(white: 0.12))
         .clipShape(toggleShape)
         .overlay(
-            toggleShape.strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+            toggleShape.strokeBorder(Color.white.opacity(0.05), lineWidth: 1)
         )
     }
 
@@ -58,12 +64,12 @@ public struct TrackpadView: View {
 
     @ViewBuilder
     private var trackpadContent: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 0) {
             // Touch Area
             TrackpadTouchArea(store: store)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // Click Buttons
+            // Click Buttons - Inside the touch area at bottom
             HStack(spacing: 12) {
                 ClickButton(label: "L", isPrimary: true) {
                     store.send(.leftClickPressed)
@@ -79,6 +85,7 @@ public struct TrackpadView: View {
             }
             .frame(height: 64)
             .padding(.horizontal)
+            .padding(.bottom, 8)
         }
         .transition(.opacity.combined(with: .scale(scale: 0.98)))
     }
@@ -126,14 +133,14 @@ public struct TrackpadView: View {
     private var quickActions: some View {
         HStack(spacing: 12) {
             QuickActionButton(
-                icon: "magnifyingglass",
+                icon: "command",
                 label: "Cmd+Space"
             ) {
                 store.send(.spotlightPressed)
             }
 
             QuickActionButton(
-                icon: "rectangle.3.group",
+                icon: "square.grid.2x2",
                 label: "Mission Ctrl"
             ) {
                 store.send(.missionControlPressed)
@@ -171,6 +178,7 @@ struct ModeToggleButton: View {
                     .strokeBorder(borderColor, lineWidth: 1)
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
+            .shadow(color: shadowColor, radius: isSelected ? 8 : 0)
         }
         .buttonStyle(.plain)
         .pressEvents {
@@ -198,9 +206,9 @@ struct ModeToggleButton: View {
     private var background: AnyShapeStyle {
         if isSelected {
             if mode == .laser {
-                return AnyShapeStyle(Color.red.opacity(0.2))
+                return AnyShapeStyle(Color.red.opacity(0.15))
             }
-            return AnyShapeStyle(Color.white.opacity(0.1))
+            return AnyShapeStyle(Color(white: 0.18))
         }
         return AnyShapeStyle(Color.clear)
     }
@@ -214,66 +222,96 @@ struct ModeToggleButton: View {
         }
         return .clear
     }
+
+    private var shadowColor: Color {
+        if mode == .laser && isSelected {
+            return .red.opacity(0.3)
+        }
+        return .clear
+    }
 }
 
 // MARK: - Trackpad Touch Area
 
 struct TrackpadTouchArea: View {
     let store: StoreOf<TrackpadFeature>
+    @State private var pingAnimation = false
 
     var body: some View {
-        ZStack {
-            // Background
-            RoundedRectangle(cornerRadius: 24)
-                .fill(Color.white.opacity(0.03))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-                )
+        GeometryReader { _ in
+            ZStack {
+                // Background
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(Color(white: 0.06))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24)
+                            .strokeBorder(Color.white.opacity(0.05), lineWidth: 1)
+                    )
 
-            // Watermark
-            Text("TRACKPAD")
-                .font(.system(size: 28, weight: .black))
-                .foregroundStyle(Color.white.opacity(0.05))
-                .tracking(8)
-
-            // Touch indicator
-            if store.isTouching {
+                // Ping Animation (always animating in center)
                 Circle()
-                    .fill(Color.white.opacity(0.15))
-                    .frame(width: 100, height: 100)
-                    .blur(radius: 30)
-                    .position(store.lastTouchPosition)
-                    .animation(.easeOut(duration: 0.1), value: store.lastTouchPosition)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    .frame(width: 120, height: 120)
+                    .scaleEffect(pingAnimation ? 1.5 : 1.0)
+                    .opacity(pingAnimation ? 0 : 0.3)
+                    .animation(
+                        .easeOut(duration: 2.0).repeatForever(autoreverses: false),
+                        value: pingAnimation
+                    )
+
+                // Watermark
+                Text("TRACKPAD")
+                    .font(.system(size: 32, weight: .black))
+                    .foregroundStyle(Color.white.opacity(0.04))
+                    .tracking(10)
+
+                // Touch indicator - follows finger
+                if store.isTouching {
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [Color.white.opacity(0.25), Color.white.opacity(0)],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 60
+                            )
+                        )
+                        .frame(width: 120, height: 120)
+                        .position(store.lastTouchPosition)
+                        .animation(.interactiveSpring(response: 0.1), value: store.lastTouchPosition)
+                }
             }
-        }
-        .contentShape(Rectangle())
-        .gesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { value in
-                    if !store.isTouching {
-                        store.send(.touchBegan(value.location))
-                    } else {
-                        store.send(.touchMoved(value.location))
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        if !store.isTouching {
+                            store.send(.touchBegan(value.location))
+                        } else {
+                            store.send(.touchMoved(value.location))
+                        }
                     }
-                }
-                .onEnded { _ in
-                    store.send(.touchEnded)
-                }
-        )
-        .simultaneousGesture(
-            TapGesture()
-                .onEnded {
-                    store.send(.tapped)
-                }
-        )
-        .simultaneousGesture(
-            TapGesture(count: 2)
-                .onEnded {
-                    store.send(.doubleTapped)
-                }
-        )
+                    .onEnded { _ in
+                        store.send(.touchEnded)
+                    }
+            )
+            .simultaneousGesture(
+                TapGesture()
+                    .onEnded {
+                        store.send(.tapped)
+                    }
+            )
+            .simultaneousGesture(
+                TapGesture(count: 2)
+                    .onEnded {
+                        store.send(.doubleTapped)
+                    }
+            )
+        }
         .padding(.horizontal)
+        .onAppear {
+            pingAnimation = true
+        }
     }
 }
 
@@ -289,7 +327,7 @@ struct LaserControlArea: View {
         } else {
             return AnyShapeStyle(
                 LinearGradient(
-                    colors: [Color.white.opacity(0.15), Color.white.opacity(0.05)],
+                    colors: [Color(white: 0.15), Color(white: 0.08)],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -301,7 +339,7 @@ struct LaserControlArea: View {
         ZStack {
             // Background
             RoundedRectangle(cornerRadius: 24)
-                .fill(Color.white.opacity(0.02))
+                .fill(Color(white: 0.04))
                 .overlay(
                     RoundedRectangle(cornerRadius: 24)
                         .strokeBorder(Color.white.opacity(0.05), lineWidth: 1)
@@ -317,42 +355,46 @@ struct LaserControlArea: View {
 
                 // Laser Button
                 ZStack {
-                    // Glow effect
+                    // Outer glow (pulsing when active)
                     if isHolding {
                         Circle()
-                            .fill(Color.red.opacity(0.3))
-                            .frame(width: 200, height: 200)
-                            .blur(radius: 50)
+                            .fill(Color.red.opacity(0.2))
+                            .frame(width: 220, height: 220)
+                            .blur(radius: 40)
+                            .modifier(PulseModifier())
                     }
 
+                    // Button shadow glow
+                    Circle()
+                        .fill(Color.red.opacity(isHolding ? 0.5 : 0))
+                        .frame(width: 180, height: 180)
+                        .blur(radius: 30)
+
+                    // Main button
                     Circle()
                         .fill(laserButtonFill)
                         .frame(width: 160, height: 160)
                         .overlay(
                             Circle()
                                 .strokeBorder(
-                                    isHolding ? Color.red.opacity(0.5) : Color.white.opacity(0.1),
+                                    isHolding ? Color.red.opacity(0.6) : Color.white.opacity(0.1),
                                     lineWidth: 2
                                 )
                         )
                         .scaleEffect(isHolding ? 0.95 : 1.0)
-                        .shadow(
-                            color: isHolding ? Color.red.opacity(0.5) : Color.clear,
-                            radius: 30
-                        )
 
                     VStack(spacing: 8) {
                         Image(systemName: "scope")
-                            .font(.system(size: 40, weight: .medium))
+                            .font(.system(size: 44, weight: .medium))
                             .foregroundStyle(isHolding ? .white : .red)
 
                         Text(isHolding ? "GYRO ACTIVE" : "HOLD TO MOVE")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(isHolding ? .white : .gray)
                             .tracking(1)
                     }
                 }
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isHolding)
+                .animation(.spring(response: 0.25, dampingFraction: 0.6), value: isHolding)
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { _ in
@@ -373,6 +415,25 @@ struct LaserControlArea: View {
     }
 }
 
+// MARK: - Pulse Modifier
+
+struct PulseModifier: ViewModifier {
+    @State private var isPulsing = false
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(isPulsing ? 1.1 : 1.0)
+            .opacity(isPulsing ? 0.7 : 1.0)
+            .animation(
+                .easeInOut(duration: 0.8).repeatForever(autoreverses: true),
+                value: isPulsing
+            )
+            .onAppear {
+                isPulsing = true
+            }
+    }
+}
+
 // MARK: - Click Button
 
 struct ClickButton: View {
@@ -385,19 +446,19 @@ struct ClickButton: View {
 
     var body: some View {
         Text(label)
-            .font(.system(size: 18, weight: .bold))
-            .foregroundStyle(isPrimary ? .blue : Color.white.opacity(0.6))
+            .font(.system(size: 16, weight: .bold))
+            .foregroundStyle(isPrimary ? .white : Color.white.opacity(0.5))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(isPressed ? Color.white.opacity(0.15) : Color.white.opacity(0.05))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                            .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
                     )
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
-            .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isPressed)
+            .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { _ in
@@ -428,8 +489,8 @@ struct LaserClickButton: View {
     var body: some View {
         VStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 22, weight: .medium))
-                .foregroundStyle(color)
+                .font(.system(size: 24, weight: .medium))
+                .foregroundStyle(isPressed ? .white : color)
 
             Text(label)
                 .font(.system(size: 10, weight: .bold))
@@ -438,14 +499,14 @@ struct LaserClickButton: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(isPressed ? Color.white.opacity(0.15) : Color.white.opacity(0.05))
+                .fill(isPressed ? Color.white.opacity(0.15) : Color(white: 0.08))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                        .strokeBorder(Color.white.opacity(0.05), lineWidth: 1)
                 )
         )
         .scaleEffect(isPressed ? 0.95 : 1.0)
-        .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isPressed)
+        .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in
@@ -475,7 +536,7 @@ struct QuickActionButton: View {
         Button(action: action) {
             VStack(spacing: 8) {
                 Image(systemName: icon)
-                    .font(.system(size: 22, weight: .medium))
+                    .font(.system(size: 24, weight: .medium))
                     .foregroundStyle(Color.white.opacity(0.7))
 
                 Text(label)
@@ -485,21 +546,21 @@ struct QuickActionButton: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .background(Color.white.opacity(0.05))
+            .background(Color(white: 0.1))
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(0.05), lineWidth: 1)
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
         .buttonStyle(.plain)
         .pressEvents {
-            withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
+            withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
                 isPressed = true
             }
         } onRelease: {
-            withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
+            withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
                 isPressed = false
             }
         }
