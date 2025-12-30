@@ -7,7 +7,8 @@ public struct AppFeature {
     public struct State: Equatable {
         public var connection: ConnectionFeature.State = .init()
         public var trackpad: TrackpadFeature.State = .init()
-        public var selectedTab: Tab = .essentials
+        public var keyboard: KeyboardFeature.State = .init()
+        public var selectedTab: Tab = .trackpad
         public var isOnboarded: Bool = false
         public var isConnectionSheetPresented: Bool = false
         public var isSettingsPresented: Bool = false
@@ -17,13 +18,15 @@ public struct AppFeature {
     }
 
     public enum Tab: String, CaseIterable, Sendable {
-        case essentials
+        case trackpad
+        case keyboard
         case productivity
         case presenter
 
         public var title: String {
             switch self {
-            case .essentials: return "Essentials"
+            case .trackpad: return "Trackpad"
+            case .keyboard: return "Keyboard"
             case .productivity: return "Productivity"
             case .presenter: return "Presenter"
             }
@@ -31,7 +34,8 @@ public struct AppFeature {
 
         public var icon: String {
             switch self {
-            case .essentials: return "hand.tap"
+            case .trackpad: return "hand.tap"
+            case .keyboard: return "keyboard"
             case .productivity: return "square.grid.2x2"
             case .presenter: return "person.wave.2"
             }
@@ -41,6 +45,7 @@ public struct AppFeature {
     public enum Action {
         case connection(ConnectionFeature.Action)
         case trackpad(TrackpadFeature.Action)
+        case keyboard(KeyboardFeature.Action)
         case settings(SettingsFeature.Action)
         case tabSelected(Tab)
         case onAppear
@@ -60,6 +65,10 @@ public struct AppFeature {
 
         Scope(state: \.trackpad, action: \.trackpad) {
             TrackpadFeature()
+        }
+
+        Scope(state: \.keyboard, action: \.keyboard) {
+            KeyboardFeature()
         }
 
         Scope(state: \.settings, action: \.settings) {
@@ -106,6 +115,9 @@ public struct AppFeature {
                 return .none
 
             case .trackpad:
+                return .none
+
+            case .keyboard:
                 return .none
 
             case .settings:
