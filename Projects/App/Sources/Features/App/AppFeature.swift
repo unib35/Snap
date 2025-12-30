@@ -8,6 +8,7 @@ public struct AppFeature {
         public var connection: ConnectionFeature.State = .init()
         public var trackpad: TrackpadFeature.State = .init()
         public var keyboard: KeyboardFeature.State = .init()
+        public var media: MediaFeature.State = .init()
         public var selectedTab: Tab = .trackpad
         public var isOnboarded: Bool = false
         public var isConnectionSheetPresented: Bool = false
@@ -20,15 +21,15 @@ public struct AppFeature {
     public enum Tab: String, CaseIterable, Sendable {
         case trackpad
         case keyboard
+        case media
         case productivity
-        case presenter
 
         public var title: String {
             switch self {
             case .trackpad: return "Trackpad"
             case .keyboard: return "Keyboard"
-            case .productivity: return "Productivity"
-            case .presenter: return "Presenter"
+            case .media: return "Media"
+            case .productivity: return "More"
             }
         }
 
@@ -36,8 +37,8 @@ public struct AppFeature {
             switch self {
             case .trackpad: return "hand.tap"
             case .keyboard: return "keyboard"
-            case .productivity: return "square.grid.2x2"
-            case .presenter: return "person.wave.2"
+            case .media: return "music.note"
+            case .productivity: return "ellipsis"
             }
         }
     }
@@ -46,6 +47,7 @@ public struct AppFeature {
         case connection(ConnectionFeature.Action)
         case trackpad(TrackpadFeature.Action)
         case keyboard(KeyboardFeature.Action)
+        case media(MediaFeature.Action)
         case settings(SettingsFeature.Action)
         case tabSelected(Tab)
         case onAppear
@@ -69,6 +71,10 @@ public struct AppFeature {
 
         Scope(state: \.keyboard, action: \.keyboard) {
             KeyboardFeature()
+        }
+
+        Scope(state: \.media, action: \.media) {
+            MediaFeature()
         }
 
         Scope(state: \.settings, action: \.settings) {
@@ -118,6 +124,9 @@ public struct AppFeature {
                 return .none
 
             case .keyboard:
+                return .none
+
+            case .media:
                 return .none
 
             case .settings:
