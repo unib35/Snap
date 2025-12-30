@@ -15,44 +15,43 @@ public struct TrackpadView: View {
                 .padding()
 
             // Main Content
-            if store.mode == .trackpad {
-                trackpadContent
-            } else {
-                laserContent
+            Group {
+                if store.mode == .trackpad {
+                    trackpadContent
+                } else {
+                    laserContent
+                }
             }
+            .animation(.easeInOut(duration: 0.3), value: store.mode)
 
             // Quick Actions
             quickActions
                 .padding()
         }
-        .background(Color(.systemBackground))
+        .background(Color.black)
     }
 
     // MARK: - Mode Toggle
 
-    @ViewBuilder
     private var modeToggle: some View {
-        HStack(spacing: 0) {
+        let toggleShape = RoundedRectangle(cornerRadius: 14)
+
+        return HStack(spacing: 4) {
             ForEach(TrackpadFeature.InputMode.allCases, id: \.self) { mode in
-                Button {
-                    store.send(.modeChanged(mode))
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: mode == .trackpad ? "hand.point.up.left" : "scope")
-                            .font(.system(size: 14, weight: .medium))
-                        Text(mode.title)
-                            .font(.system(size: 14, weight: .semibold))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(store.mode == mode ? Color(.systemGray5) : Color.clear)
-                    .foregroundStyle(store.mode == mode ? .primary : .secondary)
+                ModeToggleButton(
+                    mode: mode,
+                    isSelected: store.mode == mode
+                ) {
+                    store.send(.modeChanged(mode), animation: .spring(response: 0.3, dampingFraction: 0.7))
                 }
-                .buttonStyle(.plain)
             }
         }
-        .background(Color(.systemGray6))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .padding(4)
+        .background(Color.white.opacity(0.05))
+        .clipShape(toggleShape)
+        .overlay(
+            toggleShape.strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+        )
     }
 
     // MARK: - Trackpad Content
@@ -65,69 +64,155 @@ public struct TrackpadView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // Click Buttons
-            HStack(spacing: 16) {
-                // Left Click
+            HStack(spacing: 12) {
                 ClickButton(label: "L", isPrimary: true) {
                     store.send(.leftClickPressed)
                 } onRelease: {
                     store.send(.leftClickReleased)
                 }
 
-                // Right Click
                 ClickButton(label: "R", isPrimary: false) {
                     store.send(.rightClickPressed)
                 } onRelease: {
                     store.send(.rightClickReleased)
                 }
             }
-            .frame(height: 60)
+            .frame(height: 64)
             .padding(.horizontal)
         }
+        .transition(.opacity.combined(with: .scale(scale: 0.98)))
     }
 
-    // MARK: - Laser Content (Placeholder)
+    // MARK: - Laser Content
 
     @ViewBuilder
     private var laserContent: some View {
-        VStack(spacing: 20) {
-            Spacer()
+        VStack(spacing: 16) {
+            // Gyro Control Area
+            LaserControlArea(store: store)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            Image(systemName: "scope")
-                .font(.system(size: 80))
-                .foregroundStyle(.red.opacity(0.5))
+            // Click Buttons
+            HStack(spacing: 12) {
+                LaserClickButton(
+                    icon: "cursorarrow.click",
+                    label: "Left Click",
+                    color: .blue
+                ) {
+                    store.send(.leftClickPressed)
+                } onRelease: {
+                    store.send(.leftClickReleased)
+                }
 
-            Text("Laser Mode")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Text("Coming Soon")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            Spacer()
+                LaserClickButton(
+                    icon: "cursorarrow.click",
+                    label: "Right Click",
+                    color: .gray
+                ) {
+                    store.send(.rightClickPressed)
+                } onRelease: {
+                    store.send(.rightClickReleased)
+                }
+            }
+            .frame(height: 80)
+            .padding(.horizontal)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .transition(.opacity.combined(with: .scale(scale: 0.98)))
     }
 
     // MARK: - Quick Actions
 
     @ViewBuilder
     private var quickActions: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             QuickActionButton(
                 icon: "magnifyingglass",
-                label: "Spotlight"
+                label: "Cmd+Space"
             ) {
                 store.send(.spotlightPressed)
             }
 
             QuickActionButton(
                 icon: "rectangle.3.group",
-                label: "Mission Control"
+                label: "Mission Ctrl"
             ) {
                 store.send(.missionControlPressed)
             }
         }
+    }
+}
+
+// MARK: - Mode Toggle Button
+
+struct ModeToggleButton: View {
+    let mode: TrackpadFeature.InputMode
+    let isSelected: Bool
+    let action: () -> Void
+
+    @State private var isPressed = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: mode == .trackpad ? "hand.point.up.left" : "scope")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(iconColor)
+
+                Text(mode.title)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(textColor)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(background)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(borderColor, lineWidth: 1)
+            )
+            .scaleEffect(isPressed ? 0.95 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .pressEvents {
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isPressed = true
+            }
+        } onRelease: {
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isPressed = false
+            }
+        }
+    }
+
+    private var iconColor: Color {
+        if mode == .laser && isSelected {
+            return .red
+        }
+        return isSelected ? .white : .gray
+    }
+
+    private var textColor: Color {
+        isSelected ? .white : .gray
+    }
+
+    private var background: AnyShapeStyle {
+        if isSelected {
+            if mode == .laser {
+                return AnyShapeStyle(Color.red.opacity(0.2))
+            }
+            return AnyShapeStyle(Color.white.opacity(0.1))
+        }
+        return AnyShapeStyle(Color.clear)
+    }
+
+    private var borderColor: Color {
+        if isSelected {
+            if mode == .laser {
+                return .red.opacity(0.3)
+            }
+            return .white.opacity(0.1)
+        }
+        return .clear
     }
 }
 
@@ -137,65 +222,152 @@ struct TrackpadTouchArea: View {
     let store: StoreOf<TrackpadFeature>
 
     var body: some View {
-        GeometryReader { _ in
-            ZStack {
-                // Background
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color(.systemGray6))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .strokeBorder(Color(.systemGray4), lineWidth: 1)
-                    )
+        ZStack {
+            // Background
+            RoundedRectangle(cornerRadius: 24)
+                .fill(Color.white.opacity(0.03))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                )
 
-                // Watermark
-                Text("TRACKPAD")
-                    .font(.system(size: 32, weight: .black))
-                    .foregroundStyle(.quaternary)
-                    .tracking(8)
+            // Watermark
+            Text("TRACKPAD")
+                .font(.system(size: 28, weight: .black))
+                .foregroundStyle(Color.white.opacity(0.05))
+                .tracking(8)
 
-                // Touch indicator
-                if store.isTouching {
-                    Circle()
-                        .fill(Color.blue.opacity(0.3))
-                        .frame(width: 80, height: 80)
-                        .blur(radius: 20)
-                        .position(store.lastTouchPosition)
-                }
+            // Touch indicator
+            if store.isTouching {
+                Circle()
+                    .fill(Color.white.opacity(0.15))
+                    .frame(width: 100, height: 100)
+                    .blur(radius: 30)
+                    .position(store.lastTouchPosition)
+                    .animation(.easeOut(duration: 0.1), value: store.lastTouchPosition)
             }
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        if !store.isTouching {
-                            store.send(.touchBegan(value.location))
-                        } else {
-                            store.send(.touchMoved(value.location))
+        }
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    if !store.isTouching {
+                        store.send(.touchBegan(value.location))
+                    } else {
+                        store.send(.touchMoved(value.location))
+                    }
+                }
+                .onEnded { _ in
+                    store.send(.touchEnded)
+                }
+        )
+        .simultaneousGesture(
+            TapGesture()
+                .onEnded {
+                    store.send(.tapped)
+                }
+        )
+        .simultaneousGesture(
+            TapGesture(count: 2)
+                .onEnded {
+                    store.send(.doubleTapped)
+                }
+        )
+        .padding(.horizontal)
+    }
+}
+
+// MARK: - Laser Control Area
+
+struct LaserControlArea: View {
+    let store: StoreOf<TrackpadFeature>
+    @State private var isHolding = false
+
+    private var laserButtonFill: AnyShapeStyle {
+        if isHolding {
+            return AnyShapeStyle(Color.red)
+        } else {
+            return AnyShapeStyle(
+                LinearGradient(
+                    colors: [Color.white.opacity(0.15), Color.white.opacity(0.05)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            // Background
+            RoundedRectangle(cornerRadius: 24)
+                .fill(Color.white.opacity(0.02))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .strokeBorder(Color.white.opacity(0.05), lineWidth: 1)
+                )
+
+            VStack(spacing: 8) {
+                Text("GYRO CONTROL")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Color.gray)
+                    .tracking(2)
+
+                Spacer()
+
+                // Laser Button
+                ZStack {
+                    // Glow effect
+                    if isHolding {
+                        Circle()
+                            .fill(Color.red.opacity(0.3))
+                            .frame(width: 200, height: 200)
+                            .blur(radius: 50)
+                    }
+
+                    Circle()
+                        .fill(laserButtonFill)
+                        .frame(width: 160, height: 160)
+                        .overlay(
+                            Circle()
+                                .strokeBorder(
+                                    isHolding ? Color.red.opacity(0.5) : Color.white.opacity(0.1),
+                                    lineWidth: 2
+                                )
+                        )
+                        .scaleEffect(isHolding ? 0.95 : 1.0)
+                        .shadow(
+                            color: isHolding ? Color.red.opacity(0.5) : Color.clear,
+                            radius: 30
+                        )
+
+                    VStack(spacing: 8) {
+                        Image(systemName: "scope")
+                            .font(.system(size: 40, weight: .medium))
+                            .foregroundStyle(isHolding ? .white : .red)
+
+                        Text(isHolding ? "GYRO ACTIVE" : "HOLD TO MOVE")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(isHolding ? .white : .gray)
+                            .tracking(1)
+                    }
+                }
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isHolding)
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in
+                            if !isHolding {
+                                isHolding = true
+                            }
                         }
-                    }
-                    .onEnded { _ in
-                        store.send(.touchEnded)
-                    }
-            )
-            .simultaneousGesture(
-                TapGesture()
-                    .onEnded {
-                        store.send(.tapped)
-                    }
-            )
-            .simultaneousGesture(
-                TapGesture(count: 2)
-                    .onEnded {
-                        store.send(.doubleTapped)
-                    }
-            )
-            .highPriorityGesture(
-                MagnifyGesture()
-                    .onChanged { value in
-                        // Two-finger scroll approximation
-                        let delta = Float(value.magnification - 1) * 10
-                        store.send(.scrolled(deltaX: 0, deltaY: CGFloat(delta)))
-                    }
-            )
+                        .onEnded { _ in
+                            isHolding = false
+                        }
+                )
+
+                Spacer()
+            }
+            .padding()
         }
         .padding(.horizontal)
     }
@@ -214,30 +386,79 @@ struct ClickButton: View {
     var body: some View {
         Text(label)
             .font(.system(size: 18, weight: .bold))
-            .foregroundStyle(isPrimary ? .blue : .secondary)
+            .foregroundStyle(isPrimary ? .blue : Color.white.opacity(0.6))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(isPressed ? Color(.systemGray4) : Color(.systemGray6))
+                    .fill(isPressed ? Color.white.opacity(0.15) : Color.white.opacity(0.05))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .strokeBorder(Color(.systemGray4), lineWidth: 1)
+                            .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
                     )
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: isPressed)
-            .onLongPressGesture(
-                minimumDuration: .infinity,
-                pressing: { pressing in
-                    isPressed = pressing
-                    if pressing {
-                        onPress()
-                    } else {
+            .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isPressed)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        if !isPressed {
+                            isPressed = true
+                            onPress()
+                        }
+                    }
+                    .onEnded { _ in
+                        isPressed = false
                         onRelease()
                     }
-                },
-                perform: {}
             )
+    }
+}
+
+// MARK: - Laser Click Button
+
+struct LaserClickButton: View {
+    let icon: String
+    let label: String
+    let color: Color
+    let onPress: () -> Void
+    let onRelease: () -> Void
+
+    @State private var isPressed = false
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 22, weight: .medium))
+                .foregroundStyle(color)
+
+            Text(label)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(Color.white.opacity(0.7))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(isPressed ? Color.white.opacity(0.15) : Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                )
+        )
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isPressed)
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    if !isPressed {
+                        isPressed = true
+                        onPress()
+                    }
+                }
+                .onEnded { _ in
+                    isPressed = false
+                    onRelease()
+                }
+        )
     }
 }
 
@@ -248,24 +469,62 @@ struct QuickActionButton: View {
     let label: String
     let action: () -> Void
 
+    @State private var isPressed = false
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
                 Image(systemName: icon)
-                    .font(.system(size: 24))
-                    .foregroundStyle(.primary)
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.7))
 
                 Text(label)
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Color.gray)
                     .textCase(.uppercase)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .background(Color(.systemGray6))
+            .background(Color.white.opacity(0.05))
             .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+            )
+            .scaleEffect(isPressed ? 0.95 : 1.0)
         }
         .buttonStyle(.plain)
+        .pressEvents {
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
+                isPressed = true
+            }
+        } onRelease: {
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
+                isPressed = false
+            }
+        }
+    }
+}
+
+// MARK: - Press Events Modifier
+
+struct PressEventsModifier: ViewModifier {
+    var onPress: () -> Void
+    var onRelease: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in onPress() }
+                    .onEnded { _ in onRelease() }
+            )
+    }
+}
+
+extension View {
+    func pressEvents(onPress: @escaping () -> Void, onRelease: @escaping () -> Void) -> some View {
+        modifier(PressEventsModifier(onPress: onPress, onRelease: onRelease))
     }
 }
 
@@ -275,4 +534,5 @@ struct QuickActionButton: View {
             TrackpadFeature()
         }
     )
+    .preferredColorScheme(.dark)
 }
