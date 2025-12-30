@@ -9,6 +9,7 @@ public struct AppFeature {
         public var trackpad: TrackpadFeature.State = .init()
         public var keyboard: KeyboardFeature.State = .init()
         public var media: MediaFeature.State = .init()
+        public var productivity: ProductivityFeature.State = .init()
         public var selectedTab: Tab = .trackpad
         public var isOnboarded: Bool = false
         public var isConnectionSheetPresented: Bool = false
@@ -48,6 +49,7 @@ public struct AppFeature {
         case trackpad(TrackpadFeature.Action)
         case keyboard(KeyboardFeature.Action)
         case media(MediaFeature.Action)
+        case productivity(ProductivityFeature.Action)
         case settings(SettingsFeature.Action)
         case tabSelected(Tab)
         case onAppear
@@ -75,6 +77,10 @@ public struct AppFeature {
 
         Scope(state: \.media, action: \.media) {
             MediaFeature()
+        }
+
+        Scope(state: \.productivity, action: \.productivity) {
+            ProductivityFeature()
         }
 
         Scope(state: \.settings, action: \.settings) {
@@ -127,6 +133,9 @@ public struct AppFeature {
                 return .none
 
             case .media:
+                return .none
+
+            case .productivity:
                 return .none
 
             case .settings:

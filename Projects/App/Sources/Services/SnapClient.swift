@@ -146,6 +146,14 @@ public final class SnapClient: @unchecked Sendable {
         tcpConnection?.send(focus, type: .appFocus)
     }
 
+    /// Siri 명령 전송 (TCP)
+    public func sendSiriCommand(action: SiriCommand.Action, text: String = "") {
+        guard isConnected else { return }
+
+        let command = SiriCommand(action: action, text: text)
+        tcpConnection?.send(command, type: .siriCommand)
+    }
+
     // MARK: - Private Methods
 
     private static func getDeviceID() -> String {

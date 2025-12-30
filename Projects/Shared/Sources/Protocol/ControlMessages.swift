@@ -78,3 +78,22 @@ public struct VoiceText: Codable, Sendable, Equatable {
         self.isFinal = isFinal
     }
 }
+
+// MARK: - SiriCommand
+
+/// Siri 호출 제어
+public struct SiriCommand: Codable, Sendable, Equatable {
+    public enum Action: Int, Codable, Sendable, CaseIterable {
+        case activate = 0     // Siri 활성화
+        case deactivate = 1   // Siri 비활성화
+        case dictation = 2    // 받아쓰기 모드
+    }
+
+    public var action: Action
+    public var text: String   // dictation 모드에서 전달할 텍스트
+
+    public init(action: Action = .activate, text: String = "") {
+        self.action = action
+        self.text = text
+    }
+}

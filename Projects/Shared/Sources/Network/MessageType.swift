@@ -33,6 +33,8 @@ public enum MessageType: UInt8, Sendable {
     case presentation = 0x60
     /// 음성 텍스트
     case voiceText = 0x70
+    /// Siri 호출
+    case siriCommand = 0x71
 
     // MARK: - 시스템 메시지 (0x80 ~ 0xFF)
 

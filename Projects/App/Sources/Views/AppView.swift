@@ -43,7 +43,7 @@ public struct AppView: View {
                             )
                         }
 
-                    ProductivityTabView()
+                    ProductivityView(store: store.scope(state: \.productivity, action: \.productivity))
                         .tag(AppFeature.Tab.productivity)
                         .tabItem {
                             Label(
