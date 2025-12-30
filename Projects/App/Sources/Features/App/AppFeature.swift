@@ -6,6 +6,7 @@ public struct AppFeature {
     @ObservableState
     public struct State: Equatable {
         public var connection: ConnectionFeature.State = .init()
+        public var trackpad: TrackpadFeature.State = .init()
         public var selectedTab: Tab = .essentials
         public var isOnboarded: Bool = false
         public var isConnectionSheetPresented: Bool = false
@@ -39,6 +40,7 @@ public struct AppFeature {
 
     public enum Action {
         case connection(ConnectionFeature.Action)
+        case trackpad(TrackpadFeature.Action)
         case settings(SettingsFeature.Action)
         case tabSelected(Tab)
         case onAppear
@@ -54,6 +56,10 @@ public struct AppFeature {
     public var body: some ReducerOf<Self> {
         Scope(state: \.connection, action: \.connection) {
             ConnectionFeature()
+        }
+
+        Scope(state: \.trackpad, action: \.trackpad) {
+            TrackpadFeature()
         }
 
         Scope(state: \.settings, action: \.settings) {
@@ -97,6 +103,9 @@ public struct AppFeature {
                 return .none
 
             case .connection:
+                return .none
+
+            case .trackpad:
                 return .none
 
             case .settings:

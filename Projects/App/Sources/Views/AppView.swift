@@ -16,7 +16,7 @@ public struct AppView: View {
 
                 // Main Content
                 TabView(selection: $store.selectedTab.sending(\.tabSelected)) {
-                    EssentialsTabView()
+                    TrackpadView(store: store.scope(state: \.trackpad, action: \.trackpad))
                         .tag(AppFeature.Tab.essentials)
                         .tabItem {
                             Label(
@@ -209,26 +209,6 @@ struct ConnectionStatusBar: View {
 }
 
 // MARK: - Tab Placeholder Views
-
-struct EssentialsTabView: View {
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "hand.tap")
-                .font(.system(size: 60))
-                .foregroundStyle(.blue)
-
-            Text("Essentials")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Text("Trackpad, Keyboard, Media Controls")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemBackground))
-    }
-}
 
 struct ProductivityTabView: View {
     var body: some View {
