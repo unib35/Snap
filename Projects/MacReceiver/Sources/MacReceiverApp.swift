@@ -424,12 +424,14 @@ final class ServerManager: ObservableObject {
             logPacket("WindowSnap: \(snap.position)")
 
         case .appListRequest:
-            // TODO: Send app list response
-            logPacket("AppListRequest")
+            let apps = AppController.shared.getRunningApps()
+            let response = AppListResponse(apps: apps)
+            server?.sendAppListResponse(response)
+            logPacket("AppListRequest: sent \(apps.count) apps")
 
         case .appFocus(let focus, _):
-            // TODO: Focus app
-            logPacket("AppFocus: \(focus.bundleID)")
+            let success = AppController.shared.focusApp(bundleID: focus.bundleID, pid: focus.pid)
+            logPacket("AppFocus: \(focus.bundleID) - \(success ? "success" : "failed")")
 
         case .presentation(let pres, _):
             // TODO: Presentation control
