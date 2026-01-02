@@ -46,6 +46,20 @@ Uses Accessibility API (`AXUIElement`) and `CGEvent` for system control. Require
 - macOS 14.0+
 - Swift 6.0
 
+## Design Guidelines
+
+UI/UX 디자인 시 **Apple Human Interface Guidelines (HIG)**를 반드시 준수합니다.
+
+- iOS: https://developer.apple.com/design/human-interface-guidelines/ios
+- macOS: https://developer.apple.com/design/human-interface-guidelines/macos
+
+**주요 원칙:**
+- 시스템 컴포넌트 우선 사용 (SF Symbols, 표준 컨트롤)
+- 다크 모드 / 라이트 모드 대응
+- Dynamic Type 지원
+- 접근성(Accessibility) 고려
+- 플랫폼별 네비게이션 패턴 준수
+
 ## Code Quality Tools
 
 ### SwiftLint
