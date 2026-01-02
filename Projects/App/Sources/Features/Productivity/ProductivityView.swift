@@ -12,19 +12,31 @@ public struct ProductivityView: View {
     public var body: some View {
         ScrollView {
             VStack(spacing: 24) {
+                // Macro Pad Section
+                macroSection
+
                 // Siri Section
                 siriSection
 
-                // Window Snap Section (Placeholder)
+                // Window Snap Section
                 windowSnapSection
 
-                // App Switcher Section (Placeholder)
+                // App Switcher Section
                 appSwitcherSection
             }
             .padding()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(.systemBackground))
+    }
+
+    // MARK: - Macro Section
+
+    @ViewBuilder
+    private var macroSection: some View {
+        MacroPadSection(
+            store: store.scope(state: \.macro, action: \.macro)
+        )
     }
 
     // MARK: - Siri Section
