@@ -26,7 +26,7 @@ public struct MediaView: View {
             Spacer()
         }
         .padding()
-        .background(Color.black)
+        .background(Color(.systemBackground))
     }
 
     // MARK: - Now Playing Area
@@ -35,22 +35,23 @@ public struct MediaView: View {
         VStack(spacing: 16) {
             // Album Art Placeholder
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.1))
+                .fill(Color(.secondarySystemBackground))
                 .frame(width: 200, height: 200)
                 .overlay(
                     Image(systemName: "music.note")
                         .font(.system(size: 60))
-                        .foregroundStyle(Color.white.opacity(0.3))
+                        .foregroundStyle(Color(.tertiaryLabel))
                 )
+                .accessibilityLabel("앨범 아트")
 
             VStack(spacing: 4) {
                 Text("Not Playing")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color(.label))
 
                 Text("Select a track to play")
                     .font(.system(size: 14))
-                    .foregroundStyle(Color.white.opacity(0.6))
+                    .foregroundStyle(Color(.secondaryLabel))
             }
         }
     }
@@ -62,7 +63,8 @@ public struct MediaView: View {
             // Previous Track
             MediaButton(
                 icon: "backward.fill",
-                size: 28
+                size: 28,
+                accessibilityLabel: "이전 트랙"
             ) {
                 store.send(.previousTrackTapped)
             }
@@ -71,7 +73,8 @@ public struct MediaView: View {
             MediaButton(
                 icon: store.isPlaying ? "pause.fill" : "play.fill",
                 size: 40,
-                isPrimary: true
+                isPrimary: true,
+                accessibilityLabel: store.isPlaying ? "일시정지" : "재생"
             ) {
                 store.send(.playPauseTapped)
             }
@@ -79,7 +82,8 @@ public struct MediaView: View {
             // Next Track
             MediaButton(
                 icon: "forward.fill",
-                size: 28
+                size: 28,
+                accessibilityLabel: "다음 트랙"
             ) {
                 store.send(.nextTrackTapped)
             }
@@ -97,15 +101,18 @@ public struct MediaView: View {
                 } label: {
                     Image(systemName: "speaker.fill")
                         .font(.system(size: 16))
-                        .foregroundStyle(Color.white.opacity(0.7))
+                        .foregroundStyle(Color(.secondaryLabel))
                 }
+                .accessibilityLabel("볼륨 줄이기")
 
                 // Volume Slider
                 Slider(
                     value: $store.volume.sending(\.volumeChanged),
                     in: 0...1
                 )
-                .tint(.white)
+                .tint(.accentColor)
+                .accessibilityLabel("볼륨")
+                .accessibilityValue("\(Int(store.volume * 100))%")
 
                 // Volume Up
                 Button {
@@ -113,8 +120,9 @@ public struct MediaView: View {
                 } label: {
                     Image(systemName: "speaker.wave.3.fill")
                         .font(.system(size: 16))
-                        .foregroundStyle(Color.white.opacity(0.7))
+                        .foregroundStyle(Color(.secondaryLabel))
                 }
+                .accessibilityLabel("볼륨 높이기")
             }
             .padding(.horizontal)
 
@@ -129,12 +137,17 @@ public struct MediaView: View {
                     Text(store.isMuted ? "Unmute" : "Mute")
                         .font(.system(size: 14, weight: .medium))
                 }
-                .foregroundStyle(store.isMuted ? .red : Color.white.opacity(0.7))
+                .foregroundStyle(store.isMuted ? .red : Color(.secondaryLabel))
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)
-                .background(Color.white.opacity(0.1))
+                .background(Color(.secondarySystemBackground))
                 .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .strokeBorder(Color(.separator), lineWidth: 1)
+                )
             }
+            .accessibilityLabel(store.isMuted ? "음소거 해제" : "음소거")
         }
     }
 }
@@ -145,6 +158,7 @@ struct MediaButton: View {
     let icon: String
     let size: CGFloat
     var isPrimary: Bool = false
+    var accessibilityLabel: String = ""
     let action: () -> Void
 
     @State private var isPressed = false
@@ -153,17 +167,18 @@ struct MediaButton: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: size, weight: .medium))
-                .foregroundStyle(.white)
+                .foregroundStyle(Color(.label))
                 .frame(width: buttonSize, height: buttonSize)
                 .background(backgroundColor)
                 .clipShape(Circle())
                 .overlay(
                     Circle()
-                        .strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
+                        .strokeBorder(Color(.separator), lineWidth: 1)
                 )
                 .scaleEffect(isPressed ? 0.9 : 1.0)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
         .pressEvents {
             withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
                 isPressed = true
@@ -180,7 +195,7 @@ struct MediaButton: View {
     }
 
     private var backgroundColor: Color {
-        isPrimary ? Color.white.opacity(0.2) : Color.white.opacity(0.1)
+        isPrimary ? Color(.tertiarySystemBackground) : Color(.secondarySystemBackground)
     }
 }
 
@@ -190,5 +205,4 @@ struct MediaButton: View {
             MediaFeature()
         }
     )
-    .preferredColorScheme(.dark)
 }

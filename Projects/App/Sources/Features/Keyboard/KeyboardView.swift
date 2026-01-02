@@ -29,7 +29,7 @@ public struct KeyboardView: View {
             arrowKeys
                 .padding()
         }
-        .background(Color.black)
+        .background(Color(.systemBackground))
     }
 
     // MARK: - Text Input Area
@@ -40,23 +40,26 @@ public struct KeyboardView: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 18))
                 .padding()
-                .background(Color.white.opacity(0.1))
+                .background(Color(.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+                        .strokeBorder(Color(.separator), lineWidth: 1)
                 )
-                .foregroundStyle(.white)
+                .foregroundStyle(Color(.label))
                 .focused($isTextFieldFocused)
+                .accessibilityLabel("텍스트 입력")
+                .accessibilityHint("Mac으로 보낼 텍스트를 입력하세요")
 
             Button {
                 store.send(.clearText)
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 24))
-                    .foregroundStyle(Color.white.opacity(0.5))
+                    .foregroundStyle(Color(.tertiaryLabel))
             }
             .opacity(store.inputText.isEmpty ? 0 : 1)
+            .accessibilityLabel("텍스트 지우기")
         }
     }
 
@@ -138,17 +141,18 @@ public struct KeyboardView: View {
             } label: {
                 Text("Space")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color(.label))
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
-                    .background(Color.white.opacity(0.1))
+                    .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
+                            .strokeBorder(Color(.separator), lineWidth: 1)
                     )
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("스페이스 키")
         }
     }
 
@@ -231,28 +235,31 @@ struct ModifierKeyButton: View {
                     onDoubleTap()
                 }
         )
+        .accessibilityLabel("\(label) 키")
+        .accessibilityValue(isLocked ? "잠김" : (isActive ? "활성화" : "비활성화"))
+        .accessibilityHint("탭하여 토글, 더블탭하여 잠금")
     }
 
     private var foregroundColor: Color {
-        isActive ? .white : .gray
+        isActive ? Color(.label) : Color(.secondaryLabel)
     }
 
     private var backgroundColor: Color {
         if isLocked {
-            return Color.blue.opacity(0.3)
+            return Color.accentColor.opacity(0.2)
         } else if isActive {
-            return Color.white.opacity(0.15)
+            return Color(.tertiarySystemBackground)
         }
-        return Color.white.opacity(0.05)
+        return Color(.secondarySystemBackground)
     }
 
     private var borderColor: Color {
         if isLocked {
-            return .blue
+            return .accentColor
         } else if isActive {
-            return Color.white.opacity(0.2)
+            return Color(.separator)
         }
-        return Color.white.opacity(0.1)
+        return Color(.separator).opacity(0.5)
     }
 }
 
@@ -274,18 +281,19 @@ struct SpecialKeyButton: View {
                 Text(label)
                     .font(.system(size: 10, weight: .medium))
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(Color(.label))
             .frame(maxWidth: .infinity)
             .frame(height: 56)
-            .background(Color.white.opacity(isPressed ? 0.15 : 0.08))
+            .background(isPressed ? Color(.tertiarySystemFill) : Color(.secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                    .strokeBorder(Color(.separator), lineWidth: 1)
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(label) 키")
         .pressEvents {
             withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
                 isPressed = true
@@ -315,21 +323,31 @@ struct ArrowKeyButton: View {
         }
     }
 
+    private var accessibilityLabel: String {
+        switch direction {
+        case .up: return "위쪽 화살표"
+        case .down: return "아래쪽 화살표"
+        case .left: return "왼쪽 화살표"
+        case .right: return "오른쪽 화살표"
+        }
+    }
+
     var body: some View {
         Button(action: action) {
             Image(systemName: iconName)
                 .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Color(.label))
                 .frame(width: 56, height: 44)
-                .background(Color.white.opacity(isPressed ? 0.15 : 0.08))
+                .background(isPressed ? Color(.tertiarySystemFill) : Color(.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                        .strokeBorder(Color(.separator), lineWidth: 1)
                 )
                 .scaleEffect(isPressed ? 0.95 : 1.0)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
         .pressEvents {
             withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
                 isPressed = true
@@ -348,5 +366,4 @@ struct ArrowKeyButton: View {
             KeyboardFeature()
         }
     )
-    .preferredColorScheme(.dark)
 }
