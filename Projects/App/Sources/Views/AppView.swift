@@ -89,7 +89,7 @@ public struct AppView: View {
                 set: { if !$0 { store.send(.hideSettings) } }
             )
         ) {
-            SettingsSheetView(store: store.scope(state: \.settings, action: \.settings)) {
+            SettingsView(store: store.scope(state: \.settings, action: \.settings)) {
                 store.send(.hideSettings)
             }
         }
@@ -288,61 +288,6 @@ struct ConnectionSheetView: View {
             }
             .padding()
             .navigationTitle("Connection")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
-                        onDismiss()
-                    }
-                }
-            }
-        }
-    }
-}
-
-struct SettingsSheetView: View {
-    @Bindable var store: StoreOf<SettingsFeature>
-    let onDismiss: () -> Void
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Trackpad") {
-                    VStack(alignment: .leading) {
-                        Text("Sensitivity: \(store.trackpadSensitivity, specifier: "%.1f")")
-                        Slider(value: $store.trackpadSensitivity.sending(\.setTrackpadSensitivity), in: 0.5...2.0)
-                    }
-
-                    VStack(alignment: .leading) {
-                        Text("Scroll Sensitivity: \(store.scrollSensitivity, specifier: "%.1f")")
-                        Slider(value: $store.scrollSensitivity.sending(\.setScrollSensitivity), in: 0.5...2.0)
-                    }
-
-                    Toggle("Natural Scrolling", isOn: Binding(
-                        get: { store.isNaturalScrolling },
-                        set: { _ in store.send(.toggleNaturalScrolling) }
-                    ))
-                    Toggle("Tap to Click", isOn: Binding(
-                        get: { store.isTapToClick },
-                        set: { _ in store.send(.toggleTapToClick) }
-                    ))
-                }
-
-                Section("Feedback") {
-                    Toggle("Haptic Feedback", isOn: Binding(
-                        get: { store.isHapticEnabled },
-                        set: { _ in store.send(.toggleHaptic) }
-                    ))
-                }
-
-                Section {
-                    Button("Reset to Defaults") {
-                        store.send(.resetToDefaults)
-                    }
-                    .foregroundStyle(.red)
-                }
-            }
-            .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
