@@ -8,6 +8,7 @@ public struct ProductivityFeature {
         public var isSiriActive: Bool = false
         public var runningApps: [AppInfo] = []
         public var isLoadingApps: Bool = false
+        public var macro: MacroFeature.State = .init()
     }
 
     public enum Action: Equatable, Sendable {
@@ -24,6 +25,9 @@ public struct ProductivityFeature {
         case requestAppListTapped
         case appListReceived([AppInfo])
         case appTapped(AppInfo)
+
+        // Macro
+        case macro(MacroFeature.Action)
     }
 
     @Dependency(\.connectionClient) var connectionClient
@@ -31,6 +35,10 @@ public struct ProductivityFeature {
     public init() {}
 
     public var body: some ReducerOf<Self> {
+        Scope(state: \.macro, action: \.macro) {
+            MacroFeature()
+        }
+
         Reduce { state, action in
             let client = connectionClient
 
@@ -82,6 +90,9 @@ public struct ProductivityFeature {
                 return .run { _ in
                     await client.sendAppFocus(app.bundleID, app.pid)
                 }
+
+            case .macro:
+                return .none
             }
         }
     }
