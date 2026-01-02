@@ -420,7 +420,7 @@ final class ServerManager: ObservableObject {
             logPacket("MediaControl: \(media.command)")
 
         case .windowSnap(let snap, _):
-            // TODO: Implement window snap
+            WindowController.shared.snap(to: snap.position)
             logPacket("WindowSnap: \(snap.position)")
 
         case .appListRequest:

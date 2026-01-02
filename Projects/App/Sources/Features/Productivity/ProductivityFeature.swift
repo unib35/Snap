@@ -14,6 +14,9 @@ public struct ProductivityFeature {
         case siriLongPressStarted
         case siriLongPressEnded
         case dictationTapped(String)
+
+        // Window Snap
+        case windowSnapTapped(WindowSnap.Position)
     }
 
     @Dependency(\.connectionClient) var connectionClient
@@ -50,6 +53,11 @@ public struct ProductivityFeature {
             case .dictationTapped(let text):
                 return .run { _ in
                     await client.sendSiriCommand(.dictation, text)
+                }
+
+            case .windowSnapTapped(let position):
+                return .run { _ in
+                    await client.sendWindowSnap(position)
                 }
             }
         }

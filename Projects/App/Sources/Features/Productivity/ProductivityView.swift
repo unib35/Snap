@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import Shared
 import SwiftUI
 
 public struct ProductivityView: View {
@@ -80,14 +81,30 @@ public struct ProductivityView: View {
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 12) {
-                WindowSnapButton(icon: "rectangle.lefthalf.filled", label: "왼쪽")
-                WindowSnapButton(icon: "rectangle.righthalf.filled", label: "오른쪽")
-                WindowSnapButton(icon: "rectangle.tophalf.filled", label: "상단")
-                WindowSnapButton(icon: "rectangle.bottomhalf.filled", label: "하단")
-                WindowSnapButton(icon: "arrow.up.left.and.arrow.down.right", label: "전체화면")
-                WindowSnapButton(icon: "rectangle.center.inset.filled", label: "가운데")
-                WindowSnapButton(icon: "rectangle.topthird.inset.filled", label: "좌상단")
-                WindowSnapButton(icon: "rectangle.bottomthird.inset.filled", label: "우하단")
+                WindowSnapButton(icon: "rectangle.lefthalf.filled", label: "왼쪽") {
+                    store.send(.windowSnapTapped(.leftHalf))
+                }
+                WindowSnapButton(icon: "rectangle.righthalf.filled", label: "오른쪽") {
+                    store.send(.windowSnapTapped(.rightHalf))
+                }
+                WindowSnapButton(icon: "rectangle.tophalf.filled", label: "상단") {
+                    store.send(.windowSnapTapped(.topHalf))
+                }
+                WindowSnapButton(icon: "rectangle.bottomhalf.filled", label: "하단") {
+                    store.send(.windowSnapTapped(.bottomHalf))
+                }
+                WindowSnapButton(icon: "arrow.up.left.and.arrow.down.right", label: "전체화면") {
+                    store.send(.windowSnapTapped(.fullScreen))
+                }
+                WindowSnapButton(icon: "rectangle.center.inset.filled", label: "가운데") {
+                    store.send(.windowSnapTapped(.center))
+                }
+                WindowSnapButton(icon: "rectangle.topthird.inset.filled", label: "좌상단") {
+                    store.send(.windowSnapTapped(.topLeft))
+                }
+                WindowSnapButton(icon: "rectangle.bottomthird.inset.filled", label: "우하단") {
+                    store.send(.windowSnapTapped(.bottomRight))
+                }
             }
         }
         .padding()
@@ -205,11 +222,10 @@ struct SiriButton: View {
 struct WindowSnapButton: View {
     let icon: String
     let label: String
+    let action: () -> Void
 
     var body: some View {
-        Button {
-            // TODO: Send window snap command
-        } label: {
+        Button(action: action) {
             VStack(spacing: 6) {
                 Image(systemName: icon)
                     .font(.system(size: 20))
