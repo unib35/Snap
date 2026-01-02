@@ -117,36 +117,117 @@ public struct ProductivityView: View {
     @ViewBuilder
     private var appSwitcherSection: some View {
         VStack(spacing: 16) {
-            Text("앱 스위처")
-                .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
             HStack {
-                Image(systemName: "square.stack.3d.up")
-                    .font(.system(size: 40))
-                    .foregroundStyle(.purple)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("앱 목록 불러오기")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    Text("Mac에서 실행 중인 앱 목록")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                Text("앱 스위처")
+                    .font(.headline)
 
                 Spacer()
 
-                Button("불러오기") {
-                    // TODO: Request app list
+                Button {
+                    store.send(.requestAppListTapped)
+                } label: {
+                    if store.isLoadingApps {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                    }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .controlSize(.small)
+                .disabled(store.isLoadingApps)
+            }
+
+            if store.runningApps.isEmpty {
+                // Empty state
+                HStack {
+                    Image(systemName: "square.stack.3d.up")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.purple)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("앱 목록 불러오기")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        Text("Mac에서 실행 중인 앱 목록")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Button("불러오기") {
+                        store.send(.requestAppListTapped)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(store.isLoadingApps)
+                }
+            } else {
+                // App grid
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible()),
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: 16) {
+                    ForEach(store.runningApps, id: \.bundleID) { app in
+                        AppButton(app: app, isActive: app.isActive) {
+                            store.send(.appTapped(app))
+                        }
+                    }
+                }
             }
         }
         .padding()
         .background(Color(.secondarySystemBackground).opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+// MARK: - App Button
+
+struct AppButton: View {
+    let app: AppInfo
+    let isActive: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                // App icon
+                if let uiImage = UIImage(data: app.iconData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 48, height: 48)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                } else {
+                    Image(systemName: "app.fill")
+                        .font(.system(size: 32))
+                        .foregroundStyle(.purple)
+                        .frame(width: 48, height: 48)
+                }
+
+                // App name
+                Text(app.name)
+                    .font(.caption2)
+                    .lineLimit(1)
+                    .foregroundStyle(isActive ? .primary : .secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isActive ? Color.purple.opacity(0.15) : Color(.tertiarySystemBackground))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(isActive ? Color.purple.opacity(0.3) : Color.clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(app.name) 앱\(isActive ? ", 활성화됨" : "")")
     }
 }
 

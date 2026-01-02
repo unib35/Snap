@@ -112,6 +112,12 @@ public final class SnapServer: @unchecked Sendable {
         }
     }
 
+    /// 앱 목록 응답 전송
+    public func sendAppListResponse(_ response: AppListResponse) {
+        guard let client = connectedClient else { return }
+        client.send(response, type: .appListResponse)
+    }
+
     // MARK: - Private Methods
 
     private static func getDeviceID() -> String {

@@ -6,6 +6,8 @@ public struct ProductivityFeature {
     @ObservableState
     public struct State: Equatable {
         public var isSiriActive: Bool = false
+        public var runningApps: [AppInfo] = []
+        public var isLoadingApps: Bool = false
     }
 
     public enum Action: Equatable, Sendable {
@@ -17,6 +19,11 @@ public struct ProductivityFeature {
 
         // Window Snap
         case windowSnapTapped(WindowSnap.Position)
+
+        // App Switcher
+        case requestAppListTapped
+        case appListReceived([AppInfo])
+        case appTapped(AppInfo)
     }
 
     @Dependency(\.connectionClient) var connectionClient
@@ -58,6 +65,22 @@ public struct ProductivityFeature {
             case .windowSnapTapped(let position):
                 return .run { _ in
                     await client.sendWindowSnap(position)
+                }
+
+            case .requestAppListTapped:
+                state.isLoadingApps = true
+                return .run { _ in
+                    await client.requestAppList()
+                }
+
+            case .appListReceived(let apps):
+                state.isLoadingApps = false
+                state.runningApps = apps
+                return .none
+
+            case .appTapped(let app):
+                return .run { _ in
+                    await client.sendAppFocus(app.bundleID, app.pid)
                 }
             }
         }

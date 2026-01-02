@@ -123,6 +123,9 @@ public struct AppFeature {
                 state.isSettingsPresented = false
                 return .none
 
+            case .connection(.appListReceived(let apps)):
+                return .send(.productivity(.appListReceived(apps)))
+
             case .connection:
                 return .none
 
