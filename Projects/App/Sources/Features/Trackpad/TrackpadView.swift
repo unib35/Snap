@@ -28,21 +28,15 @@ public struct TrackpadView: View {
             quickActions
                 .padding()
         }
-        .background(
-            LinearGradient(
-                colors: [Color(white: 0.08), Color.black],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
+        .background(Color(.systemBackground))
     }
 
     // MARK: - Mode Toggle
 
     private var modeToggle: some View {
-        let toggleShape = RoundedRectangle(cornerRadius: 14)
+        let toggleShape = RoundedRectangle(cornerRadius: 12)
 
-        return HStack(spacing: 4) {
+        return HStack(spacing: 8) {
             ForEach(TrackpadFeature.InputMode.allCases, id: \.self) { mode in
                 ModeToggleButton(
                     mode: mode,
@@ -52,11 +46,11 @@ public struct TrackpadView: View {
                 }
             }
         }
-        .padding(4)
-        .background(Color(white: 0.12))
+        .padding(8)
+        .background(Color(.secondarySystemBackground))
         .clipShape(toggleShape)
         .overlay(
-            toggleShape.strokeBorder(Color.white.opacity(0.05), lineWidth: 1)
+            toggleShape.strokeBorder(Color(.separator), lineWidth: 1)
         )
     }
 
@@ -70,7 +64,7 @@ public struct TrackpadView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // Click Buttons - Inside the touch area at bottom
-            HStack(spacing: 12) {
+            HStack(spacing: 16) {
                 ClickButton(label: "L", isPrimary: true) {
                     store.send(.leftClickPressed)
                 } onRelease: {
@@ -85,6 +79,7 @@ public struct TrackpadView: View {
             }
             .frame(height: 64)
             .padding(.horizontal)
+            .padding(.top, 16)
             .padding(.bottom, 8)
         }
         .transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -100,7 +95,7 @@ public struct TrackpadView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // Click Buttons
-            HStack(spacing: 12) {
+            HStack(spacing: 16) {
                 LaserClickButton(
                     icon: "cursorarrow.click",
                     label: "Left Click",
@@ -114,7 +109,7 @@ public struct TrackpadView: View {
                 LaserClickButton(
                     icon: "cursorarrow.click",
                     label: "Right Click",
-                    color: .gray
+                    color: .secondary
                 ) {
                     store.send(.rightClickPressed)
                 } onRelease: {
@@ -131,7 +126,7 @@ public struct TrackpadView: View {
 
     @ViewBuilder
     private var quickActions: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 16) {
             QuickActionButton(
                 icon: "command",
                 label: "Cmd+Space"
@@ -162,25 +157,27 @@ struct ModeToggleButton: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: mode == .trackpad ? "hand.point.up.left" : "scope")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(iconColor)
 
                 Text(mode.title)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(textColor)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
             .background(background)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: 8)
                     .strokeBorder(borderColor, lineWidth: 1)
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
             .shadow(color: shadowColor, radius: isSelected ? 8 : 0)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(mode.title) 모드")
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
         .pressEvents {
             withAnimation(.easeInOut(duration: 0.1)) {
                 isPressed = true
@@ -196,21 +193,21 @@ struct ModeToggleButton: View {
         if mode == .laser && isSelected {
             return .red
         }
-        return isSelected ? .white : .gray
+        return isSelected ? Color(.label) : Color(.tertiaryLabel)
     }
 
     private var textColor: Color {
-        isSelected ? .white : .gray
+        isSelected ? Color(.label) : Color(.tertiaryLabel)
     }
 
-    private var background: AnyShapeStyle {
+    private var background: Color {
         if isSelected {
             if mode == .laser {
-                return AnyShapeStyle(Color.red.opacity(0.15))
+                return Color.red.opacity(0.15)
             }
-            return AnyShapeStyle(Color(white: 0.18))
+            return Color(.tertiarySystemBackground)
         }
-        return AnyShapeStyle(Color.clear)
+        return Color.clear
     }
 
     private var borderColor: Color {
@@ -218,7 +215,7 @@ struct ModeToggleButton: View {
             if mode == .laser {
                 return .red.opacity(0.3)
             }
-            return .white.opacity(0.1)
+            return Color(.separator)
         }
         return .clear
     }
@@ -242,15 +239,15 @@ struct TrackpadTouchArea: View {
             ZStack {
                 // Background
                 RoundedRectangle(cornerRadius: 24)
-                    .fill(Color(white: 0.06))
+                    .fill(Color(.secondarySystemBackground))
                     .overlay(
                         RoundedRectangle(cornerRadius: 24)
-                            .strokeBorder(Color.white.opacity(0.05), lineWidth: 1)
+                            .strokeBorder(Color(.separator), lineWidth: 1)
                     )
 
                 // Ping Animation (always animating in center)
                 Circle()
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    .stroke(Color(.tertiaryLabel), lineWidth: 1)
                     .frame(width: 120, height: 120)
                     .scaleEffect(pingAnimation ? 1.5 : 1.0)
                     .opacity(pingAnimation ? 0 : 0.3)
@@ -261,8 +258,8 @@ struct TrackpadTouchArea: View {
 
                 // Watermark
                 Text("TRACKPAD")
-                    .font(.system(size: 32, weight: .black))
-                    .foregroundStyle(Color.white.opacity(0.04))
+                    .font(.largeTitle.weight(.black))
+                    .foregroundStyle(Color(.quaternaryLabel))
                     .tracking(10)
 
                 // Touch indicator - follows finger
@@ -270,7 +267,7 @@ struct TrackpadTouchArea: View {
                     Circle()
                         .fill(
                             RadialGradient(
-                                colors: [Color.white.opacity(0.25), Color.white.opacity(0)],
+                                colors: [Color.accentColor.opacity(0.3), Color.accentColor.opacity(0)],
                                 center: .center,
                                 startRadius: 0,
                                 endRadius: 60
@@ -309,6 +306,8 @@ struct TrackpadTouchArea: View {
             )
         }
         .padding(.horizontal)
+        .accessibilityLabel("트랙패드 터치 영역")
+        .accessibilityHint("드래그하여 마우스를 이동하고, 탭하여 클릭합니다")
         .onAppear {
             pingAnimation = true
         }
@@ -321,34 +320,20 @@ struct LaserControlArea: View {
     let store: StoreOf<TrackpadFeature>
     @State private var isHolding = false
 
-    private var laserButtonFill: AnyShapeStyle {
-        if isHolding {
-            return AnyShapeStyle(Color.red)
-        } else {
-            return AnyShapeStyle(
-                LinearGradient(
-                    colors: [Color(white: 0.15), Color(white: 0.08)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-        }
-    }
-
     var body: some View {
         ZStack {
             // Background
             RoundedRectangle(cornerRadius: 24)
-                .fill(Color(white: 0.04))
+                .fill(Color(.secondarySystemBackground))
                 .overlay(
                     RoundedRectangle(cornerRadius: 24)
-                        .strokeBorder(Color.white.opacity(0.05), lineWidth: 1)
+                        .strokeBorder(Color(.separator), lineWidth: 1)
                 )
 
             VStack(spacing: 8) {
                 Text("GYRO CONTROL")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(Color.gray)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Color(.secondaryLabel))
                     .tracking(2)
 
                 Spacer()
@@ -372,12 +357,12 @@ struct LaserControlArea: View {
 
                     // Main button
                     Circle()
-                        .fill(laserButtonFill)
+                        .fill(isHolding ? Color.red : Color(.tertiarySystemBackground))
                         .frame(width: 160, height: 160)
                         .overlay(
                             Circle()
                                 .strokeBorder(
-                                    isHolding ? Color.red.opacity(0.6) : Color.white.opacity(0.1),
+                                    isHolding ? Color.red.opacity(0.6) : Color(.separator),
                                     lineWidth: 2
                                 )
                         )
@@ -389,8 +374,8 @@ struct LaserControlArea: View {
                             .foregroundStyle(isHolding ? .white : .red)
 
                         Text(isHolding ? "GYRO ACTIVE" : "HOLD TO MOVE")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(isHolding ? .white : .gray)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(isHolding ? .white : Color(.secondaryLabel))
                             .tracking(1)
                     }
                 }
@@ -406,6 +391,8 @@ struct LaserControlArea: View {
                             isHolding = false
                         }
                 )
+                .accessibilityLabel("레이저 포인터 버튼")
+                .accessibilityHint("길게 눌러 자이로스코프로 마우스를 제어합니다")
 
                 Spacer()
             }
@@ -446,15 +433,15 @@ struct ClickButton: View {
 
     var body: some View {
         Text(label)
-            .font(.system(size: 16, weight: .bold))
-            .foregroundStyle(isPrimary ? .white : Color.white.opacity(0.5))
+            .font(.headline)
+            .foregroundStyle(isPrimary ? Color(.label) : Color(.secondaryLabel))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(isPressed ? Color.white.opacity(0.15) : Color.white.opacity(0.05))
+                    .fill(isPressed ? Color(.tertiarySystemFill) : Color(.secondarySystemBackground))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                            .strokeBorder(Color(.separator), lineWidth: 1)
                     )
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
@@ -472,6 +459,7 @@ struct ClickButton: View {
                         onRelease()
                     }
             )
+            .accessibilityLabel(isPrimary ? "왼쪽 클릭" : "오른쪽 클릭")
     }
 }
 
@@ -487,22 +475,22 @@ struct LaserClickButton: View {
     @State private var isPressed = false
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.system(size: 24, weight: .medium))
-                .foregroundStyle(isPressed ? .white : color)
+                .font(.title2)
+                .foregroundStyle(isPressed ? Color(.label) : color)
 
             Text(label)
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(Color.white.opacity(0.7))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Color(.secondaryLabel))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(isPressed ? Color.white.opacity(0.15) : Color(white: 0.08))
+                .fill(isPressed ? Color(.tertiarySystemFill) : Color(.secondarySystemBackground))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .strokeBorder(Color.white.opacity(0.05), lineWidth: 1)
+                        .strokeBorder(Color(.separator), lineWidth: 1)
                 )
         )
         .scaleEffect(isPressed ? 0.95 : 1.0)
@@ -520,6 +508,7 @@ struct LaserClickButton: View {
                     onRelease()
                 }
         )
+        .accessibilityLabel(label)
     }
 }
 
@@ -536,25 +525,26 @@ struct QuickActionButton: View {
         Button(action: action) {
             VStack(spacing: 8) {
                 Image(systemName: icon)
-                    .font(.system(size: 24, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.7))
+                    .font(.title2)
+                    .foregroundStyle(Color(.secondaryLabel))
 
                 Text(label)
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(Color.gray)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color(.tertiaryLabel))
                     .textCase(.uppercase)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .background(Color(white: 0.1))
+            .background(Color(.secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(Color.white.opacity(0.05), lineWidth: 1)
+                    .strokeBorder(Color(.separator), lineWidth: 1)
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
         .pressEvents {
             withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
                 isPressed = true
@@ -595,5 +585,4 @@ extension View {
             TrackpadFeature()
         }
     )
-    .preferredColorScheme(.dark)
 }
