@@ -28,6 +28,7 @@ public enum DecodedPacket: Sendable {
     case appFocus(AppFocus, header: PacketHeader)
     case presentation(Presentation, header: PacketHeader)
     case voiceText(VoiceText, header: PacketHeader)
+    case siriCommand(SiriCommand, header: PacketHeader)
 
     // System Messages
     case handshake(Handshake, header: PacketHeader)
@@ -52,6 +53,7 @@ public enum DecodedPacket: Sendable {
         case .appFocus: return .appFocus
         case .presentation: return .presentation
         case .voiceText: return .voiceText
+        case .siriCommand: return .siriCommand
         case .handshake: return .handshake
         case .heartbeat: return .heartbeat
         case .disconnect: return .disconnect
@@ -76,6 +78,7 @@ public enum DecodedPacket: Sendable {
              .appFocus(_, let header),
              .presentation(_, let header),
              .voiceText(_, let header),
+             .siriCommand(_, let header),
              .handshake(_, let header),
              .heartbeat(_, let header),
              .disconnect(_, let header),
@@ -152,6 +155,9 @@ public enum PacketDecoder {
             case .voiceText:
                 let message = try decoder.decode(VoiceText.self, from: payload)
                 return .voiceText(message, header: header)
+            case .siriCommand:
+                let message = try decoder.decode(SiriCommand.self, from: payload)
+                return .siriCommand(message, header: header)
 
             // System Messages
             case .handshake:

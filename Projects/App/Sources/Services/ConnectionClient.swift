@@ -22,6 +22,7 @@ public struct ConnectionClient: Sendable {
     public var sendWindowSnap: @Sendable (WindowSnap.Position) async -> Void
     public var requestAppList: @Sendable () async -> Void
     public var sendAppFocus: @Sendable (String, UInt32) async -> Void
+    public var sendSiriCommand: @Sendable (SiriCommand.Action, String) async -> Void
 }
 
 // MARK: - Events
@@ -77,7 +78,8 @@ extension ConnectionClient: DependencyKey {
             sendMediaControl: { cmd, vol in await actor.sendMediaControl(command: cmd, volume: vol) },
             sendWindowSnap: { pos in await actor.sendWindowSnap(position: pos) },
             requestAppList: { await actor.requestAppList() },
-            sendAppFocus: { bundleID, pid in await actor.sendAppFocus(bundleID: bundleID, pid: pid) }
+            sendAppFocus: { bundleID, pid in await actor.sendAppFocus(bundleID: bundleID, pid: pid) },
+            sendSiriCommand: { action, text in await actor.sendSiriCommand(action: action, text: text) }
         )
     }
 
@@ -95,7 +97,8 @@ extension ConnectionClient: DependencyKey {
             sendMediaControl: { _, _ in },
             sendWindowSnap: { _ in },
             requestAppList: {},
-            sendAppFocus: { _, _ in }
+            sendAppFocus: { _, _ in },
+            sendSiriCommand: { _, _ in }
         )
     }
 }
@@ -202,6 +205,10 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
 
     func sendAppFocus(bundleID: String, pid: UInt32) {
         client?.sendAppFocus(bundleID: bundleID, pid: pid)
+    }
+
+    func sendSiriCommand(action: SiriCommand.Action, text: String) {
+        client?.sendSiriCommand(action: action, text: text)
     }
 
     // MARK: - SnapClientDelegate

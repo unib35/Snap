@@ -439,6 +439,10 @@ final class ServerManager: ObservableObject {
             // TODO: Type text
             logPacket("VoiceText: \(voice.text)")
 
+        case .siriCommand(let command, _):
+            SiriController.shared.execute(command: command)
+            logPacket("SiriCommand: \(command.action)")
+
         default:
             break
         }
