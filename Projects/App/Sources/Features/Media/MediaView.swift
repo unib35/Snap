@@ -44,13 +44,13 @@ public struct MediaView: View {
                 )
                 .accessibilityLabel("앨범 아트")
 
-            VStack(spacing: 4) {
+            VStack(spacing: 8) {
                 Text("Not Playing")
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(Color(.label))
 
                 Text("Select a track to play")
-                    .font(.system(size: 14))
+                    .font(.subheadline)
                     .foregroundStyle(Color(.secondaryLabel))
             }
         }
@@ -100,7 +100,7 @@ public struct MediaView: View {
                     store.send(.volumeDownTapped)
                 } label: {
                     Image(systemName: "speaker.fill")
-                        .font(.system(size: 16))
+                        .font(.callout)
                         .foregroundStyle(Color(.secondaryLabel))
                 }
                 .accessibilityLabel("볼륨 줄이기")
@@ -119,7 +119,7 @@ public struct MediaView: View {
                     store.send(.volumeUpTapped)
                 } label: {
                     Image(systemName: "speaker.wave.3.fill")
-                        .font(.system(size: 16))
+                        .font(.callout)
                         .foregroundStyle(Color(.secondaryLabel))
                 }
                 .accessibilityLabel("볼륨 높이기")
@@ -132,14 +132,14 @@ public struct MediaView: View {
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: store.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                        .font(.system(size: 14))
+                        .font(.subheadline)
 
                     Text(store.isMuted ? "Unmute" : "Mute")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.subheadline.weight(.medium))
                 }
                 .foregroundStyle(store.isMuted ? .red : Color(.secondaryLabel))
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
                 .background(Color(.secondarySystemBackground))
                 .clipShape(Capsule())
                 .overlay(

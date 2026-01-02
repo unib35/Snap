@@ -34,9 +34,9 @@ public struct TrackpadView: View {
     // MARK: - Mode Toggle
 
     private var modeToggle: some View {
-        let toggleShape = RoundedRectangle(cornerRadius: 14)
+        let toggleShape = RoundedRectangle(cornerRadius: 12)
 
-        return HStack(spacing: 4) {
+        return HStack(spacing: 8) {
             ForEach(TrackpadFeature.InputMode.allCases, id: \.self) { mode in
                 ModeToggleButton(
                     mode: mode,
@@ -46,7 +46,7 @@ public struct TrackpadView: View {
                 }
             }
         }
-        .padding(4)
+        .padding(8)
         .background(Color(.secondarySystemBackground))
         .clipShape(toggleShape)
         .overlay(
@@ -64,7 +64,7 @@ public struct TrackpadView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // Click Buttons - Inside the touch area at bottom
-            HStack(spacing: 12) {
+            HStack(spacing: 16) {
                 ClickButton(label: "L", isPrimary: true) {
                     store.send(.leftClickPressed)
                 } onRelease: {
@@ -79,6 +79,7 @@ public struct TrackpadView: View {
             }
             .frame(height: 64)
             .padding(.horizontal)
+            .padding(.top, 16)
             .padding(.bottom, 8)
         }
         .transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -94,7 +95,7 @@ public struct TrackpadView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // Click Buttons
-            HStack(spacing: 12) {
+            HStack(spacing: 16) {
                 LaserClickButton(
                     icon: "cursorarrow.click",
                     label: "Left Click",
@@ -125,7 +126,7 @@ public struct TrackpadView: View {
 
     @ViewBuilder
     private var quickActions: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 16) {
             QuickActionButton(
                 icon: "command",
                 label: "Cmd+Space"
@@ -156,7 +157,7 @@ struct ModeToggleButton: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: mode == .trackpad ? "hand.point.up.left" : "scope")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(iconColor)
 
                 Text(mode.title)
@@ -166,9 +167,9 @@ struct ModeToggleButton: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
             .background(background)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: 8)
                     .strokeBorder(borderColor, lineWidth: 1)
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
@@ -257,7 +258,7 @@ struct TrackpadTouchArea: View {
 
                 // Watermark
                 Text("TRACKPAD")
-                    .font(.system(size: 32, weight: .black))
+                    .font(.largeTitle.weight(.black))
                     .foregroundStyle(Color(.quaternaryLabel))
                     .tracking(10)
 
@@ -474,13 +475,13 @@ struct LaserClickButton: View {
     @State private var isPressed = false
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.title2)
                 .foregroundStyle(isPressed ? Color(.label) : color)
 
             Text(label)
-                .font(.caption.weight(.bold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(Color(.secondaryLabel))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -528,7 +529,7 @@ struct QuickActionButton: View {
                     .foregroundStyle(Color(.secondaryLabel))
 
                 Text(label)
-                    .font(.caption.weight(.bold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(Color(.tertiaryLabel))
                     .textCase(.uppercase)
             }

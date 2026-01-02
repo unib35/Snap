@@ -35,10 +35,10 @@ public struct KeyboardView: View {
     // MARK: - Text Input Area
 
     private var textInputArea: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 16) {
             TextField("Type here...", text: $store.inputText.sending(\.textChanged))
                 .textFieldStyle(.plain)
-                .font(.system(size: 18))
+                .font(.body)
                 .padding()
                 .background(Color(.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -55,7 +55,7 @@ public struct KeyboardView: View {
                 store.send(.clearText)
             } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 24))
+                    .font(.title2)
                     .foregroundStyle(Color(.tertiaryLabel))
             }
             .opacity(store.inputText.isEmpty ? 0 : 1)
@@ -140,14 +140,14 @@ public struct KeyboardView: View {
                 store.send(.spacePressed)
             } label: {
                 Text("Space")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(Color(.label))
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
                     .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10)
+                        RoundedRectangle(cornerRadius: 12)
                             .strokeBorder(Color(.separator), lineWidth: 1)
                     )
             }
@@ -159,12 +159,12 @@ public struct KeyboardView: View {
     // MARK: - Arrow Keys
 
     private var arrowKeys: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 8) {
             ArrowKeyButton(direction: .up) {
                 store.send(.arrowPressed(.up))
             }
 
-            HStack(spacing: 4) {
+            HStack(spacing: 8) {
                 ArrowKeyButton(direction: .left) {
                     store.send(.arrowPressed(.left))
                 }
@@ -196,10 +196,10 @@ struct ModifierKeyButton: View {
     var body: some View {
         VStack(spacing: 4) {
             Text(symbol)
-                .font(.system(size: 20, weight: .medium))
+                .font(.title3.weight(.medium))
 
             Text(label)
-                .font(.system(size: 10, weight: .medium))
+                .font(.caption2.weight(.medium))
         }
         .foregroundStyle(foregroundColor)
         .frame(maxWidth: .infinity)
@@ -276,18 +276,18 @@ struct SpecialKeyButton: View {
         Button(action: action) {
             VStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.callout.weight(.medium))
 
                 Text(label)
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.caption2.weight(.medium))
             }
             .foregroundStyle(Color(.label))
             .frame(maxWidth: .infinity)
             .frame(height: 56)
             .background(isPressed ? Color(.tertiarySystemFill) : Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: 12)
                     .strokeBorder(Color(.separator), lineWidth: 1)
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
@@ -335,7 +335,7 @@ struct ArrowKeyButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: iconName)
-                .font(.system(size: 20, weight: .semibold))
+                .font(.title3.weight(.semibold))
                 .foregroundStyle(Color(.label))
                 .frame(width: 56, height: 44)
                 .background(isPressed ? Color(.tertiarySystemFill) : Color(.secondarySystemBackground))
