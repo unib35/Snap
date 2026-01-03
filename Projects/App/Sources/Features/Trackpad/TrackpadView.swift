@@ -339,7 +339,7 @@ struct LaserControlArea: View {
 
                 Spacer()
 
-                // Laser Button
+                // Laser Button (Press and Hold)
                 ZStack {
                     // Outer glow (pulsing when active)
                     if isActive {
@@ -375,18 +375,26 @@ struct LaserControlArea: View {
                             .foregroundStyle(isActive ? .white : .red)
                             .symbolEffect(.pulse, isActive: isActive)
 
-                        Text(isActive ? "GYRO ACTIVE" : "TAP TO START")
+                        Text(isActive ? "GYRO ACTIVE" : "HOLD TO MOVE")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(isActive ? .white : Color(.secondaryLabel))
                             .tracking(1)
                     }
                 }
                 .animation(.spring(response: 0.25, dampingFraction: 0.6), value: isActive)
-                .onTapGesture {
-                    store.send(.laserPointer(.toggleActive))
-                }
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in
+                            if !isActive {
+                                store.send(.laserPointer(.startPointing))
+                            }
+                        }
+                        .onEnded { _ in
+                            store.send(.laserPointer(.stopPointing))
+                        }
+                )
                 .accessibilityLabel("레이저 포인터 버튼")
-                .accessibilityHint("탭하여 자이로스코프 마우스 제어를 시작/중지합니다")
+                .accessibilityHint("길게 누르고 있으면 자이로스코프 마우스 제어가 활성화됩니다")
 
                 Spacer()
 

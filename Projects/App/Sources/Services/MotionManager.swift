@@ -18,6 +18,7 @@ public final class MotionManager: @unchecked Sendable {
     // MARK: - Properties
 
     private let motionManager = CMMotionManager()
+    private let motionQueue = OperationQueue()
     private var referenceAttitude: CMAttitude?
     private var sensitivity: Float = 15.0
 
@@ -25,7 +26,10 @@ public final class MotionManager: @unchecked Sendable {
 
     // MARK: - Initialization
 
-    private init() {}
+    private init() {
+        motionQueue.name = "com.snap.motionQueue"
+        motionQueue.maxConcurrentOperationCount = 1
+    }
 
     // MARK: - Public Methods
 
@@ -42,7 +46,7 @@ public final class MotionManager: @unchecked Sendable {
 
             motionManager.startDeviceMotionUpdates(
                 using: .xArbitraryZVertical,
-                to: .main
+                to: motionQueue
             ) { [weak self] motion, error in
                 guard let self = self else { return }
 

@@ -82,10 +82,8 @@ public struct TrackpadFeature {
             switch action {
             case .modeChanged(let mode):
                 state.mode = mode
-                // 모드 변경 시 레이저 포인터 상태 동기화
-                if mode == .laser && !state.laserPointer.isActive {
-                    return .send(.laserPointer(.startPointing))
-                } else if mode == .trackpad && state.laserPointer.isActive {
+                // 트랙패드 모드로 변경 시 레이저 포인터 중지
+                if mode == .trackpad && state.laserPointer.isActive {
                     return .send(.laserPointer(.stopPointing))
                 }
                 return .none
