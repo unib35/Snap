@@ -321,6 +321,7 @@ struct LaserControlArea: View {
 
     var body: some View {
         let isActive = store.laserPointer.isActive
+        let activationMode = store.laserPointer.activationMode
 
         ZStack {
             // Background
@@ -332,14 +333,30 @@ struct LaserControlArea: View {
                 )
 
             VStack(spacing: 8) {
-                Text("GYRO CONTROL")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(Color(.secondaryLabel))
-                    .tracking(2)
+                // Mode Selector
+                HStack(spacing: 0) {
+                    ForEach(LaserPointerFeature.ActivationMode.allCases, id: \.self) { mode in
+                        Button {
+                            store.send(.laserPointer(.setActivationMode(mode)))
+                        } label: {
+                            Text(mode.rawValue)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(activationMode == mode ? .white : .secondary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(activationMode == mode ? Color.red : Color.clear)
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
+                .padding(4)
+                .background(Color(.tertiarySystemBackground))
+                .clipShape(Capsule())
+                .padding(.horizontal)
 
                 Spacer()
 
-                // Laser Button (Press and Hold)
+                // Laser Button
                 ZStack {
                     // Outer glow (pulsing when active)
                     if isActive {
@@ -375,7 +392,7 @@ struct LaserControlArea: View {
                             .foregroundStyle(isActive ? .white : .red)
                             .symbolEffect(.pulse, isActive: isActive)
 
-                        Text(isActive ? "GYRO ACTIVE" : "HOLD TO MOVE")
+                        Text(buttonLabel(isActive: isActive, mode: activationMode))
                             .font(.caption.weight(.bold))
                             .foregroundStyle(isActive ? .white : Color(.secondaryLabel))
                             .tracking(1)
@@ -383,18 +400,29 @@ struct LaserControlArea: View {
                 }
                 .animation(.spring(response: 0.25, dampingFraction: 0.6), value: isActive)
                 .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { _ in
-                            if !isActive {
-                                store.send(.laserPointer(.startPointing))
-                            }
-                        }
-                        .onEnded { _ in
-                            store.send(.laserPointer(.stopPointing))
-                        }
+                    activationMode == .hold
+                        ? AnyGesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { _ in
+                                    if !store.laserPointer.isActive {
+                                        store.send(.laserPointer(.startPointing))
+                                    }
+                                }
+                                .onEnded { _ in
+                                    store.send(.laserPointer(.stopPointing))
+                                }
+                                .map { _ in () }
+                          )
+                        : AnyGesture(
+                            TapGesture()
+                                .onEnded {
+                                    store.send(.laserPointer(.toggleActive))
+                                }
+                                .map { _ in () }
+                          )
                 )
                 .accessibilityLabel("레이저 포인터 버튼")
-                .accessibilityHint("길게 누르고 있으면 자이로스코프 마우스 제어가 활성화됩니다")
+                .accessibilityHint(activationMode == .hold ? "길게 누르고 있으면 활성화됩니다" : "탭하여 켜고 끕니다")
 
                 Spacer()
 
@@ -442,6 +470,13 @@ struct LaserControlArea: View {
         } message: {
             Text(store.laserPointer.errorMessage ?? "")
         }
+    }
+
+    private func buttonLabel(isActive: Bool, mode: LaserPointerFeature.ActivationMode) -> String {
+        if isActive {
+            return "GYRO ACTIVE"
+        }
+        return mode == .hold ? "HOLD TO MOVE" : "TAP TO START"
     }
 }
 

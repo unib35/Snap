@@ -4,11 +4,17 @@ import Shared
 
 @Reducer
 public struct LaserPointerFeature {
+    public enum ActivationMode: String, CaseIterable, Sendable {
+        case hold = "Hold"
+        case toggle = "Toggle"
+    }
+
     @ObservableState
     public struct State: Equatable {
         public var isActive: Bool = false
         public var isCalibrated: Bool = false
         public var sensitivity: Float = 15.0
+        public var activationMode: ActivationMode = .hold
         public var errorMessage: String?
 
         public init() {}
@@ -20,6 +26,7 @@ public struct LaserPointerFeature {
         case stopPointing
         case calibrate
         case setSensitivity(Float)
+        case setActivationMode(ActivationMode)
         case motionEvent(MotionEvent)
         case dismissError
     }
@@ -77,6 +84,14 @@ public struct LaserPointerFeature {
             case .setSensitivity(let value):
                 state.sensitivity = value
                 motionClient.setSensitivity(value)
+                return .none
+
+            case .setActivationMode(let mode):
+                state.activationMode = mode
+                // 모드 변경 시 활성화 상태 초기화
+                if state.isActive {
+                    return .send(.stopPointing)
+                }
                 return .none
 
             case .motionEvent(let event):
