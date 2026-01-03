@@ -118,6 +118,12 @@ public final class SnapServer: @unchecked Sendable {
         client.send(response, type: .appListResponse)
     }
 
+    /// Now Playing 정보 전송
+    public func sendNowPlayingInfo(_ info: NowPlayingInfo) {
+        guard let client = connectedClient else { return }
+        client.send(info, type: .nowPlayingInfo)
+    }
+
     // MARK: - Private Methods
 
     private static func getDeviceID() -> String {

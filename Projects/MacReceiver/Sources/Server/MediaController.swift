@@ -122,28 +122,69 @@ public final class MediaController {
 
     // MARK: - Now Playing Info
 
-    /// 현재 재생 중인 앱 정보
-    public struct NowPlayingInfo: Sendable {
-        public let appName: String
-        public let title: String
-        public let artist: String
-        public let album: String
-        public let isPlaying: Bool
+    /// 현재 재생 정보 가져오기
+    public func getNowPlayingInfo() -> NowPlayingInfo {
+        // Music 앱 체크
+        if let info = getMusicAppInfo() {
+            return info
+        }
+
+        // Spotify 체크
+        if let info = getSpotifyInfo() {
+            return info
+        }
+
+        // 재생 중인 앱 없음
+        return NowPlayingInfo()
     }
 
-    /// 현재 재생 정보 가져오기
-    public func getNowPlayingInfo() -> NowPlayingInfo? {
+    private func getMusicAppInfo() -> NowPlayingInfo? {
         let script = """
             tell application "System Events"
-                set frontApp to name of first application process whose frontmost is true
+                if not (exists process "Music") then return ""
             end tell
 
             tell application "Music"
-                if player state is playing then
+                if player state is playing or player state is paused then
                     set trackName to name of current track
                     set trackArtist to artist of current track
                     set trackAlbum to album of current track
-                    return "Music|" & trackName & "|" & trackArtist & "|" & trackAlbum & "|true"
+                    set isPlaying to (player state is playing)
+                    return "Music|" & trackName & "|" & trackArtist & "|" & trackAlbum & "|" & isPlaying
+                else
+                    return ""
+                end if
+            end tell
+        """
+
+        if let result = runAppleScript(script), !result.isEmpty {
+            let parts = result.components(separatedBy: "|")
+            if parts.count >= 5 {
+                return NowPlayingInfo(
+                    appName: parts[0],
+                    title: parts[1],
+                    artist: parts[2],
+                    album: parts[3],
+                    isPlaying: parts[4] == "true"
+                )
+            }
+        }
+        return nil
+    }
+
+    private func getSpotifyInfo() -> NowPlayingInfo? {
+        let script = """
+            tell application "System Events"
+                if not (exists process "Spotify") then return ""
+            end tell
+
+            tell application "Spotify"
+                if player state is playing or player state is paused then
+                    set trackName to name of current track
+                    set trackArtist to artist of current track
+                    set trackAlbum to album of current track
+                    set isPlaying to (player state is playing)
+                    return "Spotify|" & trackName & "|" & trackArtist & "|" & trackAlbum & "|" & isPlaying
                 else
                     return ""
                 end if

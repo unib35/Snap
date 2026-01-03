@@ -58,6 +58,7 @@ public enum ConnectionEvent: Equatable, Sendable {
 
 public enum PacketEvent: Equatable, Sendable {
     case appList([AppInfo])
+    case nowPlayingInfo(NowPlayingInfo)
     case error(String)
 }
 
@@ -260,6 +261,8 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
         switch packet {
         case .appListResponse(let response, _):
             connectionContinuation?.yield(.packet(.appList(response.apps)))
+        case .nowPlayingInfo(let info, _):
+            connectionContinuation?.yield(.packet(.nowPlayingInfo(info)))
         case .error(let snapError, _):
             connectionContinuation?.yield(.packet(.error(snapError.message)))
         default:

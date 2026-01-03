@@ -5,6 +5,7 @@ import Shared
 public struct MediaFeature {
     @ObservableState
     public struct State: Equatable {
+        public var nowPlayingInfo: NowPlayingInfo = .init()
         public var isPlaying: Bool = false
         public var volume: Float = 0.5
         public var isMuted: Bool = false
@@ -26,6 +27,7 @@ public struct MediaFeature {
 
         // State Updates
         case setIsPlaying(Bool)
+        case nowPlayingInfoReceived(NowPlayingInfo)
     }
 
     @Dependency(\.connectionClient) var connectionClient
@@ -85,6 +87,11 @@ public struct MediaFeature {
 
             case .setIsPlaying(let isPlaying):
                 state.isPlaying = isPlaying
+                return .none
+
+            case .nowPlayingInfoReceived(let info):
+                state.nowPlayingInfo = info
+                state.isPlaying = info.isPlaying
                 return .none
             }
         }

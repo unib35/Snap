@@ -31,6 +31,9 @@ public struct ConnectionFeature: Sendable {
         case appListReceived([AppInfo])
         case focusApp(bundleID: String, pid: UInt32)
 
+        // Now Playing
+        case nowPlayingInfoReceived(NowPlayingInfo)
+
         // Error
         case errorOccurred(ConnectionError)
         case clearError
@@ -131,6 +134,8 @@ public struct ConnectionFeature: Sendable {
                     switch packetEvent {
                     case .appList(let apps):
                         return .send(.appListReceived(apps))
+                    case .nowPlayingInfo(let info):
+                        return .send(.nowPlayingInfoReceived(info))
                     case .error(let message):
                         state.lastError = .serverError(message)
                     }
@@ -144,6 +149,10 @@ public struct ConnectionFeature: Sendable {
                 return .none
 
             case .appListReceived:
+                // Handled by parent feature
+                return .none
+
+            case .nowPlayingInfoReceived:
                 // Handled by parent feature
                 return .none
 

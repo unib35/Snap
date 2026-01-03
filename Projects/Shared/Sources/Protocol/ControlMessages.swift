@@ -97,3 +97,42 @@ public struct SiriCommand: Codable, Sendable, Equatable {
         self.text = text
     }
 }
+
+// MARK: - NowPlayingInfo
+
+/// 현재 재생 중인 미디어 정보 (macOS → iOS)
+public struct NowPlayingInfo: Codable, Sendable, Equatable {
+    /// 재생 중인 앱 이름 (Music, Spotify 등)
+    public var appName: String
+    /// 트랙 제목
+    public var title: String
+    /// 아티스트명
+    public var artist: String
+    /// 앨범명
+    public var album: String
+    /// 재생 상태
+    public var isPlaying: Bool
+    /// 앨범 아트 (JPEG/PNG 데이터, Base64 인코딩)
+    public var artworkData: Data?
+
+    public init(
+        appName: String = "",
+        title: String = "",
+        artist: String = "",
+        album: String = "",
+        isPlaying: Bool = false,
+        artworkData: Data? = nil
+    ) {
+        self.appName = appName
+        self.title = title
+        self.artist = artist
+        self.album = album
+        self.isPlaying = isPlaying
+        self.artworkData = artworkData
+    }
+
+    /// 재생 정보가 비어있는지 확인
+    public var isEmpty: Bool {
+        title.isEmpty && artist.isEmpty
+    }
+}

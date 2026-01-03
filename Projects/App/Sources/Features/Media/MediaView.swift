@@ -33,26 +33,111 @@ public struct MediaView: View {
 
     private var nowPlayingArea: some View {
         VStack(spacing: 16) {
-            // Album Art Placeholder
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.secondarySystemBackground))
-                .frame(width: 200, height: 200)
-                .overlay(
-                    Image(systemName: "music.note")
-                        .font(.system(size: 60))
-                        .foregroundStyle(Color(.tertiaryLabel))
-                )
+            // Album Art
+            albumArtView
                 .accessibilityLabel("앨범 아트")
 
+            // Track Info
+            trackInfoView
+        }
+        .animation(.easeInOut(duration: 0.3), value: store.nowPlayingInfo)
+    }
+
+    @ViewBuilder
+    private var albumArtView: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.secondarySystemBackground))
+
+            if let artworkData = store.nowPlayingInfo.artworkData,
+               let uiImage = UIImage(data: artworkData) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+            } else {
+                Image(systemName: appIcon)
+                    .font(.system(size: 60))
+                    .foregroundStyle(appIconColor)
+            }
+        }
+        .frame(width: 200, height: 200)
+        .shadow(color: .black.opacity(0.1), radius: 10, y: 5)
+    }
+
+    private var appIcon: String {
+        switch store.nowPlayingInfo.appName.lowercased() {
+        case "music":
+            return "music.note"
+        case "spotify":
+            return "waveform"
+        default:
+            return store.nowPlayingInfo.isEmpty ? "music.note" : "play.circle"
+        }
+    }
+
+    private var appIconColor: Color {
+        switch store.nowPlayingInfo.appName.lowercased() {
+        case "music":
+            return .pink
+        case "spotify":
+            return .green
+        default:
+            return Color(.tertiaryLabel)
+        }
+    }
+
+    @ViewBuilder
+    private var trackInfoView: some View {
+        if store.nowPlayingInfo.isEmpty {
+            // Not Playing
             VStack(spacing: 8) {
                 Text("Not Playing")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(Color(.label))
 
-                Text("Select a track to play")
+                Text("Play music on your Mac")
                     .font(.subheadline)
                     .foregroundStyle(Color(.secondaryLabel))
             }
+        } else {
+            // Now Playing Info
+            VStack(spacing: 6) {
+                // App Badge
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(store.isPlaying ? .green : .orange)
+                        .frame(width: 6, height: 6)
+
+                    Text(store.nowPlayingInfo.appName)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Color(.secondaryLabel))
+                }
+
+                // Track Title
+                Text(store.nowPlayingInfo.title)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Color(.label))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                // Artist
+                Text(store.nowPlayingInfo.artist)
+                    .font(.subheadline)
+                    .foregroundStyle(Color(.secondaryLabel))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                // Album (if available)
+                if !store.nowPlayingInfo.album.isEmpty {
+                    Text(store.nowPlayingInfo.album)
+                        .font(.caption)
+                        .foregroundStyle(Color(.tertiaryLabel))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+            }
+            .frame(maxWidth: 240)
         }
     }
 
