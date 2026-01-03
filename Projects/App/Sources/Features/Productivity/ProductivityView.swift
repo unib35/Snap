@@ -15,6 +15,9 @@ public struct ProductivityView: View {
                 // Macro Pad Section
                 macroSection
 
+                // Voice Typing Section
+                voiceTypingSection
+
                 // Siri Section
                 siriSection
 
@@ -37,6 +40,18 @@ public struct ProductivityView: View {
         MacroPadSection(
             store: store.scope(state: \.macro, action: \.macro)
         )
+    }
+
+    // MARK: - Voice Typing Section
+
+    @ViewBuilder
+    private var voiceTypingSection: some View {
+        VoiceTypingSection(
+            store: store.scope(state: \.voiceTyping, action: \.voiceTyping)
+        )
+        .padding()
+        .background(Color(.secondarySystemBackground).opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
     // MARK: - Siri Section

@@ -91,6 +91,32 @@ public final class InputSimulator: @unchecked Sendable {
         setModifiers(modifiers, keyDown: false)
     }
 
+    /// 텍스트 입력 (유니코드 문자열)
+    public func typeText(_ text: String) {
+        for character in text {
+            typeCharacter(character)
+        }
+    }
+
+    /// 단일 문자 입력
+    private func typeCharacter(_ character: Character) {
+        let string = String(character)
+        guard let unicodeScalar = string.unicodeScalars.first else { return }
+
+        // CGEventKeyboardSetUnicodeString을 사용하여 유니코드 문자 입력
+        guard let keyDownEvent = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true),
+              let keyUpEvent = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: false) else {
+            return
+        }
+
+        var unicodeChar = UniChar(unicodeScalar.value)
+        keyDownEvent.keyboardSetUnicodeString(stringLength: 1, unicodeString: &unicodeChar)
+        keyUpEvent.keyboardSetUnicodeString(stringLength: 1, unicodeString: &unicodeChar)
+
+        keyDownEvent.post(tap: .cghidEventTap)
+        keyUpEvent.post(tap: .cghidEventTap)
+    }
+
     // MARK: - Private Helpers
 
     private func currentMouseLocation() -> CGPoint {
