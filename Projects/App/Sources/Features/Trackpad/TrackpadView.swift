@@ -398,42 +398,33 @@ struct LaserControlArea: View {
 
                 Spacer()
 
-                // Sensitivity & Calibrate
-                if isActive {
-                    VStack(spacing: 12) {
-                        // Sensitivity slider
-                        HStack {
-                            Image(systemName: "tortoise")
-                                .foregroundStyle(.secondary)
-                                .font(.caption)
+                // Sensitivity (항상 표시)
+                VStack(spacing: 12) {
+                    // Sensitivity slider
+                    HStack {
+                        Image(systemName: "tortoise")
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
 
-                            Slider(
-                                value: Binding(
-                                    get: { Double(store.laserPointer.sensitivity) },
-                                    set: { store.send(.laserPointer(.setSensitivity(Float($0)))) }
-                                ),
-                                in: 1...50
-                            )
-                            .tint(.red)
+                        Slider(
+                            value: Binding(
+                                get: { Double(store.laserPointer.sensitivity) },
+                                set: { store.send(.laserPointer(.setSensitivity(Float($0)))) }
+                            ),
+                            in: 1...50
+                        )
+                        .tint(.red)
 
-                            Image(systemName: "hare")
-                                .foregroundStyle(.secondary)
-                                .font(.caption)
-                        }
-
-                        // Calibrate button
-                        Button {
-                            store.send(.laserPointer(.calibrate))
-                        } label: {
-                            Label("기준점 재설정", systemImage: "scope")
-                                .font(.caption)
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                        Image(systemName: "hare")
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
                     }
-                    .padding(.horizontal)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+
+                    Text("Sensitivity: \(Int(store.laserPointer.sensitivity))")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
+                .padding(.horizontal)
             }
             .padding()
         }
