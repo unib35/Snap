@@ -126,6 +126,9 @@ public struct AppFeature {
             case .connection(.appListReceived(let apps)):
                 return .send(.productivity(.appListReceived(apps)))
 
+            case .connection(.nowPlayingInfoReceived(let info)):
+                return .send(.media(.nowPlayingInfoReceived(info)))
+
             case .connection:
                 return .none
 

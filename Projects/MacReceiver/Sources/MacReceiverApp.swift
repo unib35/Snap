@@ -345,6 +345,8 @@ final class ServerManager: ObservableObject {
     @Published var receivedPackets: [String] = []
 
     private var server: SnapServer?
+    private var nowPlayingTimer: Timer?
+    private var lastNowPlayingInfo: NowPlayingInfo?
 
     init() {
         startServer()
@@ -378,6 +380,39 @@ final class ServerManager: ObservableObject {
 
     func disconnectClient() {
         server?.disconnectClient()
+    }
+
+    // MARK: - Now Playing
+
+    private func startNowPlayingUpdates() {
+        stopNowPlayingUpdates()
+
+        // 즉시 한 번 전송
+        sendNowPlayingInfoIfChanged()
+
+        // 2초마다 업데이트 전송
+        nowPlayingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.sendNowPlayingInfoIfChanged()
+            }
+        }
+    }
+
+    private func stopNowPlayingUpdates() {
+        nowPlayingTimer?.invalidate()
+        nowPlayingTimer = nil
+        lastNowPlayingInfo = nil
+    }
+
+    private func sendNowPlayingInfoIfChanged() {
+        let currentInfo = MediaController.shared.getNowPlayingInfo()
+
+        // 정보가 변경되었을 때만 전송
+        if currentInfo != lastNowPlayingInfo {
+            lastNowPlayingInfo = currentInfo
+            server?.sendNowPlayingInfo(currentInfo)
+            logPacket("NowPlaying: \(currentInfo.isEmpty ? "No media" : "\(currentInfo.title) - \(currentInfo.artist)")")
+        }
     }
 
     private func handlePacket(_ packet: DecodedPacket) {
@@ -497,6 +532,7 @@ extension ServerManager: SnapServerDelegate {
         Task { @MainActor in
             self.connectedDevice = deviceName
             self.logPacket("Connected: \(deviceName)")
+            self.startNowPlayingUpdates()
         }
     }
 
@@ -504,6 +540,7 @@ extension ServerManager: SnapServerDelegate {
         Task { @MainActor in
             self.connectedDevice = nil
             self.logPacket("Disconnected: \(deviceName)")
+            self.stopNowPlayingUpdates()
         }
     }
 
