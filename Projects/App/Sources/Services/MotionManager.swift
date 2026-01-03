@@ -137,6 +137,10 @@ public struct MotionClient: Sendable {
 
 extension MotionClient: DependencyKey {
     public static var liveValue: MotionClient {
+        #if targetEnvironment(simulator)
+        // 시뮬레이터에서는 Mock 모션 데이터 사용
+        return simulatorValue
+        #else
         let manager = MotionManager.shared
 
         return MotionClient(
@@ -145,6 +149,51 @@ extension MotionClient: DependencyKey {
             stopUpdates: { manager.stopUpdates() },
             calibrate: { manager.calibrate() },
             setSensitivity: { manager.setSensitivity($0) }
+        )
+        #endif
+    }
+
+    /// 시뮬레이터용 Mock 구현
+    public static var simulatorValue: MotionClient {
+        let mockState = MockMotionState()
+
+        return MotionClient(
+            isAvailable: { true },
+            startUpdates: {
+                AsyncStream { continuation in
+                    mockState.isRunning = true
+
+                    // Task로 60Hz 루프 실행
+                    Task { @MainActor in
+                        while mockState.isRunning {
+                            // 시뮬레이터에서는 작은 랜덤 움직임 생성
+                            let gyroData = GyroData(
+                                rotationRate: Vector3(
+                                    x: Float.random(in: -0.1...0.1),
+                                    y: Float.random(in: -0.1...0.1),
+                                    z: Float.random(in: -0.1...0.1)
+                                ),
+                                attitude: Vector3(
+                                    x: Float.random(in: -0.05...0.05),
+                                    y: Float.random(in: -0.05...0.05),
+                                    z: 0
+                                ),
+                                sensitivity: mockState.sensitivity
+                            )
+                            continuation.yield(.update(gyroData))
+
+                            try? await Task.sleep(nanoseconds: 16_666_667) // ~60Hz
+                        }
+                    }
+
+                    continuation.onTermination = { _ in
+                        mockState.isRunning = false
+                    }
+                }
+            },
+            stopUpdates: { mockState.isRunning = false },
+            calibrate: {},
+            setSensitivity: { mockState.sensitivity = $0 }
         )
     }
 
@@ -157,6 +206,12 @@ extension MotionClient: DependencyKey {
             setSensitivity: { _ in }
         )
     }
+}
+
+/// 시뮬레이터용 Mock 상태 (thread-safe)
+private final class MockMotionState: @unchecked Sendable {
+    var sensitivity: Float = 15.0
+    var isRunning: Bool = false
 }
 
 public extension DependencyValues {
