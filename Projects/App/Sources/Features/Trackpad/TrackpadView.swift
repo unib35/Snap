@@ -317,7 +317,7 @@ struct TrackpadTouchArea: View {
 // MARK: - Laser Control Area
 
 struct LaserControlArea: View {
-    let store: StoreOf<TrackpadFeature>
+    @Bindable var store: StoreOf<TrackpadFeature>
 
     var body: some View {
         let isActive = store.laserPointer.isActive
@@ -438,6 +438,19 @@ struct LaserControlArea: View {
             .padding()
         }
         .padding(.horizontal)
+        .alert(
+            "오류",
+            isPresented: Binding(
+                get: { store.laserPointer.errorMessage != nil },
+                set: { if !$0 { store.send(.laserPointer(.dismissError)) } }
+            )
+        ) {
+            Button("확인") {
+                store.send(.laserPointer(.dismissError))
+            }
+        } message: {
+            Text(store.laserPointer.errorMessage ?? "")
+        }
     }
 }
 
