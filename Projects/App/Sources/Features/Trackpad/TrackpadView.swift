@@ -318,9 +318,10 @@ struct TrackpadTouchArea: View {
 
 struct LaserControlArea: View {
     let store: StoreOf<TrackpadFeature>
-    @State private var isHolding = false
 
     var body: some View {
+        let isActive = store.laserPointer.isActive
+
         ZStack {
             // Background
             RoundedRectangle(cornerRadius: 24)
@@ -341,7 +342,7 @@ struct LaserControlArea: View {
                 // Laser Button
                 ZStack {
                     // Outer glow (pulsing when active)
-                    if isHolding {
+                    if isActive {
                         Circle()
                             .fill(Color.red.opacity(0.2))
                             .frame(width: 220, height: 220)
@@ -351,50 +352,80 @@ struct LaserControlArea: View {
 
                     // Button shadow glow
                     Circle()
-                        .fill(Color.red.opacity(isHolding ? 0.5 : 0))
+                        .fill(Color.red.opacity(isActive ? 0.5 : 0))
                         .frame(width: 180, height: 180)
                         .blur(radius: 30)
 
                     // Main button
                     Circle()
-                        .fill(isHolding ? Color.red : Color(.tertiarySystemBackground))
+                        .fill(isActive ? Color.red : Color(.tertiarySystemBackground))
                         .frame(width: 160, height: 160)
                         .overlay(
                             Circle()
                                 .strokeBorder(
-                                    isHolding ? Color.red.opacity(0.6) : Color(.separator),
+                                    isActive ? Color.red.opacity(0.6) : Color(.separator),
                                     lineWidth: 2
                                 )
                         )
-                        .scaleEffect(isHolding ? 0.95 : 1.0)
+                        .scaleEffect(isActive ? 0.95 : 1.0)
 
                     VStack(spacing: 8) {
                         Image(systemName: "scope")
                             .font(.system(size: 44, weight: .medium))
-                            .foregroundStyle(isHolding ? .white : .red)
+                            .foregroundStyle(isActive ? .white : .red)
+                            .symbolEffect(.pulse, isActive: isActive)
 
-                        Text(isHolding ? "GYRO ACTIVE" : "HOLD TO MOVE")
+                        Text(isActive ? "GYRO ACTIVE" : "TAP TO START")
                             .font(.caption.weight(.bold))
-                            .foregroundStyle(isHolding ? .white : Color(.secondaryLabel))
+                            .foregroundStyle(isActive ? .white : Color(.secondaryLabel))
                             .tracking(1)
                     }
                 }
-                .animation(.spring(response: 0.25, dampingFraction: 0.6), value: isHolding)
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { _ in
-                            if !isHolding {
-                                isHolding = true
-                            }
-                        }
-                        .onEnded { _ in
-                            isHolding = false
-                        }
-                )
+                .animation(.spring(response: 0.25, dampingFraction: 0.6), value: isActive)
+                .onTapGesture {
+                    store.send(.laserPointer(.toggleActive))
+                }
                 .accessibilityLabel("레이저 포인터 버튼")
-                .accessibilityHint("길게 눌러 자이로스코프로 마우스를 제어합니다")
+                .accessibilityHint("탭하여 자이로스코프 마우스 제어를 시작/중지합니다")
 
                 Spacer()
+
+                // Sensitivity & Calibrate
+                if isActive {
+                    VStack(spacing: 12) {
+                        // Sensitivity slider
+                        HStack {
+                            Image(systemName: "tortoise")
+                                .foregroundStyle(.secondary)
+                                .font(.caption)
+
+                            Slider(
+                                value: Binding(
+                                    get: { Double(store.laserPointer.sensitivity) },
+                                    set: { store.send(.laserPointer(.setSensitivity(Float($0)))) }
+                                ),
+                                in: 1...50
+                            )
+                            .tint(.red)
+
+                            Image(systemName: "hare")
+                                .foregroundStyle(.secondary)
+                                .font(.caption)
+                        }
+
+                        // Calibrate button
+                        Button {
+                            store.send(.laserPointer(.calibrate))
+                        } label: {
+                            Label("기준점 재설정", systemImage: "scope")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                    .padding(.horizontal)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
             }
             .padding()
         }

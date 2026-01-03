@@ -400,6 +400,13 @@ final class ServerManager: ObservableObject {
             )
             logPacket("Scroll: dx=\(scroll.deltaX), dy=\(scroll.deltaY)")
 
+        case .gyroData(let gyro, _):
+            // attitude.y (roll) → 수평 이동 (X)
+            // attitude.x (pitch) → 수직 이동 (Y)
+            let deltaX = CGFloat(gyro.attitude.y * gyro.sensitivity)
+            let deltaY = CGFloat(gyro.attitude.x * gyro.sensitivity)
+            InputSimulator.shared.moveMouse(deltaX: deltaX, deltaY: deltaY)
+
         case .keyEvent(let keyEvent, _):
             InputSimulator.shared.keyEvent(
                 keyCode: keyEvent.keyCode,

@@ -98,6 +98,13 @@ public final class SnapClient: @unchecked Sendable {
         udpSocket?.send(scroll, type: .scroll)
     }
 
+    /// 자이로 데이터 전송 (UDP)
+    public func sendGyroData(_ gyroData: GyroData) {
+        guard isConnected else { return }
+
+        udpSocket?.send(gyroData, type: .gyroData)
+    }
+
     /// 키 이벤트 전송 (TCP)
     public func sendKeyEvent(keyCode: UInt32, action: KeyEvent.Action, modifiers: UInt32 = 0) {
         guard isConnected else { return }

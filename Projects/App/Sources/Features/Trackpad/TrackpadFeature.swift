@@ -13,6 +13,7 @@ public struct TrackpadFeature {
         public var scrollSensitivity: Double = 1.0
         public var isNaturalScrolling: Bool = true
         public var isTapToClick: Bool = true
+        public var laserPointer: LaserPointerFeature.State = .init()
 
         public init() {}
     }
@@ -61,6 +62,9 @@ public struct TrackpadFeature {
             isNaturalScrolling: Bool,
             isTapToClick: Bool
         )
+
+        // Laser Pointer
+        case laserPointer(LaserPointerFeature.Action)
     }
 
     @Dependency(\.connectionClient) var connectionClient
@@ -68,12 +72,22 @@ public struct TrackpadFeature {
     public init() {}
 
     public var body: some ReducerOf<Self> {
+        Scope(state: \.laserPointer, action: \.laserPointer) {
+            LaserPointerFeature()
+        }
+
         Reduce { state, action in
             let client = connectionClient
 
             switch action {
             case .modeChanged(let mode):
                 state.mode = mode
+                // 모드 변경 시 레이저 포인터 상태 동기화
+                if mode == .laser && !state.laserPointer.isActive {
+                    return .send(.laserPointer(.startPointing))
+                } else if mode == .trackpad && state.laserPointer.isActive {
+                    return .send(.laserPointer(.stopPointing))
+                }
                 return .none
 
             case .touchBegan(let position):
@@ -162,6 +176,9 @@ public struct TrackpadFeature {
                 state.scrollSensitivity = scrollSensitivity
                 state.isNaturalScrolling = isNaturalScrolling
                 state.isTapToClick = isTapToClick
+                return .none
+
+            case .laserPointer:
                 return .none
             }
         }
