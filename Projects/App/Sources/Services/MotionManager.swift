@@ -1,4 +1,5 @@
 import CoreMotion
+import ComposableArchitecture
 import Foundation
 import Shared
 
@@ -10,6 +11,10 @@ public enum MotionEvent: Equatable, Sendable {
 
 /// CoreMotion 기반 모션 매니저
 public final class MotionManager: @unchecked Sendable {
+    // MARK: - Singleton
+
+    public static let shared = MotionManager()
+
     // MARK: - Properties
 
     private let motionManager = CMMotionManager()
@@ -20,7 +25,7 @@ public final class MotionManager: @unchecked Sendable {
 
     // MARK: - Initialization
 
-    public init() {}
+    private init() {}
 
     // MARK: - Public Methods
 
@@ -113,5 +118,46 @@ public final class MotionManager: @unchecked Sendable {
             attitude: attitudeVector,
             sensitivity: sensitivity
         )
+    }
+}
+
+// MARK: - TCA Dependency
+
+public struct MotionClient: Sendable {
+    public var isAvailable: @Sendable () -> Bool
+    public var startUpdates: @Sendable () -> AsyncStream<MotionEvent>
+    public var stopUpdates: @Sendable () -> Void
+    public var calibrate: @Sendable () -> Void
+    public var setSensitivity: @Sendable (Float) -> Void
+}
+
+extension MotionClient: DependencyKey {
+    public static var liveValue: MotionClient {
+        let manager = MotionManager.shared
+
+        return MotionClient(
+            isAvailable: { manager.isAvailable },
+            startUpdates: { manager.startUpdates() },
+            stopUpdates: { manager.stopUpdates() },
+            calibrate: { manager.calibrate() },
+            setSensitivity: { manager.setSensitivity($0) }
+        )
+    }
+
+    public static var testValue: MotionClient {
+        MotionClient(
+            isAvailable: { true },
+            startUpdates: { .finished },
+            stopUpdates: {},
+            calibrate: {},
+            setSensitivity: { _ in }
+        )
+    }
+}
+
+public extension DependencyValues {
+    var motionClient: MotionClient {
+        get { self[MotionClient.self] }
+        set { self[MotionClient.self] = newValue }
     }
 }

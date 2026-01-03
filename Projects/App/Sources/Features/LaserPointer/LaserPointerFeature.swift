@@ -25,10 +25,13 @@ public struct LaserPointerFeature {
     }
 
     @Dependency(\.connectionClient) var connectionClient
-
-    private let motionManager = MotionManager()
+    @Dependency(\.motionClient) var motionClient
 
     public init() {}
+
+    private enum CancelID {
+        case motion
+    }
 
     public var body: some ReducerOf<Self> {
         Reduce { state, action in
@@ -41,7 +44,7 @@ public struct LaserPointerFeature {
                 }
 
             case .startPointing:
-                guard motionManager.isAvailable else {
+                guard motionClient.isAvailable() else {
                     state.errorMessage = "자이로스코프를 사용할 수 없습니다"
                     return .none
                 }
@@ -50,30 +53,30 @@ public struct LaserPointerFeature {
                 state.errorMessage = nil
 
                 // 시작할 때 자동 캘리브레이션
-                motionManager.calibrate()
+                motionClient.calibrate()
                 state.isCalibrated = true
 
-                let manager = motionManager
-                return .run { send in
-                    for await event in manager.startUpdates() {
+                return .run { [motionClient] send in
+                    for await event in motionClient.startUpdates() {
                         await send(.motionEvent(event))
                     }
                 }
+                .cancellable(id: CancelID.motion)
 
             case .stopPointing:
                 state.isActive = false
                 state.isCalibrated = false
-                motionManager.stopUpdates()
-                return .none
+                motionClient.stopUpdates()
+                return .cancel(id: CancelID.motion)
 
             case .calibrate:
-                motionManager.calibrate()
+                motionClient.calibrate()
                 state.isCalibrated = true
                 return .none
 
             case .setSensitivity(let value):
                 state.sensitivity = value
-                motionManager.setSensitivity(value)
+                motionClient.setSensitivity(value)
                 return .none
 
             case .motionEvent(let event):
@@ -81,9 +84,8 @@ public struct LaserPointerFeature {
                 case .update(let gyroData):
                     guard state.isActive else { return .none }
 
-                    let client = connectionClient
-                    return .run { _ in
-                        await client.sendGyroData(gyroData)
+                    return .run { [connectionClient] _ in
+                        await connectionClient.sendGyroData(gyroData)
                     }
 
                 case .error(let message):
