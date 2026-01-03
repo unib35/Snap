@@ -154,6 +154,14 @@ public final class SnapClient: @unchecked Sendable {
         tcpConnection?.send(command, type: .siriCommand)
     }
 
+    /// 음성 텍스트 전송 (TCP)
+    public func sendVoiceText(text: String, isFinal: Bool) {
+        guard isConnected else { return }
+
+        let voiceText = VoiceText(text: text, isFinal: isFinal)
+        tcpConnection?.send(voiceText, type: .voiceText)
+    }
+
     // MARK: - Private Methods
 
     private static func getDeviceID() -> String {

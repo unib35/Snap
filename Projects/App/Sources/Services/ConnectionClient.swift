@@ -23,6 +23,7 @@ public struct ConnectionClient: Sendable {
     public var requestAppList: @Sendable () async -> Void
     public var sendAppFocus: @Sendable (String, UInt32) async -> Void
     public var sendSiriCommand: @Sendable (SiriCommand.Action, String) async -> Void
+    public var sendVoiceText: @Sendable (String, Bool) async -> Void
 }
 
 // MARK: - Events
@@ -79,7 +80,8 @@ extension ConnectionClient: DependencyKey {
             sendWindowSnap: { pos in await actor.sendWindowSnap(position: pos) },
             requestAppList: { await actor.requestAppList() },
             sendAppFocus: { bundleID, pid in await actor.sendAppFocus(bundleID: bundleID, pid: pid) },
-            sendSiriCommand: { action, text in await actor.sendSiriCommand(action: action, text: text) }
+            sendSiriCommand: { action, text in await actor.sendSiriCommand(action: action, text: text) },
+            sendVoiceText: { text, isFinal in await actor.sendVoiceText(text: text, isFinal: isFinal) }
         )
     }
 
@@ -98,7 +100,8 @@ extension ConnectionClient: DependencyKey {
             sendWindowSnap: { _ in },
             requestAppList: {},
             sendAppFocus: { _, _ in },
-            sendSiriCommand: { _, _ in }
+            sendSiriCommand: { _, _ in },
+            sendVoiceText: { _, _ in }
         )
     }
 }
@@ -209,6 +212,10 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
 
     func sendSiriCommand(action: SiriCommand.Action, text: String) {
         client?.sendSiriCommand(action: action, text: text)
+    }
+
+    func sendVoiceText(text: String, isFinal: Bool) {
+        client?.sendVoiceText(text: text, isFinal: isFinal)
     }
 
     // MARK: - SnapClientDelegate

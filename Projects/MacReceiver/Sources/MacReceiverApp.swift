@@ -438,8 +438,10 @@ final class ServerManager: ObservableObject {
             logPacket("Presentation: \(pres.command)")
 
         case .voiceText(let voice, _):
-            // TODO: Type text
-            logPacket("VoiceText: \(voice.text)")
+            if voice.isFinal && !voice.text.isEmpty {
+                InputSimulator.shared.typeText(voice.text)
+            }
+            logPacket("VoiceText: \(voice.text) (final: \(voice.isFinal))")
 
         case .siriCommand(let command, _):
             SiriController.shared.execute(command: command)
