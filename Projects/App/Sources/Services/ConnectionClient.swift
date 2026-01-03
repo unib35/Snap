@@ -16,6 +16,7 @@ public struct ConnectionClient: Sendable {
     public var sendMouseMove: @Sendable (Float, Float) async -> Void
     public var sendMouseClick: @Sendable (MouseClick.Button, MouseClick.Action) async -> Void
     public var sendScroll: @Sendable (Float, Float, Bool) async -> Void
+    public var sendGyroData: @Sendable (GyroData) async -> Void
     public var sendKeyEvent: @Sendable (UInt32, KeyEvent.Action, UInt32) async -> Void
     public var sendKeyCombo: @Sendable ([UInt32], UInt32) async -> Void
     public var sendMediaControl: @Sendable (MediaControl.Command, Float) async -> Void
@@ -74,6 +75,7 @@ extension ConnectionClient: DependencyKey {
             sendMouseMove: { dx, dy in await actor.sendMouseMove(deltaX: dx, deltaY: dy) },
             sendMouseClick: { button, action in await actor.sendMouseClick(button: button, action: action) },
             sendScroll: { dx, dy, inertia in await actor.sendScroll(deltaX: dx, deltaY: dy, isInertia: inertia) },
+            sendGyroData: { gyroData in await actor.sendGyroData(gyroData) },
             sendKeyEvent: { code, action, mods in await actor.sendKeyEvent(keyCode: code, action: action, modifiers: mods) },
             sendKeyCombo: { codes, mods in await actor.sendKeyCombo(keyCodes: codes, modifiers: mods) },
             sendMediaControl: { cmd, vol in await actor.sendMediaControl(command: cmd, volume: vol) },
@@ -94,6 +96,7 @@ extension ConnectionClient: DependencyKey {
             sendMouseMove: { _, _ in },
             sendMouseClick: { _, _ in },
             sendScroll: { _, _, _ in },
+            sendGyroData: { _ in },
             sendKeyEvent: { _, _, _ in },
             sendKeyCombo: { _, _ in },
             sendMediaControl: { _, _ in },
@@ -184,6 +187,10 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
 
     func sendScroll(deltaX: Float, deltaY: Float, isInertia: Bool) {
         client?.sendScroll(deltaX: deltaX, deltaY: deltaY, isInertia: isInertia)
+    }
+
+    func sendGyroData(_ gyroData: GyroData) {
+        client?.sendGyroData(gyroData)
     }
 
     func sendKeyEvent(keyCode: UInt32, action: KeyEvent.Action, modifiers: UInt32) {
