@@ -41,6 +41,16 @@ public struct MacroView: View {
 
             Spacer()
 
+            if store.isEditing {
+                Button {
+                    store.send(.resetToDefaults)
+                } label: {
+                    Text("초기화")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.red)
+                }
+            }
+
             Button {
                 store.send(.editModeToggled)
             } label: {
@@ -67,7 +77,83 @@ public struct MacroView: View {
                 }
                 .gridCellColumns(macro.size.columnSpan)
             }
+
+            // Add Button
+            AddMacroButton {
+                store.send(.addMacroTapped)
+            }
         }
+        .sheet(isPresented: Binding(
+            get: { store.editorState != nil },
+            set: { if !$0 { store.send(.dismissEditor) } }
+        )) {
+            MacroEditorView(store: store)
+        }
+        .alert("매크로 초기화", isPresented: Binding(
+            get: { false },
+            set: { _ in }
+        )) {
+            Button("취소", role: .cancel) {}
+            Button("초기화", role: .destructive) {
+                store.send(.confirmResetToDefaults)
+            }
+        } message: {
+            Text("모든 매크로를 기본값으로 초기화하시겠습니까?")
+        }
+    }
+}
+
+// MARK: - Add Macro Button
+
+struct AddMacroButton: View {
+    let action: () -> Void
+
+    @State private var isPressed = false
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: "plus")
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundStyle(Color(.secondaryLabel))
+
+                Text("추가")
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color(.tertiaryLabel))
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 80)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(.tertiarySystemBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .strokeBorder(
+                                Color(.separator),
+                                style: StrokeStyle(lineWidth: 2, dash: [8, 4])
+                            )
+                    )
+            )
+            .scaleEffect(isPressed ? 0.95 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("매크로 추가")
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    if !isPressed {
+                        withAnimation(.spring(response: 0.2)) {
+                            isPressed = true
+                        }
+                    }
+                }
+                .onEnded { _ in
+                    withAnimation(.spring(response: 0.2)) {
+                        isPressed = false
+                    }
+                }
+        )
     }
 }
 
@@ -217,6 +303,7 @@ extension MacroColor {
 
 public struct MacroPadSection: View {
     @Bindable var store: StoreOf<MacroFeature>
+    @State private var showResetAlert = false
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -237,6 +324,18 @@ public struct MacroPadSection: View {
                     .font(.headline)
 
                 Spacer()
+
+                if store.isEditing {
+                    Button {
+                        showResetAlert = true
+                    } label: {
+                        Text("초기화")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .tint(.red)
+                }
 
                 Button {
                     store.send(.editModeToggled)
@@ -263,11 +362,30 @@ public struct MacroPadSection: View {
                     }
                     .gridCellColumns(macro.size.columnSpan)
                 }
+
+                // Add Button
+                AddMacroButton {
+                    store.send(.addMacroTapped)
+                }
             }
         }
         .padding()
         .background(Color(.secondarySystemBackground).opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 16))
+        .sheet(isPresented: Binding(
+            get: { store.editorState != nil },
+            set: { if !$0 { store.send(.dismissEditor) } }
+        )) {
+            MacroEditorView(store: store)
+        }
+        .alert("매크로 초기화", isPresented: $showResetAlert) {
+            Button("취소", role: .cancel) {}
+            Button("초기화", role: .destructive) {
+                store.send(.confirmResetToDefaults)
+            }
+        } message: {
+            Text("모든 매크로를 기본값으로 초기화하시겠습니까?")
+        }
     }
 }
 
