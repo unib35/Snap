@@ -12,6 +12,7 @@ public struct ProductivityFeature {
         public var voiceTyping: VoiceTypingFeature.State = .init()
         public var presenter: PresenterFeature.State = .init()
         public var shortsRemote: ShortsRemoteFeature.State = .init()
+        public var quickLaunch: QuickLaunchFeature.State = .init()
     }
 
     public enum Action: Equatable, Sendable {
@@ -40,6 +41,9 @@ public struct ProductivityFeature {
 
         // Shorts Remote
         case shortsRemote(ShortsRemoteFeature.Action)
+
+        // Quick Launch
+        case quickLaunch(QuickLaunchFeature.Action)
     }
 
     @Dependency(\.connectionClient) var connectionClient
@@ -61,6 +65,10 @@ public struct ProductivityFeature {
 
         Scope(state: \.shortsRemote, action: \.shortsRemote) {
             ShortsRemoteFeature()
+        }
+
+        Scope(state: \.quickLaunch, action: \.quickLaunch) {
+            QuickLaunchFeature()
         }
 
         Reduce { state, action in
@@ -125,6 +133,9 @@ public struct ProductivityFeature {
                 return .none
 
             case .shortsRemote:
+                return .none
+
+            case .quickLaunch:
                 return .none
             }
         }

@@ -27,6 +27,7 @@ public enum DecodedPacket: Sendable {
     case appListRequest(AppListRequest, header: PacketHeader)
     case appListResponse(AppListResponse, header: PacketHeader)
     case appFocus(AppFocus, header: PacketHeader)
+    case openURL(OpenURL, header: PacketHeader)
     case presentation(Presentation, header: PacketHeader)
     case voiceText(VoiceText, header: PacketHeader)
     case siriCommand(SiriCommand, header: PacketHeader)
@@ -53,6 +54,7 @@ public enum DecodedPacket: Sendable {
         case .appListRequest: return .appListRequest
         case .appListResponse: return .appListResponse
         case .appFocus: return .appFocus
+        case .openURL: return .openURL
         case .presentation: return .presentation
         case .voiceText: return .voiceText
         case .siriCommand: return .siriCommand
@@ -79,6 +81,7 @@ public enum DecodedPacket: Sendable {
              .appListRequest(_, let header),
              .appListResponse(_, let header),
              .appFocus(_, let header),
+             .openURL(_, let header),
              .presentation(_, let header),
              .voiceText(_, let header),
              .siriCommand(_, let header),
@@ -155,6 +158,9 @@ public enum PacketDecoder {
             case .appFocus:
                 let message = try decoder.decode(AppFocus.self, from: payload)
                 return .appFocus(message, header: header)
+            case .openURL:
+                let message = try decoder.decode(OpenURL.self, from: payload)
+                return .openURL(message, header: header)
             case .presentation:
                 let message = try decoder.decode(Presentation.self, from: payload)
                 return .presentation(message, header: header)

@@ -31,6 +31,8 @@ public enum MessageType: UInt8, Sendable {
     case appListResponse = 0x51
     /// 앱 포커스 전환
     case appFocus = 0x52
+    /// URL 열기
+    case openURL = 0x53
     /// 발표 제어
     case presentation = 0x60
     /// 음성 텍스트

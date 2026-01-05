@@ -169,6 +169,14 @@ public final class SnapClient: @unchecked Sendable {
         tcpConnection?.send(voiceText, type: .voiceText)
     }
 
+    /// URL 열기 전송 (TCP)
+    public func sendOpenURL(url: String) {
+        guard isConnected else { return }
+
+        let openURL = OpenURL(url: url)
+        tcpConnection?.send(openURL, type: .openURL)
+    }
+
     // MARK: - Private Methods
 
     private static func getDeviceID() -> String {
