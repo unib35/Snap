@@ -13,6 +13,11 @@ public struct ConnectionFeature: Sendable {
         public var latency: TimeInterval = 0
         public var signalStrength: SignalStrength = .unknown
 
+        // Pairing
+        public var isPairingRequired: Bool = false
+        public var pairingServerName: String = ""
+        public var pairingPinCode: String = ""
+
         public init() {}
     }
 
@@ -33,6 +38,11 @@ public struct ConnectionFeature: Sendable {
 
         // Now Playing
         case nowPlayingInfoReceived(NowPlayingInfo)
+
+        // Pairing
+        case pairingPinCodeChanged(String)
+        case submitPairingPin
+        case cancelPairing
 
         // Error
         case errorOccurred(ConnectionError)
@@ -117,6 +127,8 @@ public struct ConnectionFeature: Sendable {
             case .connectionEvent(let event):
                 switch event {
                 case .connected(let serverName):
+                    state.isPairingRequired = false
+                    state.pairingPinCode = ""
                     if case .connecting(var device) = state.status {
                         device.name = serverName
                         state.status = .connected(device)
@@ -126,6 +138,8 @@ public struct ConnectionFeature: Sendable {
                 case .disconnected(let errorMessage):
                     state.status = .disconnected
                     state.connectedDevice = nil
+                    state.isPairingRequired = false
+                    state.pairingPinCode = ""
                     if let message = errorMessage {
                         state.lastError = .connectionLost(message)
                     }
@@ -145,6 +159,21 @@ public struct ConnectionFeature: Sendable {
                     if case .connecting = state.status {
                         state.status = .disconnected
                     }
+
+                case .pairingRequired(let serverName):
+                    state.isPairingRequired = true
+                    state.pairingServerName = serverName
+                    state.pairingPinCode = ""
+
+                case .pairingResult(let success, let message):
+                    if success {
+                        state.isPairingRequired = false
+                        state.pairingPinCode = ""
+                        // 연결은 서버가 handshake 응답 후 처리됨
+                    } else {
+                        state.lastError = .pairingFailed(message)
+                        state.pairingPinCode = ""
+                    }
                 }
                 return .none
 
@@ -159,6 +188,26 @@ public struct ConnectionFeature: Sendable {
             case .focusApp(let bundleID, let pid):
                 return .run { _ in
                     await connectionClient.sendAppFocus(bundleID, pid)
+                }
+
+            case .pairingPinCodeChanged(let pin):
+                // 4자리 숫자만 허용
+                let filtered = String(pin.filter { $0.isNumber }.prefix(4))
+                state.pairingPinCode = filtered
+                return .none
+
+            case .submitPairingPin:
+                guard state.pairingPinCode.count == 4 else { return .none }
+                let pinCode = state.pairingPinCode
+                return .run { _ in
+                    await connectionClient.sendPairingResponse(pinCode)
+                }
+
+            case .cancelPairing:
+                state.isPairingRequired = false
+                state.pairingPinCode = ""
+                return .run { _ in
+                    await connectionClient.disconnect()
                 }
 
             case .errorOccurred(let error):

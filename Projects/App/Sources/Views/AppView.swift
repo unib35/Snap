@@ -93,6 +93,22 @@ public struct AppView: View {
                 store.send(.hideSettings)
             }
         }
+        .sheet(
+            isPresented: Binding(
+                get: { store.connection.isPairingRequired },
+                set: { if !$0 { store.send(.connection(.cancelPairing)) } }
+            )
+        ) {
+            PairingPinView(
+                serverName: store.connection.pairingServerName,
+                pinCode: Binding(
+                    get: { store.connection.pairingPinCode },
+                    set: { store.send(.connection(.pairingPinCodeChanged($0))) }
+                ),
+                onSubmit: { store.send(.connection(.submitPairingPin)) },
+                onCancel: { store.send(.connection(.cancelPairing)) }
+            )
+        }
         .onAppear {
             store.send(.onAppear)
         }
@@ -295,6 +311,127 @@ struct ConnectionSheetView: View {
                         onDismiss()
                     }
                 }
+            }
+        }
+    }
+}
+
+// MARK: - Pairing PIN View
+
+struct PairingPinView: View {
+    let serverName: String
+    @Binding var pinCode: String
+    let onSubmit: () -> Void
+    let onCancel: () -> Void
+
+    @FocusState private var isTextFieldFocused: Bool
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 32) {
+                Spacer()
+
+                // Icon
+                ZStack {
+                    Circle()
+                        .fill(Color.blue.opacity(0.1))
+                        .frame(width: 100, height: 100)
+
+                    Image(systemName: "lock.shield")
+                        .font(.system(size: 44))
+                        .foregroundStyle(.blue)
+                }
+
+                // Title
+                VStack(spacing: 8) {
+                    Text("Enter PIN Code")
+                        .font(.title2.weight(.bold))
+
+                    Text("Enter the 4-digit PIN shown on\n\(serverName)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+
+                // PIN Input
+                VStack(spacing: 16) {
+                    // Hidden text field
+                    TextField("", text: $pinCode)
+                        .keyboardType(.numberPad)
+                        .textContentType(.oneTimeCode)
+                        .focused($isTextFieldFocused)
+                        .opacity(0)
+                        .frame(width: 1, height: 1)
+
+                    // PIN Display
+                    HStack(spacing: 16) {
+                        ForEach(0..<4, id: \.self) { index in
+                            pinDigitView(at: index)
+                        }
+                    }
+                    .onTapGesture {
+                        isTextFieldFocused = true
+                    }
+                }
+
+                Spacer()
+
+                // Submit Button
+                Button {
+                    onSubmit()
+                } label: {
+                    Text("Connect")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(pinCode.count == 4 ? Color.blue : Color.gray)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .disabled(pinCode.count != 4)
+                .padding(.horizontal)
+
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("Pairing")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") {
+                        onCancel()
+                    }
+                }
+            }
+            .onAppear {
+                isTextFieldFocused = true
+            }
+        }
+        .interactiveDismissDisabled()
+    }
+
+    @ViewBuilder
+    private func pinDigitView(at index: Int) -> some View {
+        let digit = pinCode.count > index ? String(pinCode[pinCode.index(pinCode.startIndex, offsetBy: index)]) : ""
+        let isFilled = !digit.isEmpty
+
+        ZStack {
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(isFilled ? Color.blue : Color(.separator), lineWidth: 2)
+                .frame(width: 56, height: 72)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.secondarySystemBackground))
+                )
+
+            if isFilled {
+                Text(digit)
+                    .font(.system(size: 32, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color(.label))
+            } else {
+                Circle()
+                    .fill(Color(.tertiaryLabel))
+                    .frame(width: 12, height: 12)
             }
         }
     }

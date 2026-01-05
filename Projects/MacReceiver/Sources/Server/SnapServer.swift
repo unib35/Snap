@@ -12,6 +12,10 @@ public protocol SnapServerDelegate: AnyObject {
     func server(_ server: SnapServer, didDisconnectFrom deviceName: String)
     func server(_ server: SnapServer, didReceivePacket packet: DecodedPacket)
     func server(_ server: SnapServer, didFailWithError error: Error)
+    /// 페어링 PIN 코드 표시 요청 (새 디바이스 연결 시)
+    func server(_ server: SnapServer, showPairingPIN pin: String, forDevice deviceName: String)
+    /// 페어링 완료 (PIN 입력 완료)
+    func server(_ server: SnapServer, didCompletePairing success: Bool, deviceName: String)
 }
 
 /// Snap 서버 (macOS)
@@ -34,6 +38,16 @@ public final class SnapServer: @unchecked Sendable {
 
     public private(set) var isRunning: Bool = false
     public private(set) var connectedDeviceName: String?
+
+    // Pairing State
+    private var pendingPairingConnection: TCPConnection?
+    private var pendingPairingDeviceID: String?
+    private var pendingPairingDeviceName: String?
+    private var currentPIN: String?
+    private var trustedDevicesManager = TrustedDevicesManager.shared
+
+    /// 페어링 필수 여부 설정
+    public var requirePairing: Bool = true
 
     // MARK: - Initialization
 
@@ -180,6 +194,85 @@ public final class SnapServer: @unchecked Sendable {
             return
         }
 
+        // 페어링 확인
+        if requirePairing && !trustedDevicesManager.isTrusted(deviceID: handshake.deviceID) {
+            // 새 디바이스 - 페어링 필요
+            startPairing(handshake: handshake, connection: connection)
+            return
+        }
+
+        // 신뢰된 디바이스 - 바로 연결
+        acceptConnection(handshake: handshake, connection: connection)
+    }
+
+    private func startPairing(handshake: Handshake, connection: TCPConnection) {
+        // PIN 코드 생성
+        currentPIN = PINCodeGenerator.generate()
+        pendingPairingConnection = connection
+        pendingPairingDeviceID = handshake.deviceID
+        pendingPairingDeviceName = handshake.deviceName
+
+        // 페어링 챌린지 전송
+        let challenge = PairingChallenge(
+            deviceName: deviceName,
+            deviceID: deviceID
+        )
+        connection.send(challenge, type: .pairingChallenge)
+
+        logger.info("Pairing started for device: \(handshake.deviceName), PIN: \(self.currentPIN ?? "")")
+
+        // 델리게이트에 PIN 표시 요청
+        delegate?.server(self, showPairingPIN: currentPIN ?? "", forDevice: handshake.deviceName)
+    }
+
+    private func handlePairingResponse(_ response: PairingResponse, from connection: TCPConnection) {
+        guard connection === pendingPairingConnection,
+              let expectedPIN = currentPIN,
+              response.deviceID == pendingPairingDeviceID else {
+            // 잘못된 페어링 응답
+            let result = PairingResult(status: .rejected, message: "Invalid pairing session")
+            connection.send(result, type: .pairingResult)
+            connection.disconnect()
+            clearPairingState()
+            return
+        }
+
+        // PIN 확인
+        if response.pinCode == expectedPIN {
+            // 페어링 성공
+            trustedDevicesManager.addTrustedDevice(
+                deviceID: response.deviceID,
+                deviceName: response.deviceName
+            )
+
+            let result = PairingResult(status: .success, message: "Pairing successful")
+            connection.send(result, type: .pairingResult)
+
+            logger.info("Pairing successful for device: \(response.deviceName)")
+            delegate?.server(self, didCompletePairing: true, deviceName: response.deviceName)
+
+            // 연결 수락
+            let handshake = Handshake(
+                deviceName: response.deviceName,
+                deviceID: response.deviceID,
+                protocolVersion: UInt32(NetworkConstants.protocolVersion),
+                appVersion: "1.0.0"
+            )
+            acceptConnection(handshake: handshake, connection: connection)
+            clearPairingState()
+        } else {
+            // PIN 불일치
+            let result = PairingResult(status: .invalidPin, message: "Invalid PIN code")
+            connection.send(result, type: .pairingResult)
+            connection.disconnect()
+
+            logger.warning("Pairing failed: Invalid PIN for device: \(response.deviceName)")
+            delegate?.server(self, didCompletePairing: false, deviceName: response.deviceName)
+            clearPairingState()
+        }
+    }
+
+    private func acceptConnection(handshake: Handshake, connection: TCPConnection) {
         connectedClient = connection
         connectedDeviceName = handshake.deviceName
 
@@ -190,6 +283,27 @@ public final class SnapServer: @unchecked Sendable {
         setupHeartbeat()
 
         delegate?.server(self, didAcceptConnection: handshake.deviceName)
+    }
+
+    private func clearPairingState() {
+        currentPIN = nil
+        pendingPairingConnection = nil
+        pendingPairingDeviceID = nil
+        pendingPairingDeviceName = nil
+    }
+
+    /// 페어링 취소
+    public func cancelPairing() {
+        guard let connection = pendingPairingConnection else { return }
+
+        let result = PairingResult(status: .rejected, message: "Pairing cancelled by user")
+        connection.send(result, type: .pairingResult)
+        connection.disconnect()
+
+        if let deviceName = pendingPairingDeviceName {
+            delegate?.server(self, didCompletePairing: false, deviceName: deviceName)
+        }
+        clearPairingState()
     }
 }
 
@@ -232,6 +346,9 @@ extension SnapServer: TCPConnectionDelegate {
         switch packet {
         case .handshake(let handshake, _):
             handleHandshake(handshake, from: connection)
+
+        case .pairingResponse(let response, _):
+            handlePairingResponse(response, from: connection)
 
         case .heartbeat(let heartbeat, _):
             heartbeatManager?.didReceiveHeartbeat()

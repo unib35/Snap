@@ -71,3 +71,51 @@ public struct Ack: Codable, Sendable, Equatable {
 public struct Disconnect: Codable, Sendable, Equatable {
     public init() {}
 }
+
+// MARK: - Pairing
+
+/// 페어링 챌린지 (macOS → iOS)
+public struct PairingChallenge: Codable, Sendable, Equatable {
+    public var deviceName: String
+    public var deviceID: String
+
+    public init(deviceName: String = "", deviceID: String = "") {
+        self.deviceName = deviceName
+        self.deviceID = deviceID
+    }
+}
+
+/// 페어링 응답 (iOS → macOS)
+public struct PairingResponse: Codable, Sendable, Equatable {
+    public var pinCode: String
+    public var deviceName: String
+    public var deviceID: String
+
+    public init(pinCode: String = "", deviceName: String = "", deviceID: String = "") {
+        self.pinCode = pinCode
+        self.deviceName = deviceName
+        self.deviceID = deviceID
+    }
+}
+
+/// 페어링 결과 (macOS → iOS)
+public struct PairingResult: Codable, Sendable, Equatable {
+    public enum Status: Int, Codable, Sendable {
+        case success = 0
+        case invalidPin = 1
+        case timeout = 2
+        case rejected = 3
+    }
+
+    public var status: Status
+    public var message: String
+
+    public init(status: Status = .success, message: String = "") {
+        self.status = status
+        self.message = message
+    }
+
+    public var isSuccess: Bool {
+        status == .success
+    }
+}
