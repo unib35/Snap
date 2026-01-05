@@ -21,16 +21,27 @@ public final class TCPConnection: @unchecked Sendable {
     private let queue: DispatchQueue
 
     public private(set) var state: ConnectionState = .disconnected
+    public let isSecure: Bool
 
     // MARK: - Initialization
 
     /// 클라이언트로 초기화 (호스트에 연결)
-    public init(host: String, port: UInt16) {
+    public init(host: String, port: UInt16, useTLS: Bool = false, tlsOptions: NWProtocolTLS.Options? = nil) {
         let endpoint = NWEndpoint.hostPort(
             host: NWEndpoint.Host(host),
             port: NWEndpoint.Port(rawValue: port) ?? .any
         )
-        let parameters = NWParameters.tcp
+
+        let parameters: NWParameters
+        if useTLS {
+            let options = tlsOptions ?? SecurityManager.shared.createClientTLSOptions()
+            parameters = NWParameters(tls: options)
+            self.isSecure = true
+            logger.info("Creating TLS-secured TCP connection to \(host):\(port)")
+        } else {
+            parameters = NWParameters.tcp
+            self.isSecure = false
+        }
         parameters.prohibitExpensivePaths = false
         parameters.prohibitedInterfaceTypes = [.cellular]
 
@@ -41,8 +52,9 @@ public final class TCPConnection: @unchecked Sendable {
     }
 
     /// 서버로부터 수락된 연결로 초기화
-    public init(connection: NWConnection) {
+    public init(connection: NWConnection, isSecure: Bool = false) {
         self.connection = connection
+        self.isSecure = isSecure
         self.queue = DispatchQueue(label: "com.snap.tcp.server", qos: .userInteractive)
 
         setupConnection()

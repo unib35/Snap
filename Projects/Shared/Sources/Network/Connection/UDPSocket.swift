@@ -23,13 +23,19 @@ public final class UDPSocket: @unchecked Sendable {
 
     private let port: UInt16
     private var remoteEndpoint: NWEndpoint?
+    private let useDTLS: Bool
+    private let dtlsOptions: NWProtocolTLS.Options?
 
     public private(set) var isReady: Bool = false
+    public let isSecure: Bool
 
     // MARK: - Initialization
 
-    public init(port: UInt16 = NetworkConstants.udpPort) {
+    public init(port: UInt16 = NetworkConstants.udpPort, useDTLS: Bool = false, dtlsOptions: NWProtocolTLS.Options? = nil) {
         self.port = port
+        self.useDTLS = useDTLS
+        self.dtlsOptions = dtlsOptions
+        self.isSecure = useDTLS
         self.queue = DispatchQueue(label: "com.snap.udp", qos: .userInteractive)
     }
 
@@ -43,7 +49,14 @@ public final class UDPSocket: @unchecked Sendable {
             port: NWEndpoint.Port(rawValue: targetPort) ?? .any
         )
 
-        let parameters = NWParameters.udp
+        let parameters: NWParameters
+        if useDTLS {
+            let options = dtlsOptions ?? SecurityManager.shared.createClientDTLSOptions()
+            parameters = NWParameters(dtls: options, udp: NWProtocolUDP.Options())
+            logger.info("Creating DTLS-secured UDP connection to \(host):\(targetPort)")
+        } else {
+            parameters = NWParameters.udp
+        }
         parameters.prohibitExpensivePaths = false
         parameters.prohibitedInterfaceTypes = [.cellular]
 
@@ -61,7 +74,20 @@ public final class UDPSocket: @unchecked Sendable {
 
     /// 서버로 리슨 (macOS에서 사용)
     public func listen() throws {
-        let parameters = NWParameters.udp
+        let parameters: NWParameters
+        if useDTLS {
+            guard let options = dtlsOptions ?? SecurityManager.shared.createServerDTLSOptions() else {
+                throw NetworkError.connectionFailed(NSError(
+                    domain: "UDPSocket",
+                    code: -2,
+                    userInfo: [NSLocalizedDescriptionKey: "Failed to create DTLS options"]
+                ))
+            }
+            parameters = NWParameters(dtls: options, udp: NWProtocolUDP.Options())
+            logger.info("Starting DTLS-secured UDP listener on port \(self.port)")
+        } else {
+            parameters = NWParameters.udp
+        }
         parameters.prohibitExpensivePaths = false
         parameters.prohibitedInterfaceTypes = [.cellular]
         parameters.allowLocalEndpointReuse = true
@@ -124,7 +150,17 @@ public final class UDPSocket: @unchecked Sendable {
 
     /// 특정 엔드포인트로 데이터 전송 (서버 모드)
     public func send(_ data: Data, to endpoint: NWEndpoint, completion: (@Sendable (Error?) -> Void)? = nil) {
-        let parameters = NWParameters.udp
+        let parameters: NWParameters
+        if useDTLS {
+            let options = dtlsOptions ?? SecurityManager.shared.createServerDTLSOptions()
+            if let options {
+                parameters = NWParameters(dtls: options, udp: NWProtocolUDP.Options())
+            } else {
+                parameters = NWParameters.udp
+            }
+        } else {
+            parameters = NWParameters.udp
+        }
         let conn = NWConnection(to: endpoint, using: parameters)
 
         conn.stateUpdateHandler = { state in

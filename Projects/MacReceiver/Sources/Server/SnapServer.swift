@@ -49,11 +49,15 @@ public final class SnapServer: @unchecked Sendable {
     /// 페어링 필수 여부 설정
     public var requirePairing: Bool = true
 
+    /// 보안 연결 사용 여부 (TLS/DTLS)
+    public var useSecureConnection: Bool = false
+
     // MARK: - Initialization
 
-    public init(deviceName: String? = nil) {
+    public init(deviceName: String? = nil, useSecureConnection: Bool = false) {
         self.deviceName = deviceName ?? Host.current().localizedName ?? "Mac"
         self.deviceID = Self.getDeviceID()
+        self.useSecureConnection = useSecureConnection
     }
 
     // MARK: - Public Methods
@@ -62,19 +66,23 @@ public final class SnapServer: @unchecked Sendable {
     public func start() throws {
         guard !isRunning else { return }
 
-        // TCP 서버 시작
-        tcpServer = TCPServer()
+        // TCP 서버 시작 (TLS 옵션 적용)
+        if useSecureConnection {
+            logger.info("Starting server with TLS/DTLS encryption")
+        }
+        tcpServer = TCPServer(useTLS: useSecureConnection)
         tcpServer?.delegate = self
         try tcpServer?.start()
 
-        // UDP 소켓 시작 (리슨 모드)
-        udpSocket = UDPSocket()
+        // UDP 소켓 시작 (리슨 모드, DTLS 옵션 적용)
+        udpSocket = UDPSocket(useDTLS: useSecureConnection)
         udpSocket?.delegate = self
         try udpSocket?.listen()
 
         // Bonjour 광고 시작
         bonjourAdvertiser = BonjourAdvertiser(serviceName: deviceName)
         bonjourAdvertiser?.setTXTRecord("deviceID", value: deviceID)
+        bonjourAdvertiser?.setTXTRecord("secure", value: useSecureConnection ? "1" : "0")
         bonjourAdvertiser?.delegate = self
         try bonjourAdvertiser?.startAdvertising()
 

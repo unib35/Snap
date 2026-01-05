@@ -34,11 +34,15 @@ public final class SnapClient: @unchecked Sendable {
     public private(set) var isConnected: Bool = false
     public private(set) var serverDeviceName: String?
 
+    /// 보안 연결 사용 여부 (TLS/DTLS)
+    public var useSecureConnection: Bool = false
+
     // MARK: - Initialization
 
-    public init(deviceName: String? = nil) {
+    public init(deviceName: String? = nil, useSecureConnection: Bool = false) {
         self.deviceName = deviceName ?? "iOS Device"
         self.deviceID = Self.getDeviceID()
+        self.useSecureConnection = useSecureConnection
     }
 
     /// iOS 디바이스 이름으로 초기화 (MainActor에서 호출)
@@ -60,8 +64,11 @@ public final class SnapClient: @unchecked Sendable {
 
         connectedHost = host
 
-        // TCP 연결
-        tcpConnection = TCPConnection(host: host, port: port)
+        // TCP 연결 (TLS 옵션 적용)
+        if useSecureConnection {
+            logger.info("Connecting with TLS to \(host):\(port)")
+        }
+        tcpConnection = TCPConnection(host: host, port: port, useTLS: useSecureConnection)
         tcpConnection?.delegate = self
         tcpConnection?.connect()
     }
@@ -240,7 +247,8 @@ public final class SnapClient: @unchecked Sendable {
     private func setupUDPSocket() {
         guard let host = connectedHost else { return }
 
-        udpSocket = UDPSocket()
+        // UDP 소켓 (DTLS 옵션 적용)
+        udpSocket = UDPSocket(useDTLS: useSecureConnection)
         udpSocket?.delegate = self
         udpSocket?.connect(to: host, port: NetworkConstants.udpPort)
     }

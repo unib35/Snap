@@ -19,13 +19,17 @@ public final class TCPServer: @unchecked Sendable {
     private var listener: NWListener?
     private let port: UInt16
     private let queue: DispatchQueue
+    private let useTLS: Bool
+    private let tlsOptions: NWProtocolTLS.Options?
 
     public private(set) var isListening: Bool = false
 
     // MARK: - Initialization
 
-    public init(port: UInt16 = NetworkConstants.tcpPort) {
+    public init(port: UInt16 = NetworkConstants.tcpPort, useTLS: Bool = false, tlsOptions: NWProtocolTLS.Options? = nil) {
         self.port = port
+        self.useTLS = useTLS
+        self.tlsOptions = tlsOptions
         self.queue = DispatchQueue(label: "com.snap.tcp.server", qos: .userInteractive)
     }
 
@@ -35,7 +39,20 @@ public final class TCPServer: @unchecked Sendable {
     public func start() throws {
         guard !isListening else { return }
 
-        let parameters = NWParameters.tcp
+        let parameters: NWParameters
+        if useTLS {
+            guard let options = tlsOptions ?? SecurityManager.shared.createServerTLSOptions() else {
+                throw NetworkError.connectionFailed(NSError(
+                    domain: "TCPServer",
+                    code: -2,
+                    userInfo: [NSLocalizedDescriptionKey: "Failed to create TLS options"]
+                ))
+            }
+            parameters = NWParameters(tls: options)
+            logger.info("Starting TLS-secured TCP server on port \(self.port)")
+        } else {
+            parameters = NWParameters.tcp
+        }
         parameters.prohibitExpensivePaths = false
         parameters.prohibitedInterfaceTypes = [.cellular]
         parameters.allowLocalEndpointReuse = true
@@ -93,7 +110,7 @@ public final class TCPServer: @unchecked Sendable {
     }
 
     private func handleNewConnection(_ nwConnection: NWConnection) {
-        let connection = TCPConnection(connection: nwConnection)
+        let connection = TCPConnection(connection: nwConnection, isSecure: useTLS)
         connection.connect()
         delegate?.tcpServer(self, didAccept: connection)
     }
