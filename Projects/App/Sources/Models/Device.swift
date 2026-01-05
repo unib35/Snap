@@ -66,4 +66,5 @@ public enum ConnectionError: Error, Equatable, Sendable {
     case timeout
     case disconnected
     case protocolError(String)
+    case pairingFailed(String)
 }

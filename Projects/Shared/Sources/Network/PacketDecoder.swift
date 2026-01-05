@@ -37,6 +37,9 @@ public enum DecodedPacket: Sendable {
     case handshake(Handshake, header: PacketHeader)
     case heartbeat(Heartbeat, header: PacketHeader)
     case disconnect(Disconnect, header: PacketHeader)
+    case pairingChallenge(PairingChallenge, header: PacketHeader)
+    case pairingResponse(PairingResponse, header: PacketHeader)
+    case pairingResult(PairingResult, header: PacketHeader)
     case ack(Ack, header: PacketHeader)
     case error(SnapError, header: PacketHeader)
 
@@ -63,6 +66,9 @@ public enum DecodedPacket: Sendable {
         case .handshake: return .handshake
         case .heartbeat: return .heartbeat
         case .disconnect: return .disconnect
+        case .pairingChallenge: return .pairingChallenge
+        case .pairingResponse: return .pairingResponse
+        case .pairingResult: return .pairingResult
         case .ack: return .ack
         case .error: return .error
         }
@@ -91,6 +97,9 @@ public enum DecodedPacket: Sendable {
              .handshake(_, let header),
              .heartbeat(_, let header),
              .disconnect(_, let header),
+             .pairingChallenge(_, let header),
+             .pairingResponse(_, let header),
+             .pairingResult(_, let header),
              .ack(_, let header),
              .error(_, let header):
             return header
@@ -187,6 +196,15 @@ public enum PacketDecoder {
             case .disconnect:
                 let message = try decoder.decode(Disconnect.self, from: payload)
                 return .disconnect(message, header: header)
+            case .pairingChallenge:
+                let message = try decoder.decode(PairingChallenge.self, from: payload)
+                return .pairingChallenge(message, header: header)
+            case .pairingResponse:
+                let message = try decoder.decode(PairingResponse.self, from: payload)
+                return .pairingResponse(message, header: header)
+            case .pairingResult:
+                let message = try decoder.decode(PairingResult.self, from: payload)
+                return .pairingResult(message, header: header)
             case .ack:
                 let message = try decoder.decode(Ack.self, from: payload)
                 return .ack(message, header: header)

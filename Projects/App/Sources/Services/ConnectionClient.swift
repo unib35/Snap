@@ -27,6 +27,9 @@ public struct ConnectionClient: Sendable {
     public var sendSiriCommand: @Sendable (SiriCommand.Action, String) async -> Void
     public var sendVoiceText: @Sendable (String, Bool) async -> Void
     public var sendOpenURL: @Sendable (String) async -> Void
+
+    // Pairing
+    public var sendPairingResponse: @Sendable (String) async -> Void
 }
 
 // MARK: - Events
@@ -56,6 +59,9 @@ public enum ConnectionEvent: Equatable, Sendable {
     case disconnected(error: String?)
     case packet(PacketEvent)
     case error(String)
+    // Pairing
+    case pairingRequired(serverName: String)
+    case pairingResult(success: Bool, message: String)
 }
 
 public enum PacketEvent: Equatable, Sendable {
@@ -88,7 +94,8 @@ extension ConnectionClient: DependencyKey {
             sendAppFocus: { bundleID, pid in await actor.sendAppFocus(bundleID: bundleID, pid: pid) },
             sendSiriCommand: { action, text in await actor.sendSiriCommand(action: action, text: text) },
             sendVoiceText: { text, isFinal in await actor.sendVoiceText(text: text, isFinal: isFinal) },
-            sendOpenURL: { url in await actor.sendOpenURL(url: url) }
+            sendOpenURL: { url in await actor.sendOpenURL(url: url) },
+            sendPairingResponse: { pin in await actor.sendPairingResponse(pinCode: pin) }
         )
     }
 
@@ -111,7 +118,8 @@ extension ConnectionClient: DependencyKey {
             sendAppFocus: { _, _ in },
             sendSiriCommand: { _, _ in },
             sendVoiceText: { _, _ in },
-            sendOpenURL: { _ in }
+            sendOpenURL: { _ in },
+            sendPairingResponse: { _ in }
         )
     }
 }
@@ -240,6 +248,10 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
         client?.sendOpenURL(url: url)
     }
 
+    func sendPairingResponse(pinCode: String) {
+        client?.sendPairingResponse(pinCode: pinCode)
+    }
+
     // MARK: - SnapClientDelegate
 
     nonisolated func clientDidConnect(_ client: SnapClient) {
@@ -292,6 +304,26 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
 
     private func handleError(_ error: Error) {
         connectionContinuation?.yield(.error(error.localizedDescription))
+    }
+
+    nonisolated func client(_ client: SnapClient, didReceivePairingChallenge challenge: PairingChallenge) {
+        Task {
+            await self.handlePairingChallenge(challenge)
+        }
+    }
+
+    private func handlePairingChallenge(_ challenge: PairingChallenge) {
+        connectionContinuation?.yield(.pairingRequired(serverName: challenge.deviceName))
+    }
+
+    nonisolated func client(_ client: SnapClient, didReceivePairingResult result: PairingResult) {
+        Task {
+            await self.handlePairingResult(result)
+        }
+    }
+
+    private func handlePairingResult(_ result: PairingResult) {
+        connectionContinuation?.yield(.pairingResult(success: result.isSuccess, message: result.message))
     }
 
     // MARK: - BonjourBrowserDelegate

@@ -10,6 +10,10 @@ public protocol SnapClientDelegate: AnyObject {
     func clientDidDisconnect(_ client: SnapClient, error: Error?)
     func client(_ client: SnapClient, didReceive packet: DecodedPacket)
     func client(_ client: SnapClient, didFailWithError error: Error)
+    /// 페어링 PIN 입력 요청
+    func client(_ client: SnapClient, didReceivePairingChallenge challenge: PairingChallenge)
+    /// 페어링 결과 수신
+    func client(_ client: SnapClient, didReceivePairingResult result: PairingResult)
 }
 
 /// Snap 클라이언트 (iOS)
@@ -185,6 +189,16 @@ public final class SnapClient: @unchecked Sendable {
         tcpConnection?.send(openURL, type: .openURL)
     }
 
+    /// 페어링 응답 전송 (TCP)
+    public func sendPairingResponse(pinCode: String) {
+        let response = PairingResponse(
+            pinCode: pinCode,
+            deviceName: deviceName,
+            deviceID: deviceID
+        )
+        tcpConnection?.send(response, type: .pairingResponse)
+    }
+
     // MARK: - Private Methods
 
     private static func getDeviceID() -> String {
@@ -273,6 +287,14 @@ extension SnapClient: TCPConnectionDelegate {
         switch packet {
         case .handshake(let handshake, _):
             handleHandshakeResponse(handshake)
+
+        case .pairingChallenge(let challenge, _):
+            // 페어링 챌린지 수신 - PIN 입력 필요
+            delegate?.client(self, didReceivePairingChallenge: challenge)
+
+        case .pairingResult(let result, _):
+            // 페어링 결과 수신
+            delegate?.client(self, didReceivePairingResult: result)
 
         case .heartbeat(let heartbeat, _):
             heartbeatManager?.didReceiveHeartbeat()

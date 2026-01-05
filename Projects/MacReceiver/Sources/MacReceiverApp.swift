@@ -344,6 +344,11 @@ final class ServerManager: ObservableObject {
     @Published var lastError: String?
     @Published var receivedPackets: [String] = []
 
+    // Pairing
+    @Published var isPairingInProgress: Bool = false
+    @Published var pairingDeviceName: String = ""
+    @Published var pairingPinCode: String = ""
+
     private var server: SnapServer?
     private var nowPlayingTimer: Timer?
     private var lastNowPlayingInfo: NowPlayingInfo?
@@ -568,6 +573,27 @@ extension ServerManager: SnapServerDelegate {
             self.logPacket("Error: \(error.localizedDescription)")
         }
     }
+
+    nonisolated func server(_ server: SnapServer, showPairingPIN pin: String, forDevice deviceName: String) {
+        Task { @MainActor in
+            self.isPairingInProgress = true
+            self.pairingDeviceName = deviceName
+            self.pairingPinCode = pin
+            self.logPacket("Pairing: PIN \(pin) for \(deviceName)")
+        }
+    }
+
+    nonisolated func server(_ server: SnapServer, didCompletePairing success: Bool, deviceName: String) {
+        Task { @MainActor in
+            self.isPairingInProgress = false
+            self.pairingPinCode = ""
+            if success {
+                self.logPacket("Pairing successful: \(deviceName)")
+            } else {
+                self.logPacket("Pairing failed: \(deviceName)")
+            }
+        }
+    }
 }
 
 // MARK: - Content View
@@ -576,25 +602,73 @@ struct ContentView: View {
     @ObservedObject var serverManager: ServerManager
 
     var body: some View {
-        VStack(spacing: 20) {
-            // Status Header
-            statusHeader
+        ZStack {
+            VStack(spacing: 20) {
+                // Status Header
+                statusHeader
 
-            Divider()
+                Divider()
 
-            // Connection Info
-            connectionInfo
+                // Connection Info
+                connectionInfo
 
-            Divider()
+                Divider()
 
-            // Log View
-            logView
+                // Log View
+                logView
 
-            // Controls
-            controls
+                // Controls
+                controls
+            }
+            .frame(width: 400, height: 400)
+            .padding()
+
+            // Pairing Overlay
+            if serverManager.isPairingInProgress {
+                pairingOverlay
+            }
         }
-        .frame(width: 400, height: 400)
-        .padding()
+    }
+
+    @ViewBuilder
+    private var pairingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.7)
+                .ignoresSafeArea()
+
+            VStack(spacing: 24) {
+                Image(systemName: "lock.shield")
+                    .font(.system(size: 48))
+                    .foregroundStyle(.blue)
+
+                Text("Pairing Request")
+                    .font(.title2.bold())
+
+                Text("'\(serverManager.pairingDeviceName)' is trying to connect")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                // PIN Display
+                HStack(spacing: 16) {
+                    ForEach(Array(serverManager.pairingPinCode), id: \.self) { digit in
+                        Text(String(digit))
+                            .font(.system(size: 40, weight: .bold, design: .rounded))
+                            .frame(width: 56, height: 72)
+                            .background(Color(.controlBackgroundColor))
+                            .cornerRadius(12)
+                    }
+                }
+                .padding(.vertical)
+
+                Text("Enter this PIN on your iPhone")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(40)
+            .background(Color(.windowBackgroundColor))
+            .cornerRadius(16)
+            .shadow(radius: 20)
+        }
     }
 
     @ViewBuilder
