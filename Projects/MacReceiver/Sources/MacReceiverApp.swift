@@ -435,6 +435,10 @@ final class ServerManager: ObservableObject {
             )
             logPacket("Scroll: dx=\(scroll.deltaX), dy=\(scroll.deltaY)")
 
+        case .pinch(let pinch, _):
+            InputSimulator.shared.pinchZoom(scale: CGFloat(pinch.scale), phase: pinch.phase)
+            logPacket("Pinch: scale=\(pinch.scale), phase=\(pinch.phase)")
+
         case .gyroData(let gyro, _):
             // attitude.y (roll) → 수평 이동 (X)
             // attitude.x (pitch) → 수직 이동 (Y)

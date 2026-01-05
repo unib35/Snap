@@ -16,6 +16,7 @@ public struct ConnectionClient: Sendable {
     public var sendMouseMove: @Sendable (Float, Float) async -> Void
     public var sendMouseClick: @Sendable (MouseClick.Button, MouseClick.Action) async -> Void
     public var sendScroll: @Sendable (Float, Float, Bool) async -> Void
+    public var sendPinch: @Sendable (Float, Pinch.Phase) async -> Void
     public var sendGyroData: @Sendable (GyroData) async -> Void
     public var sendKeyEvent: @Sendable (UInt32, KeyEvent.Action, UInt32) async -> Void
     public var sendKeyCombo: @Sendable ([UInt32], UInt32) async -> Void
@@ -77,6 +78,7 @@ extension ConnectionClient: DependencyKey {
             sendMouseMove: { dx, dy in await actor.sendMouseMove(deltaX: dx, deltaY: dy) },
             sendMouseClick: { button, action in await actor.sendMouseClick(button: button, action: action) },
             sendScroll: { dx, dy, inertia in await actor.sendScroll(deltaX: dx, deltaY: dy, isInertia: inertia) },
+            sendPinch: { scale, phase in await actor.sendPinch(scale: scale, phase: phase) },
             sendGyroData: { gyroData in await actor.sendGyroData(gyroData) },
             sendKeyEvent: { code, action, mods in await actor.sendKeyEvent(keyCode: code, action: action, modifiers: mods) },
             sendKeyCombo: { codes, mods in await actor.sendKeyCombo(keyCodes: codes, modifiers: mods) },
@@ -99,6 +101,7 @@ extension ConnectionClient: DependencyKey {
             sendMouseMove: { _, _ in },
             sendMouseClick: { _, _ in },
             sendScroll: { _, _, _ in },
+            sendPinch: { _, _ in },
             sendGyroData: { _ in },
             sendKeyEvent: { _, _, _ in },
             sendKeyCombo: { _, _ in },
@@ -191,6 +194,10 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
 
     func sendScroll(deltaX: Float, deltaY: Float, isInertia: Bool) {
         client?.sendScroll(deltaX: deltaX, deltaY: deltaY, isInertia: isInertia)
+    }
+
+    func sendPinch(scale: Float, phase: Pinch.Phase) {
+        client?.sendPinch(scale: scale, phase: phase)
     }
 
     func sendGyroData(_ gyroData: GyroData) {

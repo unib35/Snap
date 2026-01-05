@@ -98,6 +98,14 @@ public final class SnapClient: @unchecked Sendable {
         udpSocket?.send(scroll, type: .scroll)
     }
 
+    /// 핀치 줌 전송 (UDP)
+    public func sendPinch(scale: Float, phase: Pinch.Phase) {
+        guard isConnected else { return }
+
+        let pinch = Pinch(scale: scale, phase: phase)
+        udpSocket?.send(pinch, type: .pinch)
+    }
+
     /// 자이로 데이터 전송 (UDP)
     public func sendGyroData(_ gyroData: GyroData) {
         guard isConnected else { return }

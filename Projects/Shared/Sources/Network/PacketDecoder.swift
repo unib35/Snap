@@ -17,6 +17,7 @@ public enum DecodedPacket: Sendable {
     case mouseClick(MouseClick, header: PacketHeader)
     case scroll(Scroll, header: PacketHeader)
     case gyroData(GyroData, header: PacketHeader)
+    case pinch(Pinch, header: PacketHeader)
 
     // TCP Messages
     case keyEvent(KeyEvent, header: PacketHeader)
@@ -46,6 +47,7 @@ public enum DecodedPacket: Sendable {
         case .mouseClick: return .mouseClick
         case .scroll: return .scroll
         case .gyroData: return .gyroData
+        case .pinch: return .pinch
         case .keyEvent: return .keyEvent
         case .keyCombo: return .keyCombo
         case .mediaControl: return .mediaControl
@@ -73,6 +75,7 @@ public enum DecodedPacket: Sendable {
              .mouseClick(_, let header),
              .scroll(_, let header),
              .gyroData(_, let header),
+             .pinch(_, let header),
              .keyEvent(_, let header),
              .keyCombo(_, let header),
              .mediaControl(_, let header),
@@ -132,6 +135,9 @@ public enum PacketDecoder {
             case .gyroData:
                 let message = try decoder.decode(GyroData.self, from: payload)
                 return .gyroData(message, header: header)
+            case .pinch:
+                let message = try decoder.decode(Pinch.self, from: payload)
+                return .pinch(message, header: header)
 
             // TCP Messages
             case .keyEvent:
