@@ -45,6 +45,7 @@ public final class WindowController {
             return getFirstWindow(for: appElement)
         }
 
+        // swiftlint:disable:next force_cast
         return (window as! AXUIElement)
     }
 
@@ -182,8 +183,10 @@ public final class WindowController {
         var position = CGPoint.zero
         var size = CGSize.zero
 
+        // swiftlint:disable force_cast
         AXValueGetValue(posVal as! AXValue, .cgPoint, &position)
         AXValueGetValue(sizeVal as! AXValue, .cgSize, &size)
+        // swiftlint:enable force_cast
 
         return CGRect(origin: position, size: size)
     }
