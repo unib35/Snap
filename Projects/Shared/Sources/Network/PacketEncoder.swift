@@ -75,6 +75,11 @@ public enum PacketEncoder {
         try encode(message, type: .appFocus)
     }
 
+    /// OpenURL 인코딩
+    public static func encode(_ message: OpenURL) throws -> Data {
+        try encode(message, type: .openURL)
+    }
+
     /// Presentation 인코딩
     public static func encode(_ message: Presentation) throws -> Data {
         try encode(message, type: .presentation)

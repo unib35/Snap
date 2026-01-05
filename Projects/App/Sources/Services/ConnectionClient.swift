@@ -25,6 +25,7 @@ public struct ConnectionClient: Sendable {
     public var sendAppFocus: @Sendable (String, UInt32) async -> Void
     public var sendSiriCommand: @Sendable (SiriCommand.Action, String) async -> Void
     public var sendVoiceText: @Sendable (String, Bool) async -> Void
+    public var sendOpenURL: @Sendable (String) async -> Void
 }
 
 // MARK: - Events
@@ -84,7 +85,8 @@ extension ConnectionClient: DependencyKey {
             requestAppList: { await actor.requestAppList() },
             sendAppFocus: { bundleID, pid in await actor.sendAppFocus(bundleID: bundleID, pid: pid) },
             sendSiriCommand: { action, text in await actor.sendSiriCommand(action: action, text: text) },
-            sendVoiceText: { text, isFinal in await actor.sendVoiceText(text: text, isFinal: isFinal) }
+            sendVoiceText: { text, isFinal in await actor.sendVoiceText(text: text, isFinal: isFinal) },
+            sendOpenURL: { url in await actor.sendOpenURL(url: url) }
         )
     }
 
@@ -105,7 +107,8 @@ extension ConnectionClient: DependencyKey {
             requestAppList: {},
             sendAppFocus: { _, _ in },
             sendSiriCommand: { _, _ in },
-            sendVoiceText: { _, _ in }
+            sendVoiceText: { _, _ in },
+            sendOpenURL: { _ in }
         )
     }
 }
@@ -224,6 +227,10 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
 
     func sendVoiceText(text: String, isFinal: Bool) {
         client?.sendVoiceText(text: text, isFinal: isFinal)
+    }
+
+    func sendOpenURL(url: String) {
+        client?.sendOpenURL(url: url)
     }
 
     // MARK: - SnapClientDelegate

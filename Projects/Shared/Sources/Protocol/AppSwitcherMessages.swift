@@ -55,3 +55,14 @@ public struct AppFocus: Codable, Sendable, Equatable {
         self.pid = pid
     }
 }
+
+// MARK: - OpenURL
+
+/// URL 열기 (iOS → Mac)
+public struct OpenURL: Codable, Sendable, Equatable {
+    public var url: String
+
+    public init(url: String = "") {
+        self.url = url
+    }
+}

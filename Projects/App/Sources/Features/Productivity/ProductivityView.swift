@@ -12,6 +12,9 @@ public struct ProductivityView: View {
     public var body: some View {
         ScrollView {
             VStack(spacing: 24) {
+                // Quick Launch Section
+                quickLaunchSection
+
                 // Shorts Remote Section
                 shortsRemoteSection
 
@@ -37,6 +40,15 @@ public struct ProductivityView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(.systemBackground))
+    }
+
+    // MARK: - Quick Launch Section
+
+    @ViewBuilder
+    private var quickLaunchSection: some View {
+        QuickLaunchSection(
+            store: store.scope(state: \.quickLaunch, action: \.quickLaunch)
+        )
     }
 
     // MARK: - Shorts Remote Section

@@ -489,6 +489,14 @@ final class ServerManager: ObservableObject {
             SiriController.shared.execute(command: command)
             logPacket("SiriCommand: \(command.action)")
 
+        case .openURL(let openURL, _):
+            if let url = URL(string: openURL.url) {
+                NSWorkspace.shared.open(url)
+                logPacket("OpenURL: \(openURL.url)")
+            } else {
+                logPacket("OpenURL: Invalid URL - \(openURL.url)")
+            }
+
         default:
             break
         }
