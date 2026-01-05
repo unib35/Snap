@@ -58,6 +58,7 @@ public struct AppFeature {
         case hideConnectionSheet
         case showSettings
         case hideSettings
+        case handleURL(URL)
     }
 
     public init() {}
@@ -146,7 +147,54 @@ public struct AppFeature {
 
             case .settings:
                 return .none
+
+            case .handleURL(let url):
+                return handleDeepLink(url: url, state: &state)
             }
+        }
+    }
+
+    // MARK: - Deep Link Handling
+
+    private func handleDeepLink(url: URL, state: inout State) -> Effect<Action> {
+        guard url.scheme == "snap" else { return .none }
+
+        let host = url.host ?? ""
+        let pathComponents = url.pathComponents.filter { $0 != "/" }
+
+        switch host {
+        case "connect":
+            state.isConnectionSheetPresented = true
+            return .none
+
+        case "trackpad":
+            state.selectedTab = .trackpad
+            return .none
+
+        case "keyboard":
+            state.selectedTab = .keyboard
+            return .none
+
+        case "macros":
+            state.selectedTab = .productivity
+            return .none
+
+        case "macro":
+            // snap://macro/{uuid}
+            guard let uuidString = pathComponents.first,
+                  let macroId = UUID(uuidString: uuidString) else {
+                return .none
+            }
+
+            state.selectedTab = .productivity
+
+            if let macro = state.productivity.macro.macros.first(where: { $0.id == macroId }) {
+                return .send(.productivity(.macro(.macroTapped(macro))))
+            }
+            return .none
+
+        default:
+            return .none
         }
     }
 }
