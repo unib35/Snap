@@ -89,13 +89,13 @@ public struct TrackpadView: View {
 
     @ViewBuilder
     private var laserContent: some View {
-        VStack(spacing: 16) {
-            // Gyro Control Area
+        VStack(spacing: 12) {
+            // Gyro Control Area (constrained height)
             LaserControlArea(store: store)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxHeight: 350)
 
-            // Click Buttons
-            HStack(spacing: 16) {
+            // Click Buttons (fixed height, won't shrink)
+            HStack(spacing: 12) {
                 LaserClickButton(
                     icon: "cursorarrow.click",
                     label: "Left Click",
@@ -118,6 +118,7 @@ public struct TrackpadView: View {
             }
             .frame(height: 80)
             .padding(.horizontal)
+            .fixedSize(horizontal: false, vertical: true)
         }
         .transition(.opacity.combined(with: .scale(scale: 0.98)))
     }
@@ -332,7 +333,7 @@ struct LaserControlArea: View {
                         .strokeBorder(Color(.separator), lineWidth: 1)
                 )
 
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
                 // Mode Selector
                 HStack(spacing: 0) {
                     ForEach(LaserPointerFeature.ActivationMode.allCases, id: \.self) { mode in
@@ -343,29 +344,31 @@ struct LaserControlArea: View {
                                 .font(.caption.weight(.bold))
                                 .foregroundStyle(activationMode == mode ? .white : .secondary)
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
+                                .padding(.vertical, 6)
                                 .background(activationMode == mode ? Color.red : Color.clear)
                                 .clipShape(Capsule())
                         }
                     }
                 }
-                .padding(4)
+                .padding(3)
                 .background(Color(.tertiarySystemBackground))
                 .clipShape(Capsule())
                 .padding(.horizontal)
 
-                Spacer()
-
-                // Laser Button
+                // Laser Button (fixed frame to prevent layout shift)
                 ZStack {
-                    // Outer glow (pulsing when active)
-                    if isActive {
-                        Circle()
-                            .fill(Color.red.opacity(0.2))
-                            .frame(width: 220, height: 220)
-                            .blur(radius: 40)
-                            .modifier(PulseModifier())
-                    }
+                    // Outer glow (pulsing when active) - contained within fixed frame
+                    Circle()
+                        .fill(Color.red.opacity(isActive ? 0.2 : 0))
+                        .frame(width: 220, height: 220)
+                        .blur(radius: 40)
+                        .scaleEffect(isActive ? 1.1 : 1.0)
+                        .animation(
+                            isActive
+                                ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true)
+                                : .default,
+                            value: isActive
+                        )
 
                     // Button shadow glow
                     Circle()
@@ -398,6 +401,7 @@ struct LaserControlArea: View {
                             .tracking(1)
                     }
                 }
+                .frame(width: 220, height: 220) // Fixed frame prevents layout shift
                 .animation(.spring(response: 0.25, dampingFraction: 0.6), value: isActive)
                 .gesture(
                     activationMode == .hold
@@ -424,37 +428,34 @@ struct LaserControlArea: View {
                 .accessibilityLabel("레이저 포인터 버튼")
                 .accessibilityHint(activationMode == .hold ? "길게 누르고 있으면 활성화됩니다" : "탭하여 켜고 끕니다")
 
-                Spacer()
-
-                // Sensitivity (항상 표시)
-                VStack(spacing: 12) {
-                    // Sensitivity slider
-                    HStack {
-                        Image(systemName: "tortoise")
-                            .foregroundStyle(.secondary)
-                            .font(.caption)
-
-                        Slider(
-                            value: Binding(
-                                get: { Double(store.laserPointer.sensitivity) },
-                                set: { store.send(.laserPointer(.setSensitivity(Float($0)))) }
-                            ),
-                            in: 1...50
-                        )
-                        .tint(.red)
-
-                        Image(systemName: "hare")
-                            .foregroundStyle(.secondary)
-                            .font(.caption)
-                    }
-
-                    Text("Sensitivity: \(Int(store.laserPointer.sensitivity))")
-                        .font(.caption2)
+                // Sensitivity (compact)
+                HStack(spacing: 8) {
+                    Image(systemName: "tortoise")
                         .foregroundStyle(.secondary)
+                        .font(.caption2)
+
+                    Slider(
+                        value: Binding(
+                            get: { Double(store.laserPointer.sensitivity) },
+                            set: { store.send(.laserPointer(.setSensitivity(Float($0)))) }
+                        ),
+                        in: 1...50
+                    )
+                    .tint(.red)
+
+                    Image(systemName: "hare")
+                        .foregroundStyle(.secondary)
+                        .font(.caption2)
+
+                    Text("\(Int(store.laserPointer.sensitivity))")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24)
                 }
                 .padding(.horizontal)
             }
-            .padding()
+            .padding(.vertical, 12)
+            .padding(.horizontal)
         }
         .padding(.horizontal)
         .alert(
@@ -477,25 +478,6 @@ struct LaserControlArea: View {
             return "GYRO ACTIVE"
         }
         return mode == .hold ? "HOLD TO MOVE" : "TAP TO START"
-    }
-}
-
-// MARK: - Pulse Modifier
-
-struct PulseModifier: ViewModifier {
-    @State private var isPulsing = false
-
-    func body(content: Content) -> some View {
-        content
-            .scaleEffect(isPulsing ? 1.1 : 1.0)
-            .opacity(isPulsing ? 0.7 : 1.0)
-            .animation(
-                .easeInOut(duration: 0.8).repeatForever(autoreverses: true),
-                value: isPulsing
-            )
-            .onAppear {
-                isPulsing = true
-            }
     }
 }
 
