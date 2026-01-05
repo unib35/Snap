@@ -8,15 +8,23 @@ public struct AppView: View {
         self.store = store
     }
 
+    private var isDisconnected: Bool {
+        if case .disconnected = store.connection.status {
+            return true
+        }
+        return false
+    }
+
     public var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 // Connection Status Bar
                 ConnectionStatusBar(status: store.connection.status, signalStrength: store.connection.signalStrength)
 
-                // Main Content
+                // Main Content with connection blur
                 TabView(selection: $store.selectedTab.sending(\.tabSelected)) {
                     TrackpadView(store: store.scope(state: \.trackpad, action: \.trackpad))
+                        .connectionBlur(isDisconnected: isDisconnected)
                         .tag(AppFeature.Tab.trackpad)
                         .tabItem {
                             Label(
@@ -26,6 +34,7 @@ public struct AppView: View {
                         }
 
                     KeyboardView(store: store.scope(state: \.keyboard, action: \.keyboard))
+                        .connectionBlur(isDisconnected: isDisconnected)
                         .tag(AppFeature.Tab.keyboard)
                         .tabItem {
                             Label(
@@ -35,6 +44,7 @@ public struct AppView: View {
                         }
 
                     MediaView(store: store.scope(state: \.media, action: \.media))
+                        .connectionBlur(isDisconnected: isDisconnected)
                         .tag(AppFeature.Tab.media)
                         .tabItem {
                             Label(
@@ -44,6 +54,7 @@ public struct AppView: View {
                         }
 
                     ProductivityView(store: store.scope(state: \.productivity, action: \.productivity))
+                        .connectionBlur(isDisconnected: isDisconnected)
                         .tag(AppFeature.Tab.productivity)
                         .tabItem {
                             Label(
@@ -58,6 +69,9 @@ public struct AppView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
+                        Task { @MainActor in
+                            HapticManager.shared.buttonTap()
+                        }
                         store.send(.showConnectionSheet)
                     } label: {
                         connectionIcon
@@ -66,13 +80,20 @@ public struct AppView: View {
 
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
+                        Task { @MainActor in
+                            HapticManager.shared.buttonTap()
+                        }
                         store.send(.showSettings)
                     } label: {
                         Image(systemName: "gearshape")
+                            .foregroundStyle(SnapColors.textSecondary)
                     }
                 }
             }
+            .toolbarBackground(SnapColors.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
         }
+        .preferredColorScheme(.dark)
         .sheet(
             isPresented: Binding(
                 get: { store.isConnectionSheetPresented },
@@ -119,19 +140,19 @@ public struct AppView: View {
         switch store.connection.status {
         case .disconnected:
             Image(systemName: "wifi.slash")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SnapColors.statusDisconnected)
         case .discovering:
             Image(systemName: "wifi")
-                .foregroundStyle(.orange)
+                .foregroundStyle(SnapColors.statusDiscovering)
         case .connecting:
             Image(systemName: "wifi")
-                .foregroundStyle(.yellow)
+                .foregroundStyle(SnapColors.statusConnecting)
         case .connected:
             Image(systemName: "wifi")
-                .foregroundStyle(.green)
+                .foregroundStyle(SnapColors.statusConnected)
         case .reconnecting:
             Image(systemName: "wifi.exclamationmark")
-                .foregroundStyle(.orange)
+                .foregroundStyle(SnapColors.statusConnecting)
         }
     }
 }
@@ -143,7 +164,7 @@ struct ConnectionStatusBar: View {
     let signalStrength: SignalStrength
 
     var body: some View {
-        HStack {
+        HStack(spacing: SnapSpacing.sm) {
             statusIcon
             statusText
             Spacer()
@@ -151,8 +172,8 @@ struct ConnectionStatusBar: View {
                 signalIndicator
             }
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
+        .padding(.horizontal, SnapSpacing.lg)
+        .padding(.vertical, SnapSpacing.sm)
         .background(backgroundColor)
     }
 
@@ -161,37 +182,41 @@ struct ConnectionStatusBar: View {
         switch status {
         case .disconnected:
             Image(systemName: "wifi.slash")
-                .foregroundStyle(.secondary)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(SnapColors.statusDisconnected)
         case .discovering, .connecting:
             ProgressView()
-                .scaleEffect(0.8)
+                .scaleEffect(0.7)
+                .tint(SnapColors.statusConnecting)
         case .connected:
             Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(SnapColors.statusConnected)
         case .reconnecting:
             Image(systemName: "arrow.triangle.2.circlepath")
-                .foregroundStyle(.orange)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(SnapColors.statusConnecting)
         }
     }
 
     private var statusText: some View {
         Text(statusMessage)
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
+            .font(SnapTypography.labelMedium)
+            .foregroundStyle(SnapColors.textSecondary)
     }
 
     private var statusMessage: String {
         switch status {
         case .disconnected:
-            return "Not Connected"
+            "연결 안됨"
         case .discovering:
-            return "Searching..."
+            "검색 중..."
         case .connecting(let device):
-            return "Connecting to \(device.name)..."
+            "\(device.name)에 연결 중..."
         case .connected(let device):
-            return "Connected to \(device.name)"
+            "\(device.name)에 연결됨"
         case .reconnecting(_, let attempt):
-            return "Reconnecting... (\(attempt)/3)"
+            "재연결 중... (\(attempt)/3)"
         }
     }
 
@@ -209,26 +234,26 @@ struct ConnectionStatusBar: View {
     private func signalColor(for index: Int) -> Color {
         switch signalStrength {
         case .strong:
-            return .green
+            SnapColors.statusConnected
         case .moderate:
-            return index < 2 ? .yellow : .secondary.opacity(0.3)
+            index < 2 ? SnapColors.statusConnecting : SnapColors.textDisabled
         case .weak:
-            return index < 1 ? .red : .secondary.opacity(0.3)
+            index < 1 ? SnapColors.statusDisconnected : SnapColors.textDisabled
         case .unknown:
-            return .secondary.opacity(0.3)
+            SnapColors.textDisabled
         }
     }
 
     private var backgroundColor: Color {
         switch status {
         case .disconnected:
-            return .secondary.opacity(0.1)
+            SnapColors.statusDisconnected.opacity(0.1)
         case .discovering, .connecting:
-            return .orange.opacity(0.1)
+            SnapColors.statusConnecting.opacity(0.1)
         case .connected:
-            return .green.opacity(0.1)
+            SnapColors.statusConnected.opacity(0.1)
         case .reconnecting:
-            return .orange.opacity(0.1)
+            SnapColors.statusConnecting.opacity(0.1)
         }
     }
 }
@@ -282,37 +307,63 @@ struct ConnectionSheetView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                Image(systemName: "wifi")
-                    .font(.system(size: 60))
-                    .foregroundStyle(.blue)
+            VStack(spacing: SnapSpacing.xxl) {
+                Spacer()
 
-                Text("Connect to Mac")
-                    .font(.title2)
-                    .fontWeight(.semibold)
+                ZStack {
+                    Circle()
+                        .fill(SnapColors.cyberBlue.opacity(0.15))
+                        .frame(width: 100, height: 100)
 
-                Text("Make sure your Mac is running Snap Receiver")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                    Image(systemName: "wifi")
+                        .font(.system(size: 44, weight: .medium))
+                        .foregroundStyle(SnapColors.cyberBlue)
+                }
+                .glowAnimation(color: SnapColors.cyberBlue, isActive: true)
+
+                VStack(spacing: SnapSpacing.sm) {
+                    Text("Mac에 연결")
+                        .font(SnapTypography.headlineLarge)
+                        .foregroundStyle(SnapColors.textPrimary)
+
+                    Text("Mac에서 Snap Receiver가 실행 중인지 확인하세요")
+                        .font(SnapTypography.bodyMedium)
+                        .foregroundStyle(SnapColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
 
                 Spacer()
 
-                ProgressView("Searching for devices...")
+                VStack(spacing: SnapSpacing.md) {
+                    ProgressView()
+                        .tint(SnapColors.cyberBlue)
+
+                    Text("기기 검색 중...")
+                        .font(SnapTypography.labelMedium)
+                        .foregroundStyle(SnapColors.textTertiary)
+                }
 
                 Spacer()
             }
-            .padding()
-            .navigationTitle("Connection")
+            .padding(SnapSpacing.xl)
+            .background(SnapColors.background)
+            .navigationTitle("연결")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(SnapColors.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
+                    Button("완료") {
+                        Task { @MainActor in
+                            HapticManager.shared.buttonTap()
+                        }
                         onDismiss()
                     }
+                    .foregroundStyle(SnapColors.cyberBlue)
                 }
             }
         }
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -328,33 +379,35 @@ struct PairingPinView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 32) {
+            VStack(spacing: SnapSpacing.xxl) {
                 Spacer()
 
                 // Icon
                 ZStack {
                     Circle()
-                        .fill(Color.blue.opacity(0.1))
+                        .fill(SnapColors.neonLime.opacity(0.15))
                         .frame(width: 100, height: 100)
 
                     Image(systemName: "lock.shield")
-                        .font(.system(size: 44))
-                        .foregroundStyle(.blue)
+                        .font(.system(size: 44, weight: .medium))
+                        .foregroundStyle(SnapColors.neonLime)
                 }
+                .glowAnimation(color: SnapColors.neonLime, isActive: true)
 
                 // Title
-                VStack(spacing: 8) {
-                    Text("Enter PIN Code")
-                        .font(.title2.weight(.bold))
+                VStack(spacing: SnapSpacing.sm) {
+                    Text("PIN 코드 입력")
+                        .font(SnapTypography.headlineLarge)
+                        .foregroundStyle(SnapColors.textPrimary)
 
-                    Text("Enter the 4-digit PIN shown on\n\(serverName)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    Text("\(serverName)에 표시된\n4자리 PIN을 입력하세요")
+                        .font(SnapTypography.bodyMedium)
+                        .foregroundStyle(SnapColors.textSecondary)
                         .multilineTextAlignment(.center)
                 }
 
                 // PIN Input
-                VStack(spacing: 16) {
+                VStack(spacing: SnapSpacing.lg) {
                     // Hidden text field
                     TextField("", text: $pinCode)
                         .keyboardType(.numberPad)
@@ -362,9 +415,24 @@ struct PairingPinView: View {
                         .focused($isTextFieldFocused)
                         .opacity(0)
                         .frame(width: 1, height: 1)
+                        .onChange(of: pinCode) { _, newValue in
+                            // 4자리로 제한
+                            if newValue.count > 4 {
+                                pinCode = String(newValue.prefix(4))
+                            }
+                            // 숫자만 허용
+                            pinCode = newValue.filter { $0.isNumber }
+
+                            // 입력 시 햅틱
+                            if !newValue.isEmpty {
+                                Task { @MainActor in
+                                    HapticManager.shared.lightImpact()
+                                }
+                            }
+                        }
 
                     // PIN Display
-                    HStack(spacing: 16) {
+                    HStack(spacing: SnapSpacing.lg) {
                         ForEach(0..<4, id: \.self) { index in
                             pinDigitView(at: index)
                         }
@@ -378,35 +446,47 @@ struct PairingPinView: View {
 
                 // Submit Button
                 Button {
+                    Task { @MainActor in
+                        HapticManager.shared.success()
+                    }
                     onSubmit()
                 } label: {
-                    Text("Connect")
-                        .font(.headline)
-                        .foregroundStyle(.white)
+                    Text("연결")
+                        .font(SnapTypography.labelLarge)
+                        .foregroundStyle(SnapColors.background)
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
-                        .background(pinCode.count == 4 ? Color.blue : Color.gray)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .background(pinCode.count == 4 ? SnapColors.neonLime : SnapColors.textDisabled)
+                        .clipShape(RoundedRectangle(cornerRadius: SnapCornerRadius.md))
                 }
                 .disabled(pinCode.count != 4)
-                .padding(.horizontal)
+                .padding(.horizontal, SnapSpacing.lg)
+                .pressEffect()
 
                 Spacer()
             }
-            .padding()
-            .navigationTitle("Pairing")
+            .padding(SnapSpacing.xl)
+            .background(SnapColors.background)
+            .navigationTitle("페어링")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(SnapColors.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") {
+                    Button("취소") {
+                        Task { @MainActor in
+                            HapticManager.shared.buttonTap()
+                        }
                         onCancel()
                     }
+                    .foregroundStyle(SnapColors.neonRed)
                 }
             }
             .onAppear {
                 isTextFieldFocused = true
             }
         }
+        .preferredColorScheme(.dark)
         .interactiveDismissDisabled()
     }
 
@@ -416,24 +496,25 @@ struct PairingPinView: View {
         let isFilled = !digit.isEmpty
 
         ZStack {
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(isFilled ? Color.blue : Color(.separator), lineWidth: 2)
+            RoundedRectangle(cornerRadius: SnapCornerRadius.md)
+                .stroke(isFilled ? SnapColors.neonLime : SnapColors.border, lineWidth: isFilled ? 2 : 1)
                 .frame(width: 56, height: 72)
                 .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(.secondarySystemBackground))
+                    RoundedRectangle(cornerRadius: SnapCornerRadius.md)
+                        .fill(SnapColors.backgroundElevated)
                 )
 
             if isFilled {
                 Text(digit)
                     .font(.system(size: 32, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color(.label))
+                    .foregroundStyle(SnapColors.neonLime)
             } else {
                 Circle()
-                    .fill(Color(.tertiaryLabel))
-                    .frame(width: 12, height: 12)
+                    .fill(SnapColors.textDisabled)
+                    .frame(width: 10, height: 10)
             }
         }
+        .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isFilled)
     }
 }
 
