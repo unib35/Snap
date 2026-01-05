@@ -54,6 +54,25 @@ public struct Scroll: Codable, Sendable, Equatable {
     }
 }
 
+// MARK: - Pinch (Zoom)
+
+/// 핀치 줌 (확대/축소)
+public struct Pinch: Codable, Sendable, Equatable {
+    public var scale: Float
+    public var phase: Phase
+
+    public enum Phase: Int, Codable, Sendable {
+        case began = 0
+        case changed = 1
+        case ended = 2
+    }
+
+    public init(scale: Float = 1.0, phase: Phase = .changed) {
+        self.scale = scale
+        self.phase = phase
+    }
+}
+
 // MARK: - GyroData
 
 /// 자이로스코프 데이터 (Laser Pointer용)

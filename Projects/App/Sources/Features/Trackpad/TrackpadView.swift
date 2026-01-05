@@ -1,5 +1,7 @@
 import ComposableArchitecture
+import Shared
 import SwiftUI
+import UIKit
 
 public struct TrackpadView: View {
     @Bindable var store: StoreOf<TrackpadFeature>
@@ -236,74 +238,58 @@ struct TrackpadTouchArea: View {
     @State private var pingAnimation = false
 
     var body: some View {
-        GeometryReader { _ in
-            ZStack {
-                // Background
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(Color(.secondarySystemBackground))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24)
-                            .strokeBorder(Color(.separator), lineWidth: 1)
-                    )
+        ZStack {
+            // Background
+            RoundedRectangle(cornerRadius: 24)
+                .fill(Color(.secondarySystemBackground))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .strokeBorder(Color(.separator), lineWidth: 1)
+                )
 
-                // Ping Animation (always animating in center)
+            // Ping Animation (always animating in center)
+            Circle()
+                .stroke(Color(.tertiaryLabel), lineWidth: 1)
+                .frame(width: 120, height: 120)
+                .scaleEffect(pingAnimation ? 1.5 : 1.0)
+                .opacity(pingAnimation ? 0 : 0.3)
+                .animation(
+                    .easeOut(duration: 2.0).repeatForever(autoreverses: false),
+                    value: pingAnimation
+                )
+
+            // Watermark
+            Text("TRACKPAD")
+                .font(.largeTitle.weight(.black))
+                .foregroundStyle(Color(.quaternaryLabel))
+                .tracking(10)
+
+            // Touch indicator - follows finger
+            if store.isTouching {
                 Circle()
-                    .stroke(Color(.tertiaryLabel), lineWidth: 1)
-                    .frame(width: 120, height: 120)
-                    .scaleEffect(pingAnimation ? 1.5 : 1.0)
-                    .opacity(pingAnimation ? 0 : 0.3)
-                    .animation(
-                        .easeOut(duration: 2.0).repeatForever(autoreverses: false),
-                        value: pingAnimation
-                    )
-
-                // Watermark
-                Text("TRACKPAD")
-                    .font(.largeTitle.weight(.black))
-                    .foregroundStyle(Color(.quaternaryLabel))
-                    .tracking(10)
-
-                // Touch indicator - follows finger
-                if store.isTouching {
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [Color.accentColor.opacity(0.3), Color.accentColor.opacity(0)],
-                                center: .center,
-                                startRadius: 0,
-                                endRadius: 60
-                            )
+                    .fill(
+                        RadialGradient(
+                            colors: [Color.accentColor.opacity(0.3), Color.accentColor.opacity(0)],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: 60
                         )
-                        .frame(width: 120, height: 120)
-                        .position(store.lastTouchPosition)
-                        .animation(.interactiveSpring(response: 0.1), value: store.lastTouchPosition)
-                }
+                    )
+                    .frame(width: 120, height: 120)
+                    .position(store.lastTouchPosition)
+                    .animation(.interactiveSpring(response: 0.1), value: store.lastTouchPosition)
             }
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        if !store.isTouching {
-                            store.send(.touchBegan(value.location))
-                        } else {
-                            store.send(.touchMoved(value.location))
-                        }
-                    }
-                    .onEnded { _ in
-                        store.send(.touchEnded)
-                    }
-            )
-            .simultaneousGesture(
-                TapGesture()
-                    .onEnded {
-                        store.send(.tapped)
-                    }
-            )
-            .simultaneousGesture(
-                TapGesture(count: 2)
-                    .onEnded {
-                        store.send(.doubleTapped)
-                    }
+
+            // UIKit Gesture Layer
+            TrackpadGestureView(
+                onTouchBegan: { point in store.send(.touchBegan(point)) },
+                onTouchMoved: { point in store.send(.touchMoved(point)) },
+                onTouchEnded: { store.send(.touchEnded) },
+                onTap: { store.send(.tapped) },
+                onDoubleTap: { store.send(.doubleTapped) },
+                onTwoFingerTap: { store.send(.twoFingerTapped) },
+                onScroll: { dx, dy in store.send(.scrolled(deltaX: dx, deltaY: dy)) },
+                onPinch: { scale, phase in store.send(.pinched(scale: scale, phase: phase)) }
             )
         }
         .padding(.horizontal)
@@ -311,6 +297,175 @@ struct TrackpadTouchArea: View {
         .accessibilityHint("드래그하여 마우스를 이동하고, 탭하여 클릭합니다")
         .onAppear {
             pingAnimation = true
+        }
+    }
+}
+
+// MARK: - UIKit Gesture View
+
+struct TrackpadGestureView: UIViewRepresentable {
+    let onTouchBegan: (CGPoint) -> Void
+    let onTouchMoved: (CGPoint) -> Void
+    let onTouchEnded: () -> Void
+    let onTap: () -> Void
+    let onDoubleTap: () -> Void
+    let onTwoFingerTap: () -> Void
+    let onScroll: (CGFloat, CGFloat) -> Void
+    let onPinch: (CGFloat, Pinch.Phase) -> Void
+
+    func makeUIView(context: Context) -> TrackpadGestureUIView {
+        let view = TrackpadGestureUIView()
+        view.onTouchBegan = onTouchBegan
+        view.onTouchMoved = onTouchMoved
+        view.onTouchEnded = onTouchEnded
+        view.onTap = onTap
+        view.onDoubleTap = onDoubleTap
+        view.onTwoFingerTap = onTwoFingerTap
+        view.onScroll = onScroll
+        view.onPinch = onPinch
+        return view
+    }
+
+    func updateUIView(_ uiView: TrackpadGestureUIView, context: Context) {
+        uiView.onTouchBegan = onTouchBegan
+        uiView.onTouchMoved = onTouchMoved
+        uiView.onTouchEnded = onTouchEnded
+        uiView.onTap = onTap
+        uiView.onDoubleTap = onDoubleTap
+        uiView.onTwoFingerTap = onTwoFingerTap
+        uiView.onScroll = onScroll
+        uiView.onPinch = onPinch
+    }
+}
+
+// MARK: - UIKit Gesture UIView
+
+class TrackpadGestureUIView: UIView {
+    var onTouchBegan: ((CGPoint) -> Void)?
+    var onTouchMoved: ((CGPoint) -> Void)?
+    var onTouchEnded: (() -> Void)?
+    var onTap: (() -> Void)?
+    var onDoubleTap: (() -> Void)?
+    var onTwoFingerTap: (() -> Void)?
+    var onScroll: ((CGFloat, CGFloat) -> Void)?
+    var onPinch: ((CGFloat, Pinch.Phase) -> Void)?
+
+    private var lastPanLocation: CGPoint = .zero
+    private var isSingleFingerDrag = false
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupGestures()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setupGestures()
+    }
+
+    private func setupGestures() {
+        backgroundColor = .clear
+        isMultipleTouchEnabled = true
+
+        // Single tap
+        let singleTap = UITapGestureRecognizer(target: self, action: #selector(handleSingleTap))
+        singleTap.numberOfTapsRequired = 1
+        singleTap.numberOfTouchesRequired = 1
+        addGestureRecognizer(singleTap)
+
+        // Double tap
+        let doubleTap = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap))
+        doubleTap.numberOfTapsRequired = 2
+        doubleTap.numberOfTouchesRequired = 1
+        addGestureRecognizer(doubleTap)
+
+        // Two finger tap (right click)
+        let twoFingerTap = UITapGestureRecognizer(target: self, action: #selector(handleTwoFingerTap))
+        twoFingerTap.numberOfTapsRequired = 1
+        twoFingerTap.numberOfTouchesRequired = 2
+        addGestureRecognizer(twoFingerTap)
+
+        // Single finger pan (mouse move)
+        let singlePan = UIPanGestureRecognizer(target: self, action: #selector(handleSinglePan))
+        singlePan.minimumNumberOfTouches = 1
+        singlePan.maximumNumberOfTouches = 1
+        addGestureRecognizer(singlePan)
+
+        // Two finger pan (scroll)
+        let twoFingerPan = UIPanGestureRecognizer(target: self, action: #selector(handleTwoFingerPan))
+        twoFingerPan.minimumNumberOfTouches = 2
+        twoFingerPan.maximumNumberOfTouches = 2
+        addGestureRecognizer(twoFingerPan)
+
+        // Pinch (zoom)
+        let pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch))
+        addGestureRecognizer(pinch)
+
+        // Gesture dependencies
+        singleTap.require(toFail: doubleTap)
+        singlePan.require(toFail: twoFingerPan)
+    }
+
+    @objc private func handleSingleTap(_ gesture: UITapGestureRecognizer) {
+        onTap?()
+    }
+
+    @objc private func handleDoubleTap(_ gesture: UITapGestureRecognizer) {
+        onDoubleTap?()
+    }
+
+    @objc private func handleTwoFingerTap(_ gesture: UITapGestureRecognizer) {
+        onTwoFingerTap?()
+    }
+
+    @objc private func handleSinglePan(_ gesture: UIPanGestureRecognizer) {
+        let location = gesture.location(in: self)
+
+        switch gesture.state {
+        case .began:
+            isSingleFingerDrag = true
+            lastPanLocation = location
+            onTouchBegan?(location)
+        case .changed:
+            if isSingleFingerDrag {
+                onTouchMoved?(location)
+                lastPanLocation = location
+            }
+        case .ended, .cancelled:
+            isSingleFingerDrag = false
+            onTouchEnded?()
+        default:
+            break
+        }
+    }
+
+    @objc private func handleTwoFingerPan(_ gesture: UIPanGestureRecognizer) {
+        let translation = gesture.translation(in: self)
+        gesture.setTranslation(.zero, in: self)
+
+        if gesture.state == .changed {
+            onScroll?(translation.x, translation.y)
+        }
+    }
+
+    @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
+        let phase: Pinch.Phase
+        switch gesture.state {
+        case .began:
+            phase = .began
+        case .changed:
+            phase = .changed
+        case .ended, .cancelled:
+            phase = .ended
+        default:
+            return
+        }
+
+        onPinch?(gesture.scale, phase)
+
+        // Reset scale for incremental updates
+        if gesture.state == .changed {
+            gesture.scale = 1.0
         }
     }
 }

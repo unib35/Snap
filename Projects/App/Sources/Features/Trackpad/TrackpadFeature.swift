@@ -44,6 +44,7 @@ public struct TrackpadFeature {
         case doubleTapped
         case twoFingerTapped
         case scrolled(deltaX: CGFloat, deltaY: CGFloat)
+        case pinched(scale: CGFloat, phase: Pinch.Phase)
 
         // Click Buttons
         case leftClickPressed
@@ -135,6 +136,11 @@ public struct TrackpadFeature {
 
                 return .run { _ in
                     await client.sendScroll(scrollX, scrollY, false)
+                }
+
+            case .pinched(let scale, let phase):
+                return .run { _ in
+                    await client.sendPinch(Float(scale), phase)
                 }
 
             case .leftClickPressed:

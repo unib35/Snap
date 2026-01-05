@@ -61,6 +61,21 @@ public final class InputSimulator: @unchecked Sendable {
         event.post(tap: .cghidEventTap)
     }
 
+    /// 핀치 줌 (Cmd+/Cmd- 키 조합으로 구현)
+    public func pinchZoom(scale: CGFloat, phase: Pinch.Phase) {
+        // began/ended 단계에서는 무시 (changed에서만 처리)
+        guard phase == .changed else { return }
+
+        // scale > 1.0 = 확대 (Cmd+=), scale < 1.0 = 축소 (Cmd+-)
+        if scale > 1.02 {
+            // Cmd + = (확대)
+            executeKeyCombo(keyCodes: [24], modifiers: 0x08) // 24 = kVK_ANSI_Equal
+        } else if scale < 0.98 {
+            // Cmd + - (축소)
+            executeKeyCombo(keyCodes: [27], modifiers: 0x08) // 27 = kVK_ANSI_Minus
+        }
+    }
+
     // MARK: - Keyboard
 
     /// 키 이벤트

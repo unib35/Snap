@@ -12,6 +12,8 @@ public enum MessageType: UInt8, Sendable {
     case scroll = 0x03
     /// 자이로스코프 데이터
     case gyroData = 0x04
+    /// 핀치 줌 (확대/축소)
+    case pinch = 0x05
 
     // MARK: - TCP 메시지 (0x20 ~ 0x7F)
 
