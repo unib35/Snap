@@ -15,6 +15,9 @@ struct SnapApp: App {
                 .onChange(of: scenePhase) { _, newPhase in
                     store.send(.scenePhaseChanged(newPhase))
                 }
+                .onOpenURL { url in
+                    store.send(.handleURL(url))
+                }
         }
     }
 }

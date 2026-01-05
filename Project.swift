@@ -64,18 +64,53 @@ let project = Project(
                 "NSBonjourServices": ["_snap._tcp.", "_snap._udp."],
                 "NSSpeechRecognitionUsageDescription": "Snap uses speech recognition for voice typing.",
                 "NSMicrophoneUsageDescription": "Snap uses microphone for voice typing.",
+                "CFBundleURLTypes": [
+                    [
+                        "CFBundleURLName": "com.snap.app",
+                        "CFBundleURLSchemes": ["snap"],
+                    ],
+                ],
             ]),
             sources: ["Projects/App/Sources/**"],
             resources: ["Projects/App/Resources/**"],
             scripts: [swiftLintScript],
             dependencies: [
                 .target(name: "Shared"),
+                .target(name: "SnapWidget"),
                 .external(name: "ComposableArchitecture"),
             ],
             settings: .settings(
                 base: [
                     "DEVELOPMENT_TEAM": "",
                     "CODE_SIGN_STYLE": "Automatic",
+                ]
+            )
+        ),
+
+        // MARK: - Widget Extension
+        .target(
+            name: "SnapWidget",
+            destinations: [.iPhone, .iPad],
+            product: .appExtension,
+            bundleId: "com.snap.app.widget",
+            deploymentTargets: .iOS("17.0"),
+            infoPlist: .extendingDefault(with: [
+                "CFBundleDisplayName": "Snap Widget",
+                "CFBundleShortVersionString": "1.0.0",
+                "CFBundleVersion": "1",
+                "NSExtension": [
+                    "NSExtensionPointIdentifier": "com.apple.widgetkit-extension",
+                ],
+            ]),
+            sources: ["Projects/Widget/Sources/**"],
+            dependencies: [
+                .target(name: "Shared"),
+            ],
+            settings: .settings(
+                base: [
+                    "DEVELOPMENT_TEAM": "",
+                    "CODE_SIGN_STYLE": "Automatic",
+                    "SKIP_INSTALL": "YES",
                 ]
             )
         ),
