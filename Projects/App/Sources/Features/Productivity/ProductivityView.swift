@@ -12,6 +12,9 @@ public struct ProductivityView: View {
     public var body: some View {
         ScrollView {
             VStack(spacing: 24) {
+                // Presenter Section
+                presenterSection
+
                 // Macro Pad Section
                 macroSection
 
@@ -31,6 +34,15 @@ public struct ProductivityView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(.systemBackground))
+    }
+
+    // MARK: - Presenter Section
+
+    @ViewBuilder
+    private var presenterSection: some View {
+        PresenterSection(
+            store: store.scope(state: \.presenter, action: \.presenter)
+        )
     }
 
     // MARK: - Macro Section
