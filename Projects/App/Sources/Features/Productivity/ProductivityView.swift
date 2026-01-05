@@ -12,6 +12,9 @@ public struct ProductivityView: View {
     public var body: some View {
         ScrollView {
             VStack(spacing: 24) {
+                // Shorts Remote Section
+                shortsRemoteSection
+
                 // Presenter Section
                 presenterSection
 
@@ -34,6 +37,15 @@ public struct ProductivityView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(.systemBackground))
+    }
+
+    // MARK: - Shorts Remote Section
+
+    @ViewBuilder
+    private var shortsRemoteSection: some View {
+        ShortsRemoteSection(
+            store: store.scope(state: \.shortsRemote, action: \.shortsRemote)
+        )
     }
 
     // MARK: - Presenter Section
