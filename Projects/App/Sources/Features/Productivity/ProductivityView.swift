@@ -1,3 +1,4 @@
+import AppIntents
 import ComposableArchitecture
 import Shared
 import SwiftUI
@@ -100,7 +101,7 @@ public struct ProductivityView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 16) {
-                // Siri Button
+                // Siri Button (Mac Siri 제어)
                 SiriButton(isActive: store.isSiriActive) {
                     store.send(.siriTapped)
                 }
@@ -122,6 +123,12 @@ public struct ProductivityView: View {
                 .buttonStyle(.plain)
 
                 Spacer()
+            }
+
+            // Siri Shortcuts Tips
+            VStack(spacing: 8) {
+                SiriTipView(intent: ConnectToMacIntent())
+                SiriTipView(intent: RunMacroIntent())
             }
         }
         .padding()
