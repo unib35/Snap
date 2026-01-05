@@ -9,6 +9,7 @@ public struct MediaFeature {
         public var isPlaying: Bool = false
         public var volume: Float = 0.5
         public var isMuted: Bool = false
+        public var isHardwareVolumeControlEnabled: Bool = true
 
         public init() {}
     }
@@ -24,6 +25,11 @@ public struct MediaFeature {
         case volumeDownTapped
         case muteTapped
         case volumeChanged(Float)
+
+        // Hardware Volume Button
+        case hardwareVolumeUp
+        case hardwareVolumeDown
+        case setHardwareVolumeControlEnabled(Bool)
 
         // State Updates
         case setIsPlaying(Bool)
@@ -92,6 +98,27 @@ public struct MediaFeature {
             case .nowPlayingInfoReceived(let info):
                 state.nowPlayingInfo = info
                 state.isPlaying = info.isPlaying
+                return .none
+
+            case .hardwareVolumeUp:
+                guard state.isHardwareVolumeControlEnabled else { return .none }
+                state.volume = min(1.0, state.volume + 0.1)
+                if state.isMuted {
+                    state.isMuted = false
+                }
+                return .run { [volume = state.volume] _ in
+                    await client.sendMediaControl(.volumeUp, volume)
+                }
+
+            case .hardwareVolumeDown:
+                guard state.isHardwareVolumeControlEnabled else { return .none }
+                state.volume = max(0.0, state.volume - 0.1)
+                return .run { [volume = state.volume] _ in
+                    await client.sendMediaControl(.volumeDown, volume)
+                }
+
+            case .setHardwareVolumeControlEnabled(let enabled):
+                state.isHardwareVolumeControlEnabled = enabled
                 return .none
             }
         }

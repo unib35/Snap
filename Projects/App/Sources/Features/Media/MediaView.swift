@@ -3,6 +3,7 @@ import SwiftUI
 
 public struct MediaView: View {
     @Bindable var store: StoreOf<MediaFeature>
+    @StateObject private var volumeHandler = VolumeButtonHandler()
 
     public init(store: StoreOf<MediaFeature>) {
         self.store = store
@@ -23,10 +24,38 @@ public struct MediaView: View {
             // Volume Controls
             volumeControls
 
+            // Hardware Volume Toggle
+            hardwareVolumeToggle
+
             Spacer()
         }
         .padding()
         .background(Color(.systemBackground))
+        .onAppear {
+            if store.isHardwareVolumeControlEnabled {
+                setupVolumeHandler()
+            }
+        }
+        .onDisappear {
+            volumeHandler.stop()
+        }
+        .onChange(of: store.isHardwareVolumeControlEnabled) { _, isEnabled in
+            if isEnabled {
+                setupVolumeHandler()
+            } else {
+                volumeHandler.stop()
+            }
+        }
+    }
+
+    private func setupVolumeHandler() {
+        volumeHandler.onVolumeUp = { [store] in
+            store.send(.hardwareVolumeUp)
+        }
+        volumeHandler.onVolumeDown = { [store] in
+            store.send(.hardwareVolumeDown)
+        }
+        volumeHandler.start()
     }
 
     // MARK: - Now Playing Area
@@ -234,6 +263,36 @@ public struct MediaView: View {
             }
             .accessibilityLabel(store.isMuted ? "음소거 해제" : "음소거")
         }
+    }
+
+    // MARK: - Hardware Volume Toggle
+
+    private var hardwareVolumeToggle: some View {
+        Toggle(isOn: $store.isHardwareVolumeControlEnabled.sending(\.setHardwareVolumeControlEnabled)) {
+            HStack(spacing: 12) {
+                Image(systemName: "iphone.radiowaves.left.and.right")
+                    .font(.body)
+                    .foregroundStyle(Color(.secondaryLabel))
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Hardware Volume Buttons")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(Color(.label))
+
+                    Text("Use iPhone volume buttons to control Mac")
+                        .font(.caption)
+                        .foregroundStyle(Color(.tertiaryLabel))
+                }
+            }
+        }
+        .toggleStyle(.switch)
+        .padding(.horizontal)
+        .padding(.vertical, 12)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal)
+        .accessibilityLabel("하드웨어 볼륨 버튼 사용")
     }
 }
 
