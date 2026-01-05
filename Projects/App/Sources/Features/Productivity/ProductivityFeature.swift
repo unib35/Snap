@@ -11,6 +11,7 @@ public struct ProductivityFeature {
         public var macro: MacroFeature.State = .init()
         public var voiceTyping: VoiceTypingFeature.State = .init()
         public var presenter: PresenterFeature.State = .init()
+        public var shortsRemote: ShortsRemoteFeature.State = .init()
     }
 
     public enum Action: Equatable, Sendable {
@@ -36,6 +37,9 @@ public struct ProductivityFeature {
 
         // Presenter
         case presenter(PresenterFeature.Action)
+
+        // Shorts Remote
+        case shortsRemote(ShortsRemoteFeature.Action)
     }
 
     @Dependency(\.connectionClient) var connectionClient
@@ -53,6 +57,10 @@ public struct ProductivityFeature {
 
         Scope(state: \.presenter, action: \.presenter) {
             PresenterFeature()
+        }
+
+        Scope(state: \.shortsRemote, action: \.shortsRemote) {
+            ShortsRemoteFeature()
         }
 
         Reduce { state, action in
@@ -114,6 +122,9 @@ public struct ProductivityFeature {
                 return .none
 
             case .presenter:
+                return .none
+
+            case .shortsRemote:
                 return .none
             }
         }
