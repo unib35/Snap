@@ -1,6 +1,7 @@
 import ComposableArchitecture
 import Foundation
 import Speech
+import UIKit
 
 @Reducer
 public struct VoiceTypingFeature {
@@ -9,7 +10,7 @@ public struct VoiceTypingFeature {
         public var isRecording: Bool = false
         public var recognizedText: String = ""
         public var authorizationStatus: AuthorizationStatus = .notDetermined
-        public var errorMessage: String?
+        @Presents public var alert: AlertState<Action.Alert>?
 
         public enum AuthorizationStatus: Equatable, Sendable {
             case notDetermined
@@ -31,7 +32,13 @@ public struct VoiceTypingFeature {
         case recognitionEvent(SpeechRecognitionEvent)
         case sendText
         case clearText
-        case dismissError
+        case alert(PresentationAction<Alert>)
+
+        @CasePathable
+        public enum Alert: Equatable, Sendable {
+            case dismiss
+            case openSettings
+        }
     }
 
     @Dependency(\.connectionClient) var connectionClient
@@ -85,13 +92,23 @@ public struct VoiceTypingFeature {
 
             case .startRecording:
                 guard state.authorizationStatus == .authorized else {
-                    state.errorMessage = "음성 인식 권한이 필요합니다"
+                    state.alert = AlertState {
+                        TextState("권한 필요")
+                    } actions: {
+                        ButtonState(action: .openSettings) {
+                            TextState("설정 열기")
+                        }
+                        ButtonState(role: .cancel, action: .dismiss) {
+                            TextState("취소")
+                        }
+                    } message: {
+                        TextState("음성 인식 권한이 필요합니다. 설정에서 권한을 허용해주세요.")
+                    }
                     return .none
                 }
 
                 state.isRecording = true
                 state.recognizedText = ""
-                state.errorMessage = nil
 
                 let recognizer = speechRecognizer
                 return .run { send in
@@ -114,12 +131,28 @@ public struct VoiceTypingFeature {
                     }
 
                 case .error(let message):
-                    state.errorMessage = message
+                    state.alert = AlertState {
+                        TextState("오류")
+                    } actions: {
+                        ButtonState(action: .dismiss) {
+                            TextState("확인")
+                        }
+                    } message: {
+                        TextState(message)
+                    }
                     state.isRecording = false
 
                 case .availabilityChanged(let available):
                     if !available {
-                        state.errorMessage = "음성 인식을 사용할 수 없습니다"
+                        state.alert = AlertState {
+                            TextState("오류")
+                        } actions: {
+                            ButtonState(action: .dismiss) {
+                                TextState("확인")
+                            }
+                        } message: {
+                            TextState("음성 인식을 사용할 수 없습니다")
+                        }
                         state.isRecording = false
                     }
                 }
@@ -139,10 +172,19 @@ public struct VoiceTypingFeature {
                 state.recognizedText = ""
                 return .none
 
-            case .dismissError:
-                state.errorMessage = nil
+            case .alert(.presented(.openSettings)):
+                return .run { _ in
+                    await MainActor.run {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                }
+
+            case .alert:
                 return .none
             }
         }
+        .ifLet(\.$alert, action: \.alert)
     }
 }

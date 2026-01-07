@@ -23,19 +23,7 @@ public struct VoiceTypingView: View {
         .onAppear {
             store.send(.onAppear)
         }
-        .alert(
-            "오류",
-            isPresented: .init(
-                get: { store.errorMessage != nil },
-                set: { if !$0 { store.send(.dismissError) } }
-            )
-        ) {
-            Button("확인") {
-                store.send(.dismissError)
-            }
-        } message: {
-            Text(store.errorMessage ?? "")
-        }
+        .alert($store.scope(state: \.alert, action: \.alert))
     }
 
     @ViewBuilder
