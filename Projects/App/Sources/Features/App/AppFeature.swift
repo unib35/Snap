@@ -91,7 +91,8 @@ public struct AppFeature {
         Reduce { state, action in
             switch action {
             case .onAppear:
-                return .none
+                // 앱 시작 시 자동으로 디바이스 검색 시작
+                return .send(.connection(.startDiscovery))
 
             case .scenePhaseChanged(let phase):
                 switch phase {
