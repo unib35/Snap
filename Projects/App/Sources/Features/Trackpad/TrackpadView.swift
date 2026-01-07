@@ -107,7 +107,7 @@ public struct TrackpadView: View {
                 LaserClickButton(
                     icon: "cursorarrow.click",
                     label: "Left Click",
-                    color: .blue
+                    color: .accentColor
                 ) {
                     store.send(.leftClickPressed)
                 } onRelease: {
@@ -136,11 +136,11 @@ public struct TrackpadView: View {
     @ViewBuilder
     private var quickActions: some View {
         HStack(spacing: 16) {
-            QuickActionButton(
-                icon: "command",
-                label: "Cmd+Space"
+            VoiceTypingButton(
+                isRecording: store.voiceTyping.isRecording,
+                isAuthorized: store.voiceTyping.authorizationStatus == .authorized
             ) {
-                store.send(.spotlightPressed)
+                store.send(.voiceTyping(.toggleRecording))
             }
 
             QuickActionButton(
@@ -150,6 +150,51 @@ public struct TrackpadView: View {
                 store.send(.missionControlPressed)
             }
         }
+        .onAppear {
+            store.send(.voiceTyping(.onAppear))
+        }
+    }
+}
+
+// MARK: - Voice Typing Button
+
+struct VoiceTypingButton: View {
+    let isRecording: Bool
+    let isAuthorized: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            Task { @MainActor in
+                HapticManager.shared.buttonTap()
+            }
+            action()
+        } label: {
+            VStack(spacing: SnapSpacing.sm) {
+                Image(systemName: isRecording ? "stop.fill" : "mic.fill")
+                    .font(.title2)
+                    .foregroundStyle(isRecording ? SnapColors.recording : Color.accentColor)
+                    .symbolEffect(.variableColor.iterative, isActive: isRecording)
+
+                Text(isRecording ? "중지" : "음성입력")
+                    .font(SnapTypography.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(SnapColors.textTertiary)
+                    .textCase(.uppercase)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, SnapSpacing.lg)
+            .background(isRecording ? SnapColors.recording.opacity(0.15) : SnapColors.backgroundElevated)
+            .clipShape(RoundedRectangle(cornerRadius: SnapCornerRadius.lg))
+            .overlay(
+                RoundedRectangle(cornerRadius: SnapCornerRadius.lg)
+                    .strokeBorder(isRecording ? SnapColors.recording.opacity(0.5) : Color.clear, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .pressEffect()
+        .disabled(!isAuthorized)
+        .opacity(isAuthorized ? 1 : 0.5)
     }
 }
 
@@ -208,7 +253,7 @@ struct ModeToggleButton: View {
 
     private var iconColor: Color {
         if mode == .laser && isSelected {
-            return SnapColors.neonRed
+            return SnapColors.laserPointer
         }
         return isSelected ? SnapColors.textPrimary : SnapColors.textTertiary
     }
@@ -219,7 +264,7 @@ struct ModeToggleButton: View {
 
     private var background: Color {
         if mode == .laser {
-            return SnapColors.neonRed.opacity(0.15)
+            return SnapColors.laserPointer.opacity(0.15)
         }
         return SnapColors.backgroundTertiary
     }
@@ -227,7 +272,7 @@ struct ModeToggleButton: View {
     private var borderColor: Color {
         if isSelected {
             if mode == .laser {
-                return SnapColors.neonRed.opacity(0.3)
+                return SnapColors.laserPointer.opacity(0.3)
             }
             return SnapColors.border
         }
@@ -236,7 +281,7 @@ struct ModeToggleButton: View {
 
     private var shadowColor: Color {
         if mode == .laser && isSelected {
-            return SnapColors.neonRed.opacity(0.3)
+            return SnapColors.laserPointer.opacity(0.3)
         }
         return .clear
     }
@@ -280,7 +325,7 @@ struct TrackpadTouchArea: View {
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [SnapColors.cyberBlue.opacity(0.4), SnapColors.cyberBlue.opacity(0)],
+                            colors: [Color.accentColor.opacity(0.4), Color.accentColor.opacity(0)],
                             center: .center,
                             startRadius: 0,
                             endRadius: 60
@@ -511,7 +556,7 @@ struct LaserControlArea: View {
                                 .foregroundStyle(activationMode == mode ? .white : .secondary)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 6)
-                                .background(activationMode == mode ? Color.red : Color.clear)
+                                .background(activationMode == mode ? SnapColors.laserPointer : Color.clear)
                                 .clipShape(Capsule())
                         }
                     }
@@ -525,7 +570,7 @@ struct LaserControlArea: View {
                 ZStack {
                     // Outer glow (pulsing when active) - contained within fixed frame
                     Circle()
-                        .fill(Color.red.opacity(isActive ? 0.2 : 0))
+                        .fill(SnapColors.laserPointer.opacity(isActive ? 0.2 : 0))
                         .frame(width: 220, height: 220)
                         .blur(radius: 40)
                         .scaleEffect(isActive ? 1.1 : 1.0)
@@ -538,18 +583,18 @@ struct LaserControlArea: View {
 
                     // Button shadow glow
                     Circle()
-                        .fill(Color.red.opacity(isActive ? 0.5 : 0))
+                        .fill(SnapColors.laserPointer.opacity(isActive ? 0.5 : 0))
                         .frame(width: 180, height: 180)
                         .blur(radius: 30)
 
                     // Main button
                     Circle()
-                        .fill(isActive ? Color.red : Color(.tertiarySystemBackground))
+                        .fill(isActive ? SnapColors.laserPointer : Color(.tertiarySystemBackground))
                         .frame(width: 160, height: 160)
                         .overlay(
                             Circle()
                                 .strokeBorder(
-                                    isActive ? Color.red.opacity(0.6) : Color(.separator),
+                                    isActive ? SnapColors.laserPointer.opacity(0.6) : Color(.separator),
                                     lineWidth: 2
                                 )
                         )
@@ -558,7 +603,7 @@ struct LaserControlArea: View {
                     VStack(spacing: 8) {
                         Image(systemName: "scope")
                             .font(.system(size: 44, weight: .medium))
-                            .foregroundStyle(isActive ? .white : .red)
+                            .foregroundStyle(isActive ? .white : SnapColors.laserPointer)
                             .symbolEffect(.pulse, isActive: isActive)
 
                         Text(buttonLabel(isActive: isActive, mode: activationMode))
@@ -607,7 +652,7 @@ struct LaserControlArea: View {
                         ),
                         in: 1...50
                     )
-                    .tint(.red)
+                    .tint(SnapColors.laserPointer)
 
                     Image(systemName: "hare")
                         .foregroundStyle(.secondary)
@@ -664,10 +709,10 @@ struct ClickButton: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: SnapCornerRadius.lg)
-                    .fill(isPressed ? SnapColors.cyberBlue.opacity(0.2) : SnapColors.backgroundElevated)
+                    .fill(isPressed ? Color.accentColor.opacity(0.2) : SnapColors.backgroundElevated)
                     .overlay(
                         RoundedRectangle(cornerRadius: SnapCornerRadius.lg)
-                            .strokeBorder(isPressed ? SnapColors.cyberBlue.opacity(0.5) : SnapColors.border, lineWidth: isPressed ? 1 : 0.5)
+                            .strokeBorder(isPressed ? Color.accentColor.opacity(0.5) : SnapColors.border, lineWidth: isPressed ? 1 : 0.5)
                     )
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
@@ -760,7 +805,7 @@ struct QuickActionButton: View {
             VStack(spacing: SnapSpacing.sm) {
                 Image(systemName: icon)
                     .font(.title2)
-                    .foregroundStyle(SnapColors.neonLime)
+                    .foregroundStyle(Color.accentColor)
 
                 Text(label)
                     .font(SnapTypography.caption)
