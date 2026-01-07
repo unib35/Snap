@@ -10,6 +10,8 @@ public enum MotionEvent: Equatable, Sendable {
 }
 
 /// CoreMotion 기반 모션 매니저
+///
+/// - Note: `@unchecked Sendable` - 내부 OperationQueue(`motionQueue`)를 통해 모션 업데이트가 직렬화되어 스레드 안전함
 public final class MotionManager: @unchecked Sendable {
     // MARK: - Singleton
 

@@ -12,6 +12,8 @@ public protocol TCPConnectionDelegate: AnyObject, Sendable {
 }
 
 /// TCP 연결 (NWConnection 래퍼)
+///
+/// - Note: `@unchecked Sendable` - 내부 DispatchQueue(`queue`)를 통해 모든 상태 접근이 직렬화되어 스레드 안전함
 public final class TCPConnection: @unchecked Sendable {
     // MARK: - Properties
 

@@ -11,6 +11,8 @@ public protocol BonjourAdvertiserDelegate: AnyObject, Sendable {
 }
 
 /// Bonjour 서비스 광고자 (macOS에서 서비스 광고)
+///
+/// - Note: `@unchecked Sendable` - 내부 DispatchQueue(`queue`)를 통해 모든 상태 접근이 직렬화되어 스레드 안전함
 public final class BonjourAdvertiser: @unchecked Sendable {
     // MARK: - Properties
 

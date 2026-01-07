@@ -10,6 +10,8 @@ public enum SpeechRecognitionEvent: Equatable, Sendable {
 }
 
 /// 음성 인식 서비스
+///
+/// - Note: `@unchecked Sendable` - SFSpeechRecognizer와 AVAudioEngine은 내부적으로 스레드 안전하게 관리됨
 public final class SpeechRecognizer: @unchecked Sendable {
     // MARK: - Properties
 

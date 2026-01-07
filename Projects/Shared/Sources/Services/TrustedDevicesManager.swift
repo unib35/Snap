@@ -15,6 +15,8 @@ public struct TrustedDevice: Codable, Sendable, Equatable, Identifiable {
 }
 
 /// 신뢰된 디바이스 관리자
+///
+/// - Note: `@unchecked Sendable` - 내부 DispatchQueue(`queue`)를 통해 barrier를 사용한 reader-writer 패턴으로 스레드 안전함
 public final class TrustedDevicesManager: @unchecked Sendable {
     // MARK: - Singleton
 

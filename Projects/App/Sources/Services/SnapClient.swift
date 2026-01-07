@@ -17,6 +17,8 @@ public protocol SnapClientDelegate: AnyObject {
 }
 
 /// Snap 클라이언트 (iOS)
+///
+/// - Note: `@unchecked Sendable` - 내부 lock/queue를 통해 모든 상태 접근이 직렬화되어 스레드 안전함
 public final class SnapClient: @unchecked Sendable {
     // MARK: - Properties
 
