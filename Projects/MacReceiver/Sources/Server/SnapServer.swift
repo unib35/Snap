@@ -26,7 +26,6 @@ public final class SnapServer: @unchecked Sendable {
 
     private var tcpServer: TCPServer?
     private var udpSocket: UDPSocket?
-    private var bonjourAdvertiser: BonjourAdvertiser?
 
     private var connectedClient: TCPConnection?
     private var clientEndpoint: NetworkEndpoint?
@@ -72,19 +71,23 @@ public final class SnapServer: @unchecked Sendable {
         }
         tcpServer = TCPServer(useTLS: useSecureConnection)
         tcpServer?.delegate = self
+
+        // Bonjour 서비스를 TCPServer에 직접 등록 (별도 listener 충돌 방지)
+        var txtRecord = NWTXTRecord()
+        txtRecord["deviceID"] = deviceID
+        txtRecord["secure"] = useSecureConnection ? "1" : "0"
+        tcpServer?.setBonjourService(
+            name: deviceName,
+            type: NetworkConstants.bonjourServiceTypeTCP,
+            txtRecord: txtRecord
+        )
+
         try tcpServer?.start()
 
         // UDP 소켓 시작 (리슨 모드, DTLS 옵션 적용)
         udpSocket = UDPSocket(useDTLS: useSecureConnection)
         udpSocket?.delegate = self
         try udpSocket?.listen()
-
-        // Bonjour 광고 시작
-        bonjourAdvertiser = BonjourAdvertiser(serviceName: deviceName)
-        bonjourAdvertiser?.setTXTRecord("deviceID", value: deviceID)
-        bonjourAdvertiser?.setTXTRecord("secure", value: useSecureConnection ? "1" : "0")
-        bonjourAdvertiser?.delegate = self
-        try bonjourAdvertiser?.startAdvertising()
 
         isRunning = true
         delegate?.serverDidStart(self)
@@ -108,9 +111,6 @@ public final class SnapServer: @unchecked Sendable {
 
         udpSocket?.close()
         udpSocket = nil
-
-        bonjourAdvertiser?.stopAdvertising()
-        bonjourAdvertiser = nil
 
         connectedClient = nil
         connectedDeviceName = nil
@@ -393,17 +393,6 @@ extension SnapServer: UDPSocketDelegate {
     }
 }
 
-// MARK: - BonjourAdvertiserDelegate
-
-extension SnapServer: BonjourAdvertiserDelegate {
-    public func bonjourAdvertiserDidStart(_ advertiser: BonjourAdvertiser) {
-        logger.info("Bonjour advertising started: \(self.deviceName)")
-    }
-
-    public func bonjourAdvertiser(_ advertiser: BonjourAdvertiser, didFailWithError error: Error) {
-        delegate?.server(self, didFailWithError: error)
-    }
-}
 
 // MARK: - HeartbeatManagerDelegate
 
