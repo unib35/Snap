@@ -29,7 +29,7 @@ public struct MacroView: View {
             }
             .padding(.vertical)
         }
-        .background(Color(.systemBackground))
+        .background(SnapColors.systemBackground)
     }
 
     // MARK: - Header
@@ -115,22 +115,22 @@ struct AddMacroButton: View {
             VStack(spacing: 8) {
                 Image(systemName: "plus")
                     .font(.system(size: 24, weight: .medium))
-                    .foregroundStyle(Color(.secondaryLabel))
+                    .foregroundStyle(SnapColors.secondaryLabel)
 
                 Text("추가")
                     .font(.caption2)
                     .fontWeight(.medium)
-                    .foregroundStyle(Color(.tertiaryLabel))
+                    .foregroundStyle(SnapColors.tertiaryLabel)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 80)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.tertiarySystemBackground))
+                    .fill(SnapColors.tertiarySystemBackground)
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
                             .strokeBorder(
-                                Color(.separator),
+                                SnapColors.separator,
                                 style: StrokeStyle(lineWidth: 2, dash: [8, 4])
                             )
                     )
@@ -370,7 +370,7 @@ public struct MacroPadSection: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground).opacity(0.5))
+        .background(SnapColors.secondarySystemBackground.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .sheet(isPresented: Binding(
             get: { store.editorState != nil },

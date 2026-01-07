@@ -30,7 +30,7 @@ public struct MediaView: View {
             Spacer()
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(SnapColors.systemBackground)
         .onAppear {
             if store.isHardwareVolumeControlEnabled {
                 setupVolumeHandler()
@@ -76,7 +76,7 @@ public struct MediaView: View {
     private var albumArtView: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.secondarySystemBackground))
+                .fill(SnapColors.secondarySystemBackground)
 
             if let artworkData = store.nowPlayingInfo.artworkData,
                let uiImage = UIImage(data: artworkData) {
@@ -112,7 +112,7 @@ public struct MediaView: View {
         case "spotify":
             return .green
         default:
-            return Color(.tertiaryLabel)
+            return SnapColors.tertiaryLabel
         }
     }
 
@@ -123,11 +123,11 @@ public struct MediaView: View {
             VStack(spacing: 8) {
                 Text("Not Playing")
                     .font(.title3.weight(.semibold))
-                    .foregroundStyle(Color(.label))
+                    .foregroundStyle(SnapColors.label)
 
                 Text("Play music on your Mac")
                     .font(.subheadline)
-                    .foregroundStyle(Color(.secondaryLabel))
+                    .foregroundStyle(SnapColors.secondaryLabel)
             }
         } else {
             // Now Playing Info
@@ -140,20 +140,20 @@ public struct MediaView: View {
 
                     Text(store.nowPlayingInfo.appName)
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(Color(.secondaryLabel))
+                        .foregroundStyle(SnapColors.secondaryLabel)
                 }
 
                 // Track Title
                 Text(store.nowPlayingInfo.title)
                     .font(.title3.weight(.semibold))
-                    .foregroundStyle(Color(.label))
+                    .foregroundStyle(SnapColors.label)
                     .lineLimit(1)
                     .truncationMode(.tail)
 
                 // Artist
                 Text(store.nowPlayingInfo.artist)
                     .font(.subheadline)
-                    .foregroundStyle(Color(.secondaryLabel))
+                    .foregroundStyle(SnapColors.secondaryLabel)
                     .lineLimit(1)
                     .truncationMode(.tail)
 
@@ -161,7 +161,7 @@ public struct MediaView: View {
                 if !store.nowPlayingInfo.album.isEmpty {
                     Text(store.nowPlayingInfo.album)
                         .font(.caption)
-                        .foregroundStyle(Color(.tertiaryLabel))
+                        .foregroundStyle(SnapColors.tertiaryLabel)
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
@@ -215,7 +215,7 @@ public struct MediaView: View {
                 } label: {
                     Image(systemName: "speaker.fill")
                         .font(.callout)
-                        .foregroundStyle(Color(.secondaryLabel))
+                        .foregroundStyle(SnapColors.secondaryLabel)
                 }
                 .accessibilityLabel("볼륨 줄이기")
 
@@ -234,7 +234,7 @@ public struct MediaView: View {
                 } label: {
                     Image(systemName: "speaker.wave.3.fill")
                         .font(.callout)
-                        .foregroundStyle(Color(.secondaryLabel))
+                        .foregroundStyle(SnapColors.secondaryLabel)
                 }
                 .accessibilityLabel("볼륨 높이기")
             }
@@ -251,14 +251,14 @@ public struct MediaView: View {
                     Text(store.isMuted ? "Unmute" : "Mute")
                         .font(.subheadline.weight(.medium))
                 }
-                .foregroundStyle(store.isMuted ? .red : Color(.secondaryLabel))
+                .foregroundStyle(store.isMuted ? .red : SnapColors.secondaryLabel)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
-                .background(Color(.secondarySystemBackground))
+                .background(SnapColors.secondarySystemBackground)
                 .clipShape(Capsule())
                 .overlay(
                     Capsule()
-                        .strokeBorder(Color(.separator), lineWidth: 1)
+                        .strokeBorder(SnapColors.separator, lineWidth: 1)
                 )
             }
             .accessibilityLabel(store.isMuted ? "음소거 해제" : "음소거")
@@ -272,24 +272,24 @@ public struct MediaView: View {
             HStack(spacing: 12) {
                 Image(systemName: "iphone.radiowaves.left.and.right")
                     .font(.body)
-                    .foregroundStyle(Color(.secondaryLabel))
+                    .foregroundStyle(SnapColors.secondaryLabel)
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Hardware Volume Buttons")
                         .font(.subheadline.weight(.medium))
-                        .foregroundStyle(Color(.label))
+                        .foregroundStyle(SnapColors.label)
 
                     Text("Use iPhone volume buttons to control Mac")
                         .font(.caption)
-                        .foregroundStyle(Color(.tertiaryLabel))
+                        .foregroundStyle(SnapColors.tertiaryLabel)
                 }
             }
         }
         .toggleStyle(.switch)
         .padding(.horizontal)
         .padding(.vertical, 12)
-        .background(Color(.secondarySystemBackground))
+        .background(SnapColors.secondarySystemBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .padding(.horizontal)
         .accessibilityLabel("하드웨어 볼륨 버튼 사용")
@@ -311,13 +311,13 @@ struct MediaButton: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: size, weight: .medium))
-                .foregroundStyle(Color(.label))
+                .foregroundStyle(SnapColors.label)
                 .frame(width: buttonSize, height: buttonSize)
                 .background(backgroundColor)
                 .clipShape(Circle())
                 .overlay(
                     Circle()
-                        .strokeBorder(Color(.separator), lineWidth: 1)
+                        .strokeBorder(SnapColors.separator, lineWidth: 1)
                 )
                 .scaleEffect(isPressed ? 0.9 : 1.0)
         }
@@ -339,7 +339,7 @@ struct MediaButton: View {
     }
 
     private var backgroundColor: Color {
-        isPrimary ? Color(.tertiarySystemBackground) : Color(.secondarySystemBackground)
+        isPrimary ? SnapColors.tertiarySystemBackground : SnapColors.secondarySystemBackground
     }
 }
 

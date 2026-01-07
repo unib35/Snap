@@ -48,7 +48,7 @@ public struct LaserPointerView: View {
             if store.isActive && store.isCalibrated {
                 Text("기기를 움직여 커서를 이동하세요")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SnapColors.textSecondary)
             }
         }
     }
@@ -111,7 +111,7 @@ public struct LaserPointerView: View {
             HStack {
                 Text("감도")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SnapColors.textSecondary)
 
                 Spacer()
 
@@ -132,7 +132,7 @@ public struct LaserPointerView: View {
             .tint(SnapColors.laserPointer)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(SnapColors.secondarySystemBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -195,7 +195,7 @@ public struct LaserPointerSection: View {
 
                             Text("기기를 움직여 커서 제어")
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(SnapColors.textSecondary)
 
                             // 캘리브레이션 버튼
                             Button {
@@ -213,7 +213,7 @@ public struct LaserPointerSection: View {
                     // 감도 슬라이더
                     HStack {
                         Image(systemName: "tortoise")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(SnapColors.textSecondary)
 
                         Slider(
                             value: Binding(
@@ -225,7 +225,7 @@ public struct LaserPointerSection: View {
                         .tint(SnapColors.laserPointer)
 
                         Image(systemName: "hare")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(SnapColors.textSecondary)
                     }
                 }
             } else {
@@ -241,13 +241,13 @@ public struct LaserPointerSection: View {
                             .fontWeight(.medium)
                         Text("iPhone을 허공에 움직여 Mac 커서를 제어합니다")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(SnapColors.textSecondary)
                     }
 
                     Spacer()
                 }
                 .padding()
-                .background(Color(.tertiarySystemBackground))
+                .background(SnapColors.tertiarySystemBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }

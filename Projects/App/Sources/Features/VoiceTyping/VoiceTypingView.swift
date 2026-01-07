@@ -61,7 +61,7 @@ public struct VoiceTypingView: View {
 
             Text(statusText)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SnapColors.textSecondary)
         }
     }
 
@@ -84,7 +84,7 @@ public struct VoiceTypingView: View {
             HStack {
                 Text("인식된 텍스트")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SnapColors.textSecondary)
 
                 Spacer()
 
@@ -93,7 +93,7 @@ public struct VoiceTypingView: View {
                         store.send(.clearText)
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(SnapColors.textSecondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -106,7 +106,7 @@ public struct VoiceTypingView: View {
             }
             .frame(minHeight: 100, maxHeight: 200)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(SnapColors.secondarySystemBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
@@ -226,7 +226,7 @@ public struct VoiceTypingSection: View {
                     }
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(SnapColors.secondarySystemBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }

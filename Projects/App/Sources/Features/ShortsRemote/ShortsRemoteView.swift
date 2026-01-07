@@ -21,7 +21,7 @@ public struct ShortsRemoteView: View {
             controlButtons
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(SnapColors.systemBackground)
     }
 
     // MARK: - Platform Picker
@@ -109,7 +109,7 @@ struct PlatformButton: View {
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? platformColor.opacity(0.15) : Color(.tertiarySystemBackground))
+                    .fill(isSelected ? platformColor.opacity(0.15) : SnapColors.tertiarySystemBackground)
             )
             .foregroundStyle(isSelected ? platformColor : .secondary)
             .overlay(
@@ -146,10 +146,10 @@ struct SwipeNavigationArea: View {
             ZStack {
                 // Background
                 RoundedRectangle(cornerRadius: 24)
-                    .fill(Color(.secondarySystemBackground))
+                    .fill(SnapColors.secondarySystemBackground)
                     .overlay(
                         RoundedRectangle(cornerRadius: 24)
-                            .strokeBorder(Color(.separator), lineWidth: 1)
+                            .strokeBorder(SnapColors.separator, lineWidth: 1)
                     )
 
                 // Content
@@ -172,11 +172,11 @@ struct SwipeNavigationArea: View {
                     VStack(spacing: 12) {
                         Image(systemName: "hand.draw.fill")
                             .font(.system(size: 48))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(SnapColors.textSecondary)
 
                         Text("위아래로 스와이프")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(SnapColors.textSecondary)
                     }
                     .offset(y: offset * 0.3)
 
@@ -258,7 +258,7 @@ struct ShortsControlButton: View {
             .frame(width: isLarge ? 80 : 60, height: isLarge ? 80 : 60)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.tertiarySystemBackground))
+                    .fill(SnapColors.tertiarySystemBackground)
             )
             .foregroundStyle(.primary)
         }
@@ -336,7 +336,7 @@ public struct ShortsRemoteSection: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground).opacity(0.5))
+        .background(SnapColors.secondarySystemBackground.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
@@ -362,7 +362,7 @@ struct PlatformChip: View {
             .padding(.vertical, 8)
             .background(
                 Capsule()
-                    .fill(isSelected ? platformColor.opacity(0.15) : Color(.tertiarySystemBackground))
+                    .fill(isSelected ? platformColor.opacity(0.15) : SnapColors.tertiarySystemBackground)
             )
             .foregroundStyle(isSelected ? platformColor : .secondary)
         }
@@ -391,7 +391,7 @@ struct CompactSwipeArea: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.tertiarySystemBackground))
+                .fill(SnapColors.tertiarySystemBackground)
 
             HStack {
                 // Up/Previous
@@ -415,7 +415,7 @@ struct CompactSwipeArea: View {
                         .font(.caption2)
                 }
                 .frame(maxWidth: .infinity)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SnapColors.textSecondary)
 
                 Divider()
                     .frame(height: 40)
@@ -476,7 +476,7 @@ struct CompactControlButton: View {
                 .frame(width: 48, height: 48)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(isHighlighted ? Color.accentColor.opacity(0.15) : Color(.tertiarySystemBackground))
+                        .fill(isHighlighted ? Color.accentColor.opacity(0.15) : SnapColors.tertiarySystemBackground)
                 )
                 .foregroundStyle(isHighlighted ? Color.accentColor : .primary)
         }
