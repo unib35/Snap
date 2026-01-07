@@ -130,42 +130,6 @@ extension View {
     }
 }
 
-// MARK: - Shimmer Effect
-
-/// 시머 효과 (로딩)
-struct ShimmerModifier: ViewModifier {
-    @State private var phase: CGFloat = 0
-
-    func body(content: Content) -> some View {
-        content
-            .overlay(
-                LinearGradient(
-                    colors: [
-                        .clear,
-                        SnapColors.textPrimary.opacity(0.1),
-                        .clear
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .offset(x: phase)
-                .mask(content)
-            )
-            .onAppear {
-                withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
-                    phase = 400
-                }
-            }
-    }
-}
-
-extension View {
-    /// 시머 효과 적용
-    func shimmer() -> some View {
-        modifier(ShimmerModifier())
-    }
-}
-
 // MARK: - Card Style Modifier
 
 /// 카드 스타일 적용
