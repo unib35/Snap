@@ -12,7 +12,7 @@ public struct ProductivityView: View {
 
     public var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: SnapSpacing.lg) {
                 // Quick Launch Section
                 quickLaunchSection
 
@@ -37,10 +37,10 @@ public struct ProductivityView: View {
                 // App Switcher Section
                 appSwitcherSection
             }
-            .padding()
+            .padding(SnapSpacing.lg)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemBackground))
+        .background(SnapColors.background)
     }
 
     // MARK: - Quick Launch Section
@@ -86,63 +86,72 @@ public struct ProductivityView: View {
         VoiceTypingSection(
             store: store.scope(state: \.voiceTyping, action: \.voiceTyping)
         )
-        .padding()
-        .background(Color(.secondarySystemBackground).opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(SnapSpacing.lg)
+        .cardStyle()
     }
 
     // MARK: - Siri Section
 
     @ViewBuilder
     private var siriSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: SnapSpacing.lg) {
             Text("Siri")
-                .font(.headline)
+                .font(SnapTypography.headlineSmall)
+                .foregroundStyle(SnapColors.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            HStack(spacing: 16) {
+            HStack(spacing: SnapSpacing.lg) {
                 // Siri Button (Mac Siri 제어)
                 SiriButton(isActive: store.isSiriActive) {
+                    Task { @MainActor in
+                        HapticManager.shared.mediumImpact()
+                    }
                     store.send(.siriTapped)
                 }
 
                 // Dictation Button
                 Button {
+                    Task { @MainActor in
+                        HapticManager.shared.buttonTap()
+                    }
                     store.send(.dictationTapped(""))
                 } label: {
-                    VStack(spacing: 8) {
+                    VStack(spacing: SnapSpacing.sm) {
                         Image(systemName: "keyboard")
-                            .font(.system(size: 24))
+                            .font(.system(size: 24, weight: .medium))
+                            .foregroundStyle(Color.accentColor)
                         Text("받아쓰기")
-                            .font(.caption)
+                            .font(SnapTypography.labelSmall)
+                            .foregroundStyle(SnapColors.textSecondary)
                     }
                     .frame(width: 80, height: 80)
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .background(SnapColors.backgroundTertiary)
+                    .clipShape(RoundedRectangle(cornerRadius: SnapCornerRadius.lg))
                 }
                 .buttonStyle(.plain)
+                .pressEffect()
 
                 Spacer()
             }
 
             // Siri Shortcuts Tips
-            VStack(spacing: 8) {
+            VStack(spacing: SnapSpacing.sm) {
                 SiriTipView(intent: ConnectToMacIntent())
                 SiriTipView(intent: RunMacroIntent())
             }
         }
-        .padding()
-        .background(Color(.secondarySystemBackground).opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(SnapSpacing.lg)
+        .cardStyle()
     }
 
     // MARK: - Window Snap Section
 
     @ViewBuilder
     private var windowSnapSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: SnapSpacing.lg) {
             Text("윈도우 스냅")
-                .font(.headline)
+                .font(SnapTypography.headlineSmall)
+                .foregroundStyle(SnapColors.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             LazyVGrid(columns: [
@@ -150,7 +159,7 @@ public struct ProductivityView: View {
                 GridItem(.flexible()),
                 GridItem(.flexible()),
                 GridItem(.flexible())
-            ], spacing: 12) {
+            ], spacing: SnapSpacing.md) {
                 WindowSnapButton(icon: "rectangle.lefthalf.filled", label: "왼쪽") {
                     store.send(.windowSnapTapped(.leftHalf))
                 }
@@ -177,60 +186,71 @@ public struct ProductivityView: View {
                 }
             }
         }
-        .padding()
-        .background(Color(.secondarySystemBackground).opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(SnapSpacing.lg)
+        .cardStyle()
     }
 
     // MARK: - App Switcher Section
 
     @ViewBuilder
     private var appSwitcherSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: SnapSpacing.lg) {
             HStack {
                 Text("앱 스위처")
-                    .font(.headline)
+                    .font(SnapTypography.headlineSmall)
+                    .foregroundStyle(SnapColors.textPrimary)
 
                 Spacer()
 
                 Button {
+                    Task { @MainActor in
+                        HapticManager.shared.buttonTap()
+                    }
                     store.send(.requestAppListTapped)
                 } label: {
                     if store.isLoadingApps {
                         ProgressView()
+                            .tint(.accentColor)
                             .controlSize(.small)
                     } else {
                         Image(systemName: "arrow.clockwise")
+                            .foregroundStyle(Color.accentColor)
                     }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .padding(SnapSpacing.sm)
+                .background(SnapColors.backgroundTertiary)
+                .clipShape(Circle())
                 .disabled(store.isLoadingApps)
             }
 
             if store.runningApps.isEmpty {
                 // Empty state
-                HStack {
-                    Image(systemName: "square.stack.3d.up")
-                        .font(.system(size: 40))
-                        .foregroundStyle(.purple)
+                HStack(spacing: SnapSpacing.md) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.accentColor.opacity(0.15))
+                            .frame(width: 56, height: 56)
 
-                    VStack(alignment: .leading, spacing: 4) {
+                        Image(systemName: "square.stack.3d.up")
+                            .font(.system(size: 24, weight: .medium))
+                            .foregroundStyle(Color.accentColor)
+                    }
+
+                    VStack(alignment: .leading, spacing: SnapSpacing.xxs) {
                         Text("앱 목록 불러오기")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
+                            .font(SnapTypography.labelLarge)
+                            .foregroundStyle(SnapColors.textPrimary)
                         Text("Mac에서 실행 중인 앱 목록")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(SnapTypography.labelSmall)
+                            .foregroundStyle(SnapColors.textTertiary)
                     }
 
                     Spacer()
 
-                    Button("불러오기") {
+                    SnapSecondaryButton("불러오기", accentColor: .accentColor) {
                         store.send(.requestAppListTapped)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+                    .frame(width: 100)
                     .disabled(store.isLoadingApps)
                 }
             } else {
@@ -240,7 +260,7 @@ public struct ProductivityView: View {
                     GridItem(.flexible()),
                     GridItem(.flexible()),
                     GridItem(.flexible())
-                ], spacing: 16) {
+                ], spacing: SnapSpacing.lg) {
                     ForEach(store.runningApps, id: \.bundleID) { app in
                         AppButton(app: app, isActive: app.isActive) {
                             store.send(.appTapped(app))
@@ -249,9 +269,8 @@ public struct ProductivityView: View {
                 }
             }
         }
-        .padding()
-        .background(Color(.secondarySystemBackground).opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(SnapSpacing.lg)
+        .cardStyle()
     }
 }
 
@@ -263,40 +282,46 @@ struct AppButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
+        Button {
+            Task { @MainActor in
+                HapticManager.shared.buttonTap()
+            }
+            action()
+        } label: {
+            VStack(spacing: SnapSpacing.sm) {
                 // App icon
                 if let uiImage = UIImage(data: app.iconData) {
                     Image(uiImage: uiImage)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 48, height: 48)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .clipShape(RoundedRectangle(cornerRadius: SnapCornerRadius.md))
                 } else {
                     Image(systemName: "app.fill")
                         .font(.system(size: 32))
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(Color.accentColor)
                         .frame(width: 48, height: 48)
                 }
 
                 // App name
                 Text(app.name)
-                    .font(.caption2)
+                    .font(SnapTypography.caption)
                     .lineLimit(1)
-                    .foregroundStyle(isActive ? .primary : .secondary)
+                    .foregroundStyle(isActive ? SnapColors.textPrimary : SnapColors.textTertiary)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            .padding(.vertical, SnapSpacing.sm)
             .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(isActive ? Color.purple.opacity(0.15) : Color(.tertiarySystemBackground))
+                RoundedRectangle(cornerRadius: SnapCornerRadius.md)
+                    .fill(isActive ? Color.accentColor.opacity(0.15) : SnapColors.backgroundTertiary)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(isActive ? Color.purple.opacity(0.3) : Color.clear, lineWidth: 2)
+                RoundedRectangle(cornerRadius: SnapCornerRadius.md)
+                    .strokeBorder(isActive ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
+        .pressEffect()
         .accessibilityLabel("\(app.name) 앱\(isActive ? ", 활성화됨" : "")")
     }
 }
@@ -376,19 +401,27 @@ struct WindowSnapButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            VStack(spacing: 6) {
+        Button {
+            Task { @MainActor in
+                HapticManager.shared.buttonTap()
+            }
+            action()
+        } label: {
+            VStack(spacing: SnapSpacing.sm) {
                 Image(systemName: icon)
-                    .font(.system(size: 20))
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(Color.accentColor)
                 Text(label)
-                    .font(.caption2)
+                    .font(SnapTypography.caption)
+                    .foregroundStyle(SnapColors.textSecondary)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 60)
-            .background(Color(.tertiarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .background(SnapColors.backgroundTertiary)
+            .clipShape(RoundedRectangle(cornerRadius: SnapCornerRadius.md))
         }
         .buttonStyle(.plain)
+        .pressEffect()
     }
 }
 

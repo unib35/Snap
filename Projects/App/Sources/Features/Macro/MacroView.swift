@@ -47,7 +47,7 @@ public struct MacroView: View {
                 } label: {
                     Text("초기화")
                         .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(SnapColors.destructive)
                 }
             }
 
@@ -247,7 +247,7 @@ struct MacroButton: View {
         } label: {
             Image(systemName: "xmark.circle.fill")
                 .font(.title3)
-                .foregroundStyle(.white, .red)
+                .foregroundStyle(.white, SnapColors.destructive)
         }
         .offset(x: 8, y: -8)
     }
@@ -334,7 +334,7 @@ public struct MacroPadSection: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-                    .tint(.red)
+                    .tint(SnapColors.destructive)
                 }
 
                 Button {

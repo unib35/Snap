@@ -10,6 +10,8 @@ public struct TrackpadView: View {
         self.store = store
     }
 
+    @Namespace private var modeNamespace
+
     public var body: some View {
         VStack(spacing: 0) {
             // Mode Toggle
@@ -24,35 +26,39 @@ public struct TrackpadView: View {
                     laserContent
                 }
             }
-            .animation(.easeInOut(duration: 0.3), value: store.mode)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: store.mode)
 
             // Quick Actions
             quickActions
                 .padding()
         }
-        .background(Color(.systemBackground))
+        .background(SnapColors.background)
     }
 
     // MARK: - Mode Toggle
 
     private var modeToggle: some View {
-        let toggleShape = RoundedRectangle(cornerRadius: 12)
+        let toggleShape = RoundedRectangle(cornerRadius: SnapCornerRadius.md)
 
-        return HStack(spacing: 8) {
+        return HStack(spacing: SnapSpacing.sm) {
             ForEach(TrackpadFeature.InputMode.allCases, id: \.self) { mode in
                 ModeToggleButton(
                     mode: mode,
-                    isSelected: store.mode == mode
+                    isSelected: store.mode == mode,
+                    namespace: modeNamespace
                 ) {
+                    Task { @MainActor in
+                        HapticManager.shared.modeSwitch()
+                    }
                     store.send(.modeChanged(mode), animation: .spring(response: 0.3, dampingFraction: 0.7))
                 }
             }
         }
-        .padding(8)
-        .background(Color(.secondarySystemBackground))
+        .padding(SnapSpacing.sm)
+        .background(SnapColors.backgroundElevated)
         .clipShape(toggleShape)
         .overlay(
-            toggleShape.strokeBorder(Color(.separator), lineWidth: 1)
+            toggleShape.strokeBorder(SnapColors.border, lineWidth: 0.5)
         )
     }
 
@@ -101,7 +107,7 @@ public struct TrackpadView: View {
                 LaserClickButton(
                     icon: "cursorarrow.click",
                     label: "Left Click",
-                    color: .blue
+                    color: .accentColor
                 ) {
                     store.send(.leftClickPressed)
                 } onRelease: {
@@ -130,11 +136,11 @@ public struct TrackpadView: View {
     @ViewBuilder
     private var quickActions: some View {
         HStack(spacing: 16) {
-            QuickActionButton(
-                icon: "command",
-                label: "Cmd+Space"
+            VoiceTypingButton(
+                isRecording: store.voiceTyping.isRecording,
+                isAuthorized: store.voiceTyping.authorizationStatus == .authorized
             ) {
-                store.send(.spotlightPressed)
+                store.send(.voiceTyping(.toggleRecording))
             }
 
             QuickActionButton(
@@ -144,6 +150,51 @@ public struct TrackpadView: View {
                 store.send(.missionControlPressed)
             }
         }
+        .onAppear {
+            store.send(.voiceTyping(.onAppear))
+        }
+    }
+}
+
+// MARK: - Voice Typing Button
+
+struct VoiceTypingButton: View {
+    let isRecording: Bool
+    let isAuthorized: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            Task { @MainActor in
+                HapticManager.shared.buttonTap()
+            }
+            action()
+        } label: {
+            VStack(spacing: SnapSpacing.sm) {
+                Image(systemName: isRecording ? "stop.fill" : "mic.fill")
+                    .font(.title2)
+                    .foregroundStyle(isRecording ? SnapColors.recording : Color.accentColor)
+                    .symbolEffect(.variableColor.iterative, isActive: isRecording)
+
+                Text(isRecording ? "중지" : "음성입력")
+                    .font(SnapTypography.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(SnapColors.textTertiary)
+                    .textCase(.uppercase)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, SnapSpacing.lg)
+            .background(isRecording ? SnapColors.recording.opacity(0.15) : SnapColors.backgroundElevated)
+            .clipShape(RoundedRectangle(cornerRadius: SnapCornerRadius.lg))
+            .overlay(
+                RoundedRectangle(cornerRadius: SnapCornerRadius.lg)
+                    .strokeBorder(isRecording ? SnapColors.recording.opacity(0.5) : Color.clear, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .pressEffect()
+        .disabled(!isAuthorized)
+        .opacity(isAuthorized ? 1 : 0.5)
     }
 }
 
@@ -152,28 +203,36 @@ public struct TrackpadView: View {
 struct ModeToggleButton: View {
     let mode: TrackpadFeature.InputMode
     let isSelected: Bool
+    let namespace: Namespace.ID
     let action: () -> Void
 
     @State private var isPressed = false
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            HStack(spacing: SnapSpacing.sm) {
                 Image(systemName: mode == .trackpad ? "hand.point.up.left" : "scope")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(iconColor)
 
                 Text(mode.title)
-                    .font(.subheadline.weight(.bold))
+                    .font(SnapTypography.labelMedium)
+                    .fontWeight(.bold)
                     .foregroundStyle(textColor)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(background)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .padding(.vertical, SnapSpacing.md)
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: SnapCornerRadius.sm)
+                        .fill(background)
+                        .matchedGeometryEffect(id: "modeSelection", in: namespace)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: SnapCornerRadius.sm))
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(borderColor, lineWidth: 1)
+                RoundedRectangle(cornerRadius: SnapCornerRadius.sm)
+                    .strokeBorder(borderColor, lineWidth: isSelected ? 1 : 0)
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
             .shadow(color: shadowColor, radius: isSelected ? 8 : 0)
@@ -194,38 +253,35 @@ struct ModeToggleButton: View {
 
     private var iconColor: Color {
         if mode == .laser && isSelected {
-            return .red
+            return SnapColors.laserPointer
         }
-        return isSelected ? Color(.label) : Color(.tertiaryLabel)
+        return isSelected ? SnapColors.textPrimary : SnapColors.textTertiary
     }
 
     private var textColor: Color {
-        isSelected ? Color(.label) : Color(.tertiaryLabel)
+        isSelected ? SnapColors.textPrimary : SnapColors.textTertiary
     }
 
     private var background: Color {
-        if isSelected {
-            if mode == .laser {
-                return Color.red.opacity(0.15)
-            }
-            return Color(.tertiarySystemBackground)
+        if mode == .laser {
+            return SnapColors.laserPointer.opacity(0.15)
         }
-        return Color.clear
+        return SnapColors.backgroundTertiary
     }
 
     private var borderColor: Color {
         if isSelected {
             if mode == .laser {
-                return .red.opacity(0.3)
+                return SnapColors.laserPointer.opacity(0.3)
             }
-            return Color(.separator)
+            return SnapColors.border
         }
         return .clear
     }
 
     private var shadowColor: Color {
         if mode == .laser && isSelected {
-            return .red.opacity(0.3)
+            return SnapColors.laserPointer.opacity(0.3)
         }
         return .clear
     }
@@ -240,16 +296,16 @@ struct TrackpadTouchArea: View {
     var body: some View {
         ZStack {
             // Background
-            RoundedRectangle(cornerRadius: 24)
-                .fill(Color(.secondarySystemBackground))
+            RoundedRectangle(cornerRadius: SnapCornerRadius.xxl)
+                .fill(SnapColors.backgroundElevated)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .strokeBorder(Color(.separator), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: SnapCornerRadius.xxl)
+                        .strokeBorder(SnapColors.border, lineWidth: 0.5)
                 )
 
             // Ping Animation (always animating in center)
             Circle()
-                .stroke(Color(.tertiaryLabel), lineWidth: 1)
+                .stroke(SnapColors.textDisabled, lineWidth: 1)
                 .frame(width: 120, height: 120)
                 .scaleEffect(pingAnimation ? 1.5 : 1.0)
                 .opacity(pingAnimation ? 0 : 0.3)
@@ -261,7 +317,7 @@ struct TrackpadTouchArea: View {
             // Watermark
             Text("TRACKPAD")
                 .font(.largeTitle.weight(.black))
-                .foregroundStyle(Color(.quaternaryLabel))
+                .foregroundStyle(SnapColors.textDisabled.opacity(0.5))
                 .tracking(10)
 
             // Touch indicator - follows finger
@@ -269,7 +325,7 @@ struct TrackpadTouchArea: View {
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [Color.accentColor.opacity(0.3), Color.accentColor.opacity(0)],
+                            colors: [Color.accentColor.opacity(0.4), Color.accentColor.opacity(0)],
                             center: .center,
                             startRadius: 0,
                             endRadius: 60
@@ -500,7 +556,7 @@ struct LaserControlArea: View {
                                 .foregroundStyle(activationMode == mode ? .white : .secondary)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 6)
-                                .background(activationMode == mode ? Color.red : Color.clear)
+                                .background(activationMode == mode ? SnapColors.laserPointer : Color.clear)
                                 .clipShape(Capsule())
                         }
                     }
@@ -514,7 +570,7 @@ struct LaserControlArea: View {
                 ZStack {
                     // Outer glow (pulsing when active) - contained within fixed frame
                     Circle()
-                        .fill(Color.red.opacity(isActive ? 0.2 : 0))
+                        .fill(SnapColors.laserPointer.opacity(isActive ? 0.2 : 0))
                         .frame(width: 220, height: 220)
                         .blur(radius: 40)
                         .scaleEffect(isActive ? 1.1 : 1.0)
@@ -527,18 +583,18 @@ struct LaserControlArea: View {
 
                     // Button shadow glow
                     Circle()
-                        .fill(Color.red.opacity(isActive ? 0.5 : 0))
+                        .fill(SnapColors.laserPointer.opacity(isActive ? 0.5 : 0))
                         .frame(width: 180, height: 180)
                         .blur(radius: 30)
 
                     // Main button
                     Circle()
-                        .fill(isActive ? Color.red : Color(.tertiarySystemBackground))
+                        .fill(isActive ? SnapColors.laserPointer : Color(.tertiarySystemBackground))
                         .frame(width: 160, height: 160)
                         .overlay(
                             Circle()
                                 .strokeBorder(
-                                    isActive ? Color.red.opacity(0.6) : Color(.separator),
+                                    isActive ? SnapColors.laserPointer.opacity(0.6) : Color(.separator),
                                     lineWidth: 2
                                 )
                         )
@@ -547,7 +603,7 @@ struct LaserControlArea: View {
                     VStack(spacing: 8) {
                         Image(systemName: "scope")
                             .font(.system(size: 44, weight: .medium))
-                            .foregroundStyle(isActive ? .white : .red)
+                            .foregroundStyle(isActive ? .white : SnapColors.laserPointer)
                             .symbolEffect(.pulse, isActive: isActive)
 
                         Text(buttonLabel(isActive: isActive, mode: activationMode))
@@ -596,7 +652,7 @@ struct LaserControlArea: View {
                         ),
                         in: 1...50
                     )
-                    .tint(.red)
+                    .tint(SnapColors.laserPointer)
 
                     Image(systemName: "hare")
                         .foregroundStyle(.secondary)
@@ -648,15 +704,15 @@ struct ClickButton: View {
 
     var body: some View {
         Text(label)
-            .font(.headline)
-            .foregroundStyle(isPrimary ? Color(.label) : Color(.secondaryLabel))
+            .font(SnapTypography.headlineSmall)
+            .foregroundStyle(isPrimary ? SnapColors.textPrimary : SnapColors.textSecondary)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(isPressed ? Color(.tertiarySystemFill) : Color(.secondarySystemBackground))
+                RoundedRectangle(cornerRadius: SnapCornerRadius.lg)
+                    .fill(isPressed ? Color.accentColor.opacity(0.2) : SnapColors.backgroundElevated)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .strokeBorder(Color(.separator), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: SnapCornerRadius.lg)
+                            .strokeBorder(isPressed ? Color.accentColor.opacity(0.5) : SnapColors.border, lineWidth: isPressed ? 1 : 0.5)
                     )
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
@@ -666,6 +722,9 @@ struct ClickButton: View {
                     .onChanged { _ in
                         if !isPressed {
                             isPressed = true
+                            Task { @MainActor in
+                                HapticManager.shared.buttonPress()
+                            }
                             onPress()
                         }
                     }
@@ -737,24 +796,30 @@ struct QuickActionButton: View {
     @State private var isPressed = false
 
     var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
+        Button {
+            Task { @MainActor in
+                HapticManager.shared.buttonTap()
+            }
+            action()
+        } label: {
+            VStack(spacing: SnapSpacing.sm) {
                 Image(systemName: icon)
                     .font(.title2)
-                    .foregroundStyle(Color(.secondaryLabel))
+                    .foregroundStyle(Color.accentColor)
 
                 Text(label)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color(.tertiaryLabel))
+                    .font(SnapTypography.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(SnapColors.textTertiary)
                     .textCase(.uppercase)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .padding(.vertical, SnapSpacing.lg)
+            .background(SnapColors.backgroundElevated)
+            .clipShape(RoundedRectangle(cornerRadius: SnapCornerRadius.lg))
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(Color(.separator), lineWidth: 1)
+                RoundedRectangle(cornerRadius: SnapCornerRadius.lg)
+                    .strokeBorder(SnapColors.border, lineWidth: 0.5)
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }

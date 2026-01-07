@@ -14,6 +14,7 @@ public struct TrackpadFeature {
         public var isNaturalScrolling: Bool = true
         public var isTapToClick: Bool = true
         public var laserPointer: LaserPointerFeature.State = .init()
+        public var voiceTyping: VoiceTypingFeature.State = .init()
 
         public init() {}
     }
@@ -53,8 +54,10 @@ public struct TrackpadFeature {
         case rightClickReleased
 
         // Quick Actions
-        case spotlightPressed
         case missionControlPressed
+
+        // Voice Typing
+        case voiceTyping(VoiceTypingFeature.Action)
 
         // Settings
         case updateSettings(
@@ -75,6 +78,10 @@ public struct TrackpadFeature {
     public var body: some ReducerOf<Self> {
         Scope(state: \.laserPointer, action: \.laserPointer) {
             LaserPointerFeature()
+        }
+
+        Scope(state: \.voiceTyping, action: \.voiceTyping) {
+            VoiceTypingFeature()
         }
 
         Reduce { state, action in
@@ -163,12 +170,6 @@ public struct TrackpadFeature {
                     await client.sendMouseClick(.right, .up)
                 }
 
-            case .spotlightPressed:
-                // Cmd + Space
-                return .run { _ in
-                    await client.sendKeyCombo([49], 0x08) // Space with Command
-                }
-
             case .missionControlPressed:
                 // Control + Up Arrow (Mission Control)
                 return .run { _ in
@@ -183,6 +184,9 @@ public struct TrackpadFeature {
                 return .none
 
             case .laserPointer:
+                return .none
+
+            case .voiceTyping:
                 return .none
             }
         }

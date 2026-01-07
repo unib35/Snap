@@ -24,6 +24,11 @@ public final class TCPServer: @unchecked Sendable {
 
     public private(set) var isListening: Bool = false
 
+    // Bonjour 서비스 설정
+    private var bonjourServiceName: String?
+    private var bonjourServiceType: String?
+    private var txtRecord: NWTXTRecord?
+
     // MARK: - Initialization
 
     public init(port: UInt16 = NetworkConstants.tcpPort, useTLS: Bool = false, tlsOptions: NWProtocolTLS.Options? = nil) {
@@ -31,6 +36,25 @@ public final class TCPServer: @unchecked Sendable {
         self.useTLS = useTLS
         self.tlsOptions = tlsOptions
         self.queue = DispatchQueue(label: "com.snap.tcp.server", qos: .userInteractive)
+    }
+
+    /// Bonjour 서비스 설정 (start() 호출 전에 설정)
+    public func setBonjourService(name: String, type: String, txtRecord: NWTXTRecord? = nil) {
+        self.bonjourServiceName = name
+        self.bonjourServiceType = type
+        self.txtRecord = txtRecord
+    }
+
+    /// TXT 레코드 업데이트
+    public func updateTXTRecord(_ record: NWTXTRecord) {
+        self.txtRecord = record
+        if let listener = listener {
+            listener.service = NWListener.Service(
+                name: bonjourServiceName ?? "",
+                type: bonjourServiceType ?? NetworkConstants.bonjourServiceTypeTCP,
+                txtRecord: record
+            )
+        }
     }
 
     // MARK: - Public Methods
@@ -62,12 +86,37 @@ public final class TCPServer: @unchecked Sendable {
         }
         listener = try NWListener(using: parameters, on: nwPort)
 
+        // Bonjour 서비스 등록 (설정된 경우)
+        if let serviceName = bonjourServiceName, let serviceType = bonjourServiceType {
+            listener?.service = NWListener.Service(
+                name: serviceName,
+                type: serviceType,
+                txtRecord: txtRecord ?? NWTXTRecord()
+            )
+            logger.info("Registering Bonjour service: \(serviceName) (\(serviceType))")
+        }
+
         listener?.stateUpdateHandler = { [weak self] state in
             self?.handleListenerState(state)
         }
 
         listener?.newConnectionHandler = { [weak self] connection in
             self?.handleNewConnection(connection)
+        }
+
+        listener?.serviceRegistrationUpdateHandler = { change in
+            switch change {
+            case .add(let endpoint):
+                if case .service(let name, let type, let domain, _) = endpoint {
+                    logger.info("Bonjour registered: \(name).\(type)\(domain)")
+                }
+            case .remove(let endpoint):
+                if case .service(let name, let type, let domain, _) = endpoint {
+                    logger.info("Bonjour unregistered: \(name).\(type)\(domain)")
+                }
+            @unknown default:
+                break
+            }
         }
 
         listener?.start(queue: queue)
