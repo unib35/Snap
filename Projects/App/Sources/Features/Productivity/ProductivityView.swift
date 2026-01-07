@@ -119,7 +119,7 @@ public struct ProductivityView: View {
                     VStack(spacing: SnapSpacing.sm) {
                         Image(systemName: "keyboard")
                             .font(.system(size: 24, weight: .medium))
-                            .foregroundStyle(SnapColors.cyberBlue)
+                            .foregroundStyle(Color.accentColor)
                         Text("받아쓰기")
                             .font(SnapTypography.labelSmall)
                             .foregroundStyle(SnapColors.textSecondary)
@@ -210,11 +210,11 @@ public struct ProductivityView: View {
                 } label: {
                     if store.isLoadingApps {
                         ProgressView()
-                            .tint(SnapColors.cyberBlue)
+                            .tint(.accentColor)
                             .controlSize(.small)
                     } else {
                         Image(systemName: "arrow.clockwise")
-                            .foregroundStyle(SnapColors.cyberBlue)
+                            .foregroundStyle(Color.accentColor)
                     }
                 }
                 .padding(SnapSpacing.sm)
@@ -228,12 +228,12 @@ public struct ProductivityView: View {
                 HStack(spacing: SnapSpacing.md) {
                     ZStack {
                         Circle()
-                            .fill(SnapColors.neonPink.opacity(0.15))
+                            .fill(Color.accentColor.opacity(0.15))
                             .frame(width: 56, height: 56)
 
                         Image(systemName: "square.stack.3d.up")
                             .font(.system(size: 24, weight: .medium))
-                            .foregroundStyle(SnapColors.neonPink)
+                            .foregroundStyle(Color.accentColor)
                     }
 
                     VStack(alignment: .leading, spacing: SnapSpacing.xxs) {
@@ -247,7 +247,7 @@ public struct ProductivityView: View {
 
                     Spacer()
 
-                    SnapSecondaryButton("불러오기", accentColor: SnapColors.neonPink) {
+                    SnapSecondaryButton("불러오기", accentColor: .accentColor) {
                         store.send(.requestAppListTapped)
                     }
                     .frame(width: 100)
@@ -299,7 +299,7 @@ struct AppButton: View {
                 } else {
                     Image(systemName: "app.fill")
                         .font(.system(size: 32))
-                        .foregroundStyle(SnapColors.neonPink)
+                        .foregroundStyle(Color.accentColor)
                         .frame(width: 48, height: 48)
                 }
 
@@ -313,11 +313,11 @@ struct AppButton: View {
             .padding(.vertical, SnapSpacing.sm)
             .background(
                 RoundedRectangle(cornerRadius: SnapCornerRadius.md)
-                    .fill(isActive ? SnapColors.neonPink.opacity(0.15) : SnapColors.backgroundTertiary)
+                    .fill(isActive ? Color.accentColor.opacity(0.15) : SnapColors.backgroundTertiary)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: SnapCornerRadius.md)
-                    .strokeBorder(isActive ? SnapColors.neonPink.opacity(0.5) : Color.clear, lineWidth: 1)
+                    .strokeBorder(isActive ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -410,7 +410,7 @@ struct WindowSnapButton: View {
             VStack(spacing: SnapSpacing.sm) {
                 Image(systemName: icon)
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(SnapColors.cyberBlue)
+                    .foregroundStyle(Color.accentColor)
                 Text(label)
                     .font(SnapTypography.caption)
                     .foregroundStyle(SnapColors.textSecondary)

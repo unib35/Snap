@@ -16,7 +16,7 @@ public struct PresenterSection: View {
             HStack {
                 Image(systemName: "rectangle.inset.filled.and.person.filled")
                     .font(.headline)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.accentColor)
 
                 Text("프레젠테이션")
                     .font(.headline)
@@ -105,7 +105,7 @@ public struct PresenterSection: View {
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(Color.orange)
+                .background(Color.accentColor)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
             .buttonStyle(.plain)
@@ -134,7 +134,7 @@ public struct PresenterSection: View {
             // Time
             Text(store.timerMode == .countDown ? store.remainingTime : store.displayTime)
                 .font(.system(size: 48, weight: .bold, design: .monospaced))
-                .foregroundStyle(store.isOvertime ? .red : .primary)
+                .foregroundStyle(store.isOvertime ? SnapColors.warning : .primary)
 
             // Progress Bar (for countdown)
             if store.timerMode == .countDown {
@@ -154,7 +154,7 @@ public struct PresenterSection: View {
                 if store.isOvertime {
                     Text("시간 초과!")
                         .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(SnapColors.warning)
                         .fontWeight(.bold)
                 }
             }
@@ -166,11 +166,11 @@ public struct PresenterSection: View {
 
     private var progressColor: Color {
         if store.progress >= 0.9 {
-            return .red
+            return SnapColors.warning
         } else if store.progress >= 0.7 {
-            return .orange
+            return SnapColors.warning.opacity(0.7)
         }
-        return .green
+        return SnapColors.success
     }
 
     @ViewBuilder
@@ -190,7 +190,7 @@ public struct PresenterSection: View {
             SlideButton(
                 icon: "chevron.right",
                 label: "다음",
-                color: .orange
+                color: .accentColor
             ) {
                 store.send(.nextSlide)
                 triggerHaptic(.light)
@@ -336,18 +336,18 @@ struct ControlButton: View {
     }
 
     private var foregroundColor: Color {
-        if isDestructive { return .red }
-        if isActive { return .orange }
+        if isDestructive { return SnapColors.destructive }
+        if isActive { return .accentColor }
         return .primary
     }
 
     private var backgroundColor: Color {
-        if isActive { return Color.orange.opacity(0.15) }
+        if isActive { return Color.accentColor.opacity(0.15) }
         return Color(.tertiarySystemBackground)
     }
 
     private var borderColor: Color {
-        if isActive { return Color.orange.opacity(0.3) }
+        if isActive { return Color.accentColor.opacity(0.3) }
         return Color(.separator)
     }
 }
@@ -372,7 +372,7 @@ public struct PresenterFullScreenView: View {
                     // Timer
                     Text(store.timerMode == .countDown ? store.remainingTime : store.displayTime)
                         .font(.system(size: 72, weight: .bold, design: .monospaced))
-                        .foregroundStyle(store.isOvertime ? .red : .white)
+                        .foregroundStyle(store.isOvertime ? SnapColors.warning : .white)
                         .padding(.top, 60)
 
                     // Slide Number
@@ -413,7 +413,7 @@ public struct PresenterFullScreenView: View {
                         } label: {
                             Image(systemName: store.isScreenBlank ? "rectangle.slash" : "rectangle")
                                 .font(.title)
-                                .foregroundStyle(store.isScreenBlank ? .orange : .white)
+                                .foregroundStyle(store.isScreenBlank ? Color.accentColor : .white)
                         }
 
                         // Timer Control
@@ -436,7 +436,7 @@ public struct PresenterFullScreenView: View {
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.title)
-                                .foregroundStyle(.red)
+                                .foregroundStyle(SnapColors.destructive)
                         }
                     }
                     .padding(.bottom, 60)

@@ -44,7 +44,7 @@ public struct VoiceTypingView: View {
             ZStack {
                 // 배경 원
                 Circle()
-                    .fill(store.isRecording ? Color.red.opacity(0.2) : Color.gray.opacity(0.1))
+                    .fill(store.isRecording ? SnapColors.recording.opacity(0.2) : Color.gray.opacity(0.1))
                     .frame(width: 120, height: 120)
 
                 // 펄스 애니메이션
@@ -55,7 +55,7 @@ public struct VoiceTypingView: View {
                 // 마이크 아이콘
                 Image(systemName: store.isRecording ? "waveform" : "mic.fill")
                     .font(.system(size: 40))
-                    .foregroundStyle(store.isRecording ? .red : .gray)
+                    .foregroundStyle(store.isRecording ? SnapColors.recording : .gray)
                     .symbolEffect(.variableColor.iterative, isActive: store.isRecording)
             }
 
@@ -125,7 +125,7 @@ public struct VoiceTypingView: View {
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .tint(store.isRecording ? .red : .blue)
+            .tint(store.isRecording ? SnapColors.recording : .accentColor)
             .controlSize(.large)
             .disabled(store.authorizationStatus != .authorized)
 
@@ -137,7 +137,7 @@ public struct VoiceTypingView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .tint(.green)
+            .tint(SnapColors.success)
             .controlSize(.large)
             .disabled(store.recognizedText.isEmpty || store.isRecording)
         }
@@ -153,7 +153,7 @@ private struct PulseView: View {
         ZStack {
             ForEach(0..<3, id: \.self) { index in
                 Circle()
-                    .stroke(Color.red.opacity(0.3), lineWidth: 2)
+                    .stroke(SnapColors.recording.opacity(0.3), lineWidth: 2)
                     .frame(width: 120, height: 120)
                     .scaleEffect(isAnimating ? 1.5 : 1.0)
                     .opacity(isAnimating ? 0 : 0.5)
@@ -199,7 +199,7 @@ public struct VoiceTypingSection: View {
                             .font(.caption)
                     }
                     .frame(width: 70, height: 70)
-                    .background(store.isRecording ? Color.red : Color.blue)
+                    .background(store.isRecording ? SnapColors.recording : Color.accentColor)
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                 }

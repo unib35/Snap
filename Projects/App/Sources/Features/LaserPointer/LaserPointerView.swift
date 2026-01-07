@@ -43,7 +43,7 @@ public struct LaserPointerView: View {
         VStack(spacing: 8) {
             Text(store.isActive ? "레이저 활성화" : "레이저 대기")
                 .font(.headline)
-                .foregroundStyle(store.isActive ? .red : .secondary)
+                .foregroundStyle(store.isActive ? SnapColors.laserPointer : .secondary)
 
             if store.isActive && store.isCalibrated {
                 Text("기기를 움직여 커서를 이동하세요")
@@ -62,7 +62,7 @@ public struct LaserPointerView: View {
                 // 배경 글로우
                 if store.isActive {
                     Circle()
-                        .fill(Color.red.opacity(0.3))
+                        .fill(SnapColors.laserPointer.opacity(0.3))
                         .frame(width: 200, height: 200)
                         .blur(radius: 30)
                 }
@@ -72,7 +72,7 @@ public struct LaserPointerView: View {
                     .fill(
                         store.isActive
                             ? LinearGradient(
-                                colors: [.red, .orange],
+                                colors: [SnapColors.laserPointer, SnapColors.warning],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -84,7 +84,7 @@ public struct LaserPointerView: View {
                     )
                     .frame(width: 160, height: 160)
                     .shadow(
-                        color: store.isActive ? .red.opacity(0.5) : .clear,
+                        color: store.isActive ? SnapColors.laserPointer.opacity(0.5) : .clear,
                         radius: 20
                     )
 
@@ -129,7 +129,7 @@ public struct LaserPointerView: View {
                 in: 1...50,
                 step: 1
             )
-            .tint(.red)
+            .tint(SnapColors.laserPointer)
         }
         .padding()
         .background(Color(.secondarySystemBackground))
@@ -172,7 +172,7 @@ public struct LaserPointerSection: View {
                     set: { _ in store.send(.toggleActive) }
                 ))
                 .labelsHidden()
-                .tint(.red)
+                .tint(SnapColors.laserPointer)
             }
 
             if store.isActive {
@@ -181,16 +181,16 @@ public struct LaserPointerSection: View {
                     // 큰 터치 영역
                     ZStack {
                         RoundedRectangle(cornerRadius: 24)
-                            .fill(Color.red.opacity(0.1))
+                            .fill(SnapColors.laserPointer.opacity(0.1))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 24)
-                                    .strokeBorder(Color.red.opacity(0.3), lineWidth: 2)
+                                    .strokeBorder(SnapColors.laserPointer.opacity(0.3), lineWidth: 2)
                             )
 
                         VStack(spacing: 12) {
                             Image(systemName: "scope")
                                 .font(.system(size: 40))
-                                .foregroundStyle(.red)
+                                .foregroundStyle(SnapColors.laserPointer)
                                 .symbolEffect(.pulse)
 
                             Text("기기를 움직여 커서 제어")
@@ -222,7 +222,7 @@ public struct LaserPointerSection: View {
                             ),
                             in: 1...50
                         )
-                        .tint(.red)
+                        .tint(SnapColors.laserPointer)
 
                         Image(systemName: "hare")
                             .foregroundStyle(.secondary)
@@ -233,7 +233,7 @@ public struct LaserPointerSection: View {
                 HStack(spacing: 12) {
                     Image(systemName: "iphone.gen3.radiowaves.left.and.right")
                         .font(.system(size: 32))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(SnapColors.laserPointer)
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Air Mouse 모드")

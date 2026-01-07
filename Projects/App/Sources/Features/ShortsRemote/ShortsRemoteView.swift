@@ -285,7 +285,7 @@ public struct ShortsRemoteSection: View {
             // Header
             HStack {
                 Image(systemName: "play.rectangle.fill")
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Color.accentColor)
                 Text("숏폼 리모컨")
                     .font(.headline)
                 Spacer()
