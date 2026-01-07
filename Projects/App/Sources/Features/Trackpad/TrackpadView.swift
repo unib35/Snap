@@ -669,19 +669,7 @@ struct LaserControlArea: View {
             .padding(.horizontal)
         }
         .padding(.horizontal)
-        .alert(
-            "오류",
-            isPresented: Binding(
-                get: { store.laserPointer.errorMessage != nil },
-                set: { if !$0 { store.send(.laserPointer(.dismissError)) } }
-            )
-        ) {
-            Button("확인") {
-                store.send(.laserPointer(.dismissError))
-            }
-        } message: {
-            Text(store.laserPointer.errorMessage ?? "")
-        }
+        .alert($store.scope(state: \.laserPointer.alert, action: \.laserPointer.alert))
     }
 
     private func buttonLabel(isActive: Bool, mode: LaserPointerFeature.ActivationMode) -> String {

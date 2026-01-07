@@ -15,7 +15,7 @@ public struct LaserPointerFeature {
         public var isCalibrated: Bool = false
         public var sensitivity: Float = 15.0
         public var activationMode: ActivationMode = .hold
-        public var errorMessage: String?
+        @Presents public var alert: AlertState<Action.Alert>?
 
         public init() {}
     }
@@ -28,7 +28,12 @@ public struct LaserPointerFeature {
         case setSensitivity(Float)
         case setActivationMode(ActivationMode)
         case motionEvent(MotionEvent)
-        case dismissError
+        case alert(PresentationAction<Alert>)
+
+        @CasePathable
+        public enum Alert: Equatable, Sendable {
+            case dismiss
+        }
     }
 
     @Dependency(\.connectionClient) var connectionClient
@@ -52,12 +57,19 @@ public struct LaserPointerFeature {
 
             case .startPointing:
                 guard motionClient.isAvailable() else {
-                    state.errorMessage = "자이로스코프를 사용할 수 없습니다"
+                    state.alert = AlertState {
+                        TextState("오류")
+                    } actions: {
+                        ButtonState(action: .dismiss) {
+                            TextState("확인")
+                        }
+                    } message: {
+                        TextState("자이로스코프를 사용할 수 없습니다")
+                    }
                     return .none
                 }
 
                 state.isActive = true
-                state.errorMessage = nil
 
                 // 시작할 때 자동 캘리브레이션
                 motionClient.calibrate()
@@ -104,15 +116,23 @@ public struct LaserPointerFeature {
                     }
 
                 case .error(let message):
-                    state.errorMessage = message
+                    state.alert = AlertState {
+                        TextState("오류")
+                    } actions: {
+                        ButtonState(action: .dismiss) {
+                            TextState("확인")
+                        }
+                    } message: {
+                        TextState(message)
+                    }
                     state.isActive = false
                 }
                 return .none
 
-            case .dismissError:
-                state.errorMessage = nil
+            case .alert:
                 return .none
             }
         }
+        .ifLet(\.$alert, action: \.alert)
     }
 }
