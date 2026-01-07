@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import Foundation
 import Shared
 
 @Reducer
@@ -8,11 +9,25 @@ public struct ProductivityFeature {
         public var isSiriActive: Bool = false
         public var runningApps: [AppInfo] = []
         public var isLoadingApps: Bool = false
+        public var isAppSwitcherEditing: Bool = false
+        public var appOrder: [String] = []  // bundleID 순서
         public var macro: MacroFeature.State = .init()
         public var voiceTyping: VoiceTypingFeature.State = .init()
         public var presenter: PresenterFeature.State = .init()
         public var shortsRemote: ShortsRemoteFeature.State = .init()
         public var quickLaunch: QuickLaunchFeature.State = .init()
+
+        /// 저장된 순서에 따라 정렬된 앱 목록
+        public var sortedApps: [AppInfo] {
+            if appOrder.isEmpty {
+                return runningApps
+            }
+            return runningApps.sorted { app1, app2 in
+                let index1 = appOrder.firstIndex(of: app1.bundleID) ?? Int.max
+                let index2 = appOrder.firstIndex(of: app2.bundleID) ?? Int.max
+                return index1 < index2
+            }
+        }
     }
 
     public enum Action: Equatable, Sendable {
@@ -29,6 +44,10 @@ public struct ProductivityFeature {
         case requestAppListTapped
         case appListReceived([AppInfo])
         case appTapped(AppInfo)
+        case toggleAppSwitcherEditMode
+        case appMoved(from: IndexSet, to: Int)
+        case loadAppOrder
+        case saveAppOrder
 
         // Macro
         case macro(MacroFeature.Action)
@@ -122,6 +141,29 @@ public struct ProductivityFeature {
                 return .run { _ in
                     await client.sendAppFocus(app.bundleID, app.pid)
                 }
+
+            case .toggleAppSwitcherEditMode:
+                state.isAppSwitcherEditing.toggle()
+                return .none
+
+            case .appMoved(let from, let to):
+                var sortedApps = state.sortedApps
+                sortedApps.move(fromOffsets: from, toOffset: to)
+                state.appOrder = sortedApps.map { $0.bundleID }
+                return .send(.saveAppOrder)
+
+            case .loadAppOrder:
+                if let data = UserDefaults.standard.data(forKey: "snap.appSwitcher.order"),
+                   let order = try? JSONDecoder().decode([String].self, from: data) {
+                    state.appOrder = order
+                }
+                return .none
+
+            case .saveAppOrder:
+                if let data = try? JSONEncoder().encode(state.appOrder) {
+                    UserDefaults.standard.set(data, forKey: "snap.appSwitcher.order")
+                }
+                return .none
 
             case .macro:
                 return .none

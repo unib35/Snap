@@ -202,6 +202,23 @@ public struct ProductivityView: View {
 
                 Spacer()
 
+                if !store.runningApps.isEmpty {
+                    Button {
+                        Task { @MainActor in
+                            HapticManager.shared.buttonTap()
+                        }
+                        store.send(.toggleAppSwitcherEditMode)
+                    } label: {
+                        Text(store.isAppSwitcherEditing ? "완료" : "편집")
+                            .font(SnapTypography.labelSmall)
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    .padding(.horizontal, SnapSpacing.md)
+                    .padding(.vertical, SnapSpacing.xs)
+                    .background(SnapColors.backgroundTertiary)
+                    .clipShape(Capsule())
+                }
+
                 Button {
                     Task { @MainActor in
                         HapticManager.shared.buttonTap()
@@ -254,16 +271,35 @@ public struct ProductivityView: View {
                     .disabled(store.isLoadingApps)
                 }
             } else {
-                // App grid
+                // App grid with reordering
+                let sortedApps = store.sortedApps
                 LazyVGrid(columns: [
                     GridItem(.flexible()),
                     GridItem(.flexible()),
                     GridItem(.flexible()),
                     GridItem(.flexible())
                 ], spacing: SnapSpacing.lg) {
-                    ForEach(store.runningApps, id: \.bundleID) { app in
-                        AppButton(app: app, isActive: app.isActive) {
-                            store.send(.appTapped(app))
+                    ForEach(Array(sortedApps.enumerated()), id: \.element.bundleID) { index, app in
+                        AppButton(
+                            app: app,
+                            isActive: app.isActive,
+                            isEditing: store.isAppSwitcherEditing
+                        ) {
+                            if !store.isAppSwitcherEditing {
+                                store.send(.appTapped(app))
+                            }
+                        }
+                        .draggable(app.bundleID) {
+                            AppDragPreview(app: app)
+                        }
+                        .dropDestination(for: String.self) { items, _ in
+                            guard let droppedBundleID = items.first,
+                                  let fromIndex = sortedApps.firstIndex(where: { $0.bundleID == droppedBundleID }) else {
+                                return false
+                            }
+                            HapticManager.shared.selection()
+                            store.send(.appMoved(from: IndexSet(integer: fromIndex), to: index))
+                            return true
                         }
                     }
                 }
@@ -271,6 +307,9 @@ public struct ProductivityView: View {
         }
         .padding(SnapSpacing.lg)
         .cardStyle()
+        .onAppear {
+            store.send(.loadAppOrder)
+        }
     }
 }
 
@@ -279,7 +318,10 @@ public struct ProductivityView: View {
 struct AppButton: View {
     let app: AppInfo
     let isActive: Bool
+    var isEditing: Bool = false
     let action: () -> Void
+
+    @State private var isWiggling = false
 
     var body: some View {
         Button {
@@ -317,12 +359,51 @@ struct AppButton: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: SnapCornerRadius.md)
-                    .strokeBorder(isActive ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 1)
+                    .strokeBorder(isEditing ? Color.accentColor : (isActive ? Color.accentColor.opacity(0.5) : Color.clear), lineWidth: isEditing ? 2 : 1)
             )
         }
         .buttonStyle(.plain)
         .pressEffect()
-        .accessibilityLabel("\(app.name) 앱\(isActive ? ", 활성화됨" : "")")
+        .rotationEffect(.degrees(isWiggling ? 1.5 : -1.5))
+        .animation(
+            isEditing ? .easeInOut(duration: 0.12).repeatForever(autoreverses: true) : .default,
+            value: isWiggling
+        )
+        .onChange(of: isEditing) { _, newValue in
+            isWiggling = newValue
+        }
+        .accessibilityLabel("\(app.name) 앱\(isActive ? ", 활성화됨" : "")\(isEditing ? ", 편집 모드" : "")")
+    }
+}
+
+// MARK: - App Drag Preview
+
+struct AppDragPreview: View {
+    let app: AppInfo
+
+    var body: some View {
+        VStack(spacing: SnapSpacing.xs) {
+            if let uiImage = UIImage(data: app.iconData) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 56, height: 56)
+                    .clipShape(RoundedRectangle(cornerRadius: SnapCornerRadius.md))
+            } else {
+                Image(systemName: "app.fill")
+                    .font(.system(size: 40))
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 56, height: 56)
+            }
+
+            Text(app.name)
+                .font(SnapTypography.caption)
+                .foregroundStyle(SnapColors.textPrimary)
+        }
+        .padding(SnapSpacing.sm)
+        .background(SnapColors.backgroundElevated)
+        .clipShape(RoundedRectangle(cornerRadius: SnapCornerRadius.md))
+        .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
     }
 }
 
