@@ -132,7 +132,9 @@ public struct AppView: View {
         }
         .onAppear {
             store.send(.onAppear)
+            store.send(.settings(.onAppear))
         }
+        .tint(store.settings.accentColor.color)
     }
 
     @ViewBuilder
