@@ -64,35 +64,3 @@ public enum SnapTypography {
     /// 모노스페이스 소 (13pt)
     public static let monoSmall = Font.system(size: 13, weight: .medium, design: .monospaced)
 }
-
-// MARK: - Text Style Modifiers
-
-extension View {
-    /// 제목 스타일 적용
-    func snapTitle() -> some View {
-        self
-            .font(SnapTypography.headlineLarge)
-            .foregroundStyle(SnapColors.textPrimary)
-    }
-
-    /// 본문 스타일 적용
-    func snapBody() -> some View {
-        self
-            .font(SnapTypography.bodyMedium)
-            .foregroundStyle(SnapColors.textSecondary)
-    }
-
-    /// 레이블 스타일 적용
-    func snapLabel() -> some View {
-        self
-            .font(SnapTypography.labelMedium)
-            .foregroundStyle(SnapColors.textTertiary)
-    }
-
-    /// 캡션 스타일 적용
-    func snapCaption() -> some View {
-        self
-            .font(SnapTypography.caption)
-            .foregroundStyle(SnapColors.textTertiary)
-    }
-}
