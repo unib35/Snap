@@ -19,6 +19,8 @@ public protocol SnapServerDelegate: AnyObject {
 }
 
 /// Snap 서버 (macOS)
+///
+/// - Note: `@unchecked Sendable` - 네트워크 컴포넌트들이 각자 내부 큐를 통해 스레드 안전하게 동작함
 public final class SnapServer: @unchecked Sendable {
     // MARK: - Properties
 

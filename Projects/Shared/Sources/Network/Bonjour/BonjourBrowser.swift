@@ -28,6 +28,8 @@ public protocol BonjourBrowserDelegate: AnyObject, Sendable {
 }
 
 /// Bonjour 서비스 브라우저 (iOS에서 macOS 검색)
+///
+/// - Note: `@unchecked Sendable` - 내부 DispatchQueue(`queue`)를 통해 모든 상태 접근이 직렬화되어 스레드 안전함
 public final class BonjourBrowser: @unchecked Sendable {
     // MARK: - Properties
 

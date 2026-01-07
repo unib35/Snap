@@ -7,6 +7,8 @@ import os
 private let logger = Logger(subsystem: "com.snap.shared", category: "SecurityManager")
 
 /// 보안 관리자 - TLS/DTLS 인증서 관리
+///
+/// - Note: `@unchecked Sendable` - 내부 DispatchQueue(`queue`)를 통해 모든 상태 접근이 직렬화되어 스레드 안전함
 public final class SecurityManager: @unchecked Sendable {
     // MARK: - Singleton
 

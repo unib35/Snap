@@ -3,6 +3,8 @@ import CoreGraphics
 import Shared
 
 /// 입력 시뮬레이터 (마우스, 키보드 이벤트 주입)
+///
+/// - Note: `@unchecked Sendable` - 상태를 갖지 않고 CGEvent API만 호출하므로 스레드 안전함
 public final class InputSimulator: @unchecked Sendable {
     // MARK: - Singleton
 
