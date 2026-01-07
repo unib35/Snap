@@ -74,6 +74,23 @@ public enum SnapColors {
     /// 연결 끊김 (Neon Red)
     public static let statusDisconnected = neonRed
 
+    // MARK: - Semantic Colors (상태별 고정 색상)
+
+    /// 녹음 중 상태 (빨강)
+    public static let recording = Color.red
+
+    /// 파괴적 액션 (삭제 등)
+    public static let destructive = Color.red
+
+    /// 경고 상태
+    public static let warning = Color.orange
+
+    /// 성공 상태
+    public static let success = Color.green
+
+    /// 레이저 포인터 (빨강 고정 - 실제 레이저 포인터 색상)
+    public static let laserPointer = Color.red
+
     // MARK: - Gradient Presets
 
     /// 네온 그라데이션 (Lime → Blue)
