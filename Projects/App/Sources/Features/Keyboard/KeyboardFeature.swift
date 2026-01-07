@@ -78,7 +78,11 @@ public struct KeyboardFeature {
                     return .run { [modifiers = state.activeModifiers.rawValue] _ in
                         for char in newCharacters {
                             if let keyCode = keyCode(for: char) {
+                                // 영문, 숫자, 특수문자: keyCode로 전송
                                 await client.sendKeyEvent(keyCode, .press, modifiers)
+                            } else {
+                                // 한글 등 keyCode 매핑이 없는 문자: 텍스트로 직접 전송
+                                await client.sendVoiceText(String(char), true)
                             }
                         }
                     }
@@ -91,9 +95,14 @@ public struct KeyboardFeature {
                 return .run { [modifiers = state.activeModifiers.rawValue] _ in
                     for char in text {
                         if let keyCode = keyCode(for: char) {
+                            // 영문, 숫자, 특수문자: keyCode로 전송
                             await client.sendKeyEvent(keyCode, .press, modifiers)
+                        } else {
+                            // 한글 등 keyCode 매핑이 없는 문자: 텍스트로 직접 전송
+                            await client.sendVoiceText(String(char), true)
                         }
                     }
+                    // Enter 키 전송
                     await client.sendKeyEvent(36, .press, 0)
                 }
 
