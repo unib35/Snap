@@ -53,7 +53,7 @@ public struct SettingsView: View {
                     Text("트랙패드 감도")
                     Spacer()
                     Text(String(format: "%.1f", store.trackpadSensitivity))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SnapColors.textSecondary)
                         .monospacedDigit()
                 }
                 Slider(
@@ -71,7 +71,7 @@ public struct SettingsView: View {
                     Text("스크롤 감도")
                     Spacer()
                     Text(String(format: "%.1f", store.scrollSensitivity))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SnapColors.textSecondary)
                         .monospacedDigit()
                 }
                 Slider(
@@ -89,7 +89,7 @@ public struct SettingsView: View {
                     Text("레이저 포인터 감도")
                     Spacer()
                     Text(String(format: "%.1f", store.laserSensitivity))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SnapColors.textSecondary)
                         .monospacedDigit()
                 }
                 Slider(

@@ -230,7 +230,7 @@ struct IconPickerView: View {
                         .frame(width: 44, height: 44)
                         .background(
                             RoundedRectangle(cornerRadius: 8)
-                                .fill(selectedIcon == icon ? color : Color(.tertiarySystemBackground))
+                                .fill(selectedIcon == icon ? color : SnapColors.tertiarySystemBackground)
                         )
                 }
                 .buttonStyle(.plain)
@@ -319,7 +319,7 @@ struct KeyComboPickerView: View {
                     Spacer()
 
                     Text(keyDisplayName)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SnapColors.textSecondary)
 
                     Image(systemName: "chevron.right")
                         .font(.caption)
@@ -343,13 +343,13 @@ struct KeyComboPickerView: View {
                 HStack {
                     Text("단축키:")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SnapColors.textSecondary)
 
                     Text(fullComboDisplayName)
                         .font(.caption.monospaced())
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color(.tertiarySystemBackground))
+                        .background(SnapColors.tertiarySystemBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                 }
             }
@@ -407,7 +407,7 @@ struct ModifierToggle: View {
                 .frame(width: 44, height: 44)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(isSelected ? Color.accentColor : Color(.tertiarySystemBackground))
+                        .fill(isSelected ? Color.accentColor : SnapColors.tertiarySystemBackground)
                 )
                 .foregroundStyle(isSelected ? .white : .primary)
         }

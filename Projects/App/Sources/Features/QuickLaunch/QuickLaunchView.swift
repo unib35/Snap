@@ -27,7 +27,7 @@ public struct QuickLaunchView: View {
             }
             .padding(.vertical)
         }
-        .background(Color(.systemBackground))
+        .background(SnapColors.systemBackground)
         .sheet(isPresented: Binding(
             get: { store.editorState != nil },
             set: { if !$0 { store.send(.dismissEditor) } }
@@ -194,22 +194,22 @@ struct AddQuickLaunchButton: View {
             VStack(spacing: 8) {
                 Image(systemName: "plus")
                     .font(.system(size: 24, weight: .medium))
-                    .foregroundStyle(Color(.secondaryLabel))
+                    .foregroundStyle(SnapColors.secondaryLabel)
 
                 Text("추가")
                     .font(.caption2)
                     .fontWeight(.medium)
-                    .foregroundStyle(Color(.tertiaryLabel))
+                    .foregroundStyle(SnapColors.tertiaryLabel)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 80)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.tertiarySystemBackground))
+                    .fill(SnapColors.tertiarySystemBackground)
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
                             .strokeBorder(
-                                Color(.separator),
+                                SnapColors.separator,
                                 style: StrokeStyle(lineWidth: 2, dash: [8, 4])
                             )
                     )
@@ -339,7 +339,7 @@ struct QuickLaunchIconPicker: View {
                             RoundedRectangle(cornerRadius: 8)
                                 .fill(selectedIcon == icon
                                       ? Color.accentColor.opacity(0.2)
-                                      : Color(.tertiarySystemBackground))
+                                      : SnapColors.tertiarySystemBackground)
                         )
                         .foregroundStyle(selectedIcon == icon ? Color.accentColor : .primary)
                         .overlay(
@@ -377,7 +377,7 @@ struct QuickLaunchColorPicker: View {
                         )
                         .overlay(
                             Circle()
-                                .strokeBorder(Color(.separator), lineWidth: 1)
+                                .strokeBorder(SnapColors.separator, lineWidth: 1)
                         )
                         .shadow(color: color.color.opacity(0.3), radius: 4, y: 2)
                 }
@@ -455,7 +455,7 @@ public struct QuickLaunchSection: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground).opacity(0.5))
+        .background(SnapColors.secondarySystemBackground.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .sheet(isPresented: Binding(
             get: { store.editorState != nil },

@@ -275,10 +275,10 @@ struct ProductivityTabView: View {
 
             Text("Window Snap, App Switcher, Macros")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SnapColors.textSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemBackground))
+        .background(SnapColors.systemBackground)
     }
 }
 
@@ -295,10 +295,10 @@ struct PresenterTabView: View {
 
             Text("Laser Pointer, Slides, Voice Typing")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SnapColors.textSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemBackground))
+        .background(SnapColors.systemBackground)
     }
 }
 

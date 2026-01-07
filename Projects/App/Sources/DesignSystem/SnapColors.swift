@@ -49,6 +49,32 @@ public enum SnapColors {
     /// 비활성화된 텍스트
     public static let textDisabled = Color(white: 0.3)
 
+    // MARK: - System Color Aliases (시스템 색상 대체용)
+
+    /// systemBackground 대체
+    public static let systemBackground = background
+
+    /// secondarySystemBackground 대체
+    public static let secondarySystemBackground = backgroundElevated
+
+    /// tertiarySystemBackground 대체
+    public static let tertiarySystemBackground = backgroundTertiary
+
+    /// tertiarySystemFill 대체
+    public static let tertiarySystemFill = backgroundHighlight
+
+    /// label 대체
+    public static let label = textPrimary
+
+    /// secondaryLabel 대체
+    public static let secondaryLabel = textSecondary
+
+    /// tertiaryLabel 대체
+    public static let tertiaryLabel = textTertiary
+
+    /// separator 대체
+    public static let separator = Color(white: 0.2)
+
     // MARK: - Border & Divider
 
     /// 기본 테두리

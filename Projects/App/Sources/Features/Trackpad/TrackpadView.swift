@@ -538,10 +538,10 @@ struct LaserControlArea: View {
         ZStack {
             // Background
             RoundedRectangle(cornerRadius: 24)
-                .fill(Color(.secondarySystemBackground))
+                .fill(SnapColors.secondarySystemBackground)
                 .overlay(
                     RoundedRectangle(cornerRadius: 24)
-                        .strokeBorder(Color(.separator), lineWidth: 1)
+                        .strokeBorder(SnapColors.separator, lineWidth: 1)
                 )
 
             VStack(spacing: 12) {
@@ -562,7 +562,7 @@ struct LaserControlArea: View {
                     }
                 }
                 .padding(3)
-                .background(Color(.tertiarySystemBackground))
+                .background(SnapColors.tertiarySystemBackground)
                 .clipShape(Capsule())
                 .padding(.horizontal)
 
@@ -589,12 +589,12 @@ struct LaserControlArea: View {
 
                     // Main button
                     Circle()
-                        .fill(isActive ? SnapColors.laserPointer : Color(.tertiarySystemBackground))
+                        .fill(isActive ? SnapColors.laserPointer : SnapColors.tertiarySystemBackground)
                         .frame(width: 160, height: 160)
                         .overlay(
                             Circle()
                                 .strokeBorder(
-                                    isActive ? SnapColors.laserPointer.opacity(0.6) : Color(.separator),
+                                    isActive ? SnapColors.laserPointer.opacity(0.6) : SnapColors.separator,
                                     lineWidth: 2
                                 )
                         )
@@ -608,7 +608,7 @@ struct LaserControlArea: View {
 
                         Text(buttonLabel(isActive: isActive, mode: activationMode))
                             .font(.caption.weight(.bold))
-                            .foregroundStyle(isActive ? .white : Color(.secondaryLabel))
+                            .foregroundStyle(isActive ? .white : SnapColors.secondaryLabel)
                             .tracking(1)
                     }
                 }
@@ -642,7 +642,7 @@ struct LaserControlArea: View {
                 // Sensitivity (compact)
                 HStack(spacing: 8) {
                     Image(systemName: "tortoise")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SnapColors.textSecondary)
                         .font(.caption2)
 
                     Slider(
@@ -655,12 +655,12 @@ struct LaserControlArea: View {
                     .tint(SnapColors.laserPointer)
 
                     Image(systemName: "hare")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SnapColors.textSecondary)
                         .font(.caption2)
 
                     Text("\(Int(store.laserPointer.sensitivity))")
                         .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SnapColors.textSecondary)
                         .frame(width: 24)
                 }
                 .padding(.horizontal)
@@ -752,19 +752,19 @@ struct LaserClickButton: View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundStyle(isPressed ? Color(.label) : color)
+                .foregroundStyle(isPressed ? SnapColors.label : color)
 
             Text(label)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(Color(.secondaryLabel))
+                .foregroundStyle(SnapColors.secondaryLabel)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(isPressed ? Color(.tertiarySystemFill) : Color(.secondarySystemBackground))
+                .fill(isPressed ? SnapColors.tertiarySystemFill : SnapColors.secondarySystemBackground)
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .strokeBorder(Color(.separator), lineWidth: 1)
+                        .strokeBorder(SnapColors.separator, lineWidth: 1)
                 )
         )
         .scaleEffect(isPressed ? 0.95 : 1.0)

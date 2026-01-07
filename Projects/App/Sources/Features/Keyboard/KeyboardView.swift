@@ -29,7 +29,7 @@ public struct KeyboardView: View {
             arrowKeys
                 .padding()
         }
-        .background(Color(.systemBackground))
+        .background(SnapColors.systemBackground)
     }
 
     // MARK: - Text Input Area
@@ -40,13 +40,13 @@ public struct KeyboardView: View {
                 .textFieldStyle(.plain)
                 .font(.body)
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(SnapColors.secondarySystemBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .strokeBorder(Color(.separator), lineWidth: 1)
+                        .strokeBorder(SnapColors.separator, lineWidth: 1)
                 )
-                .foregroundStyle(Color(.label))
+                .foregroundStyle(SnapColors.label)
                 .focused($isTextFieldFocused)
                 .accessibilityLabel("텍스트 입력")
                 .accessibilityHint("Mac으로 보낼 텍스트를 입력하세요")
@@ -56,7 +56,7 @@ public struct KeyboardView: View {
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.title2)
-                    .foregroundStyle(Color(.tertiaryLabel))
+                    .foregroundStyle(SnapColors.tertiaryLabel)
             }
             .opacity(store.inputText.isEmpty ? 0 : 1)
             .accessibilityLabel("텍스트 지우기")
@@ -141,14 +141,14 @@ public struct KeyboardView: View {
             } label: {
                 Text("Space")
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Color(.label))
+                    .foregroundStyle(SnapColors.label)
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
-                    .background(Color(.secondarySystemBackground))
+                    .background(SnapColors.secondarySystemBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color(.separator), lineWidth: 1)
+                            .strokeBorder(SnapColors.separator, lineWidth: 1)
                     )
             }
             .buttonStyle(.plain)
@@ -241,25 +241,25 @@ struct ModifierKeyButton: View {
     }
 
     private var foregroundColor: Color {
-        isActive ? Color(.label) : Color(.secondaryLabel)
+        isActive ? SnapColors.label : SnapColors.secondaryLabel
     }
 
     private var backgroundColor: Color {
         if isLocked {
             return Color.accentColor.opacity(0.2)
         } else if isActive {
-            return Color(.tertiarySystemBackground)
+            return SnapColors.tertiarySystemBackground
         }
-        return Color(.secondarySystemBackground)
+        return SnapColors.secondarySystemBackground
     }
 
     private var borderColor: Color {
         if isLocked {
             return .accentColor
         } else if isActive {
-            return Color(.separator)
+            return SnapColors.separator
         }
-        return Color(.separator).opacity(0.5)
+        return SnapColors.separator.opacity(0.5)
     }
 }
 
@@ -281,14 +281,14 @@ struct SpecialKeyButton: View {
                 Text(label)
                     .font(.caption2.weight(.medium))
             }
-            .foregroundStyle(Color(.label))
+            .foregroundStyle(SnapColors.label)
             .frame(maxWidth: .infinity)
             .frame(height: 56)
-            .background(isPressed ? Color(.tertiarySystemFill) : Color(.secondarySystemBackground))
+            .background(isPressed ? SnapColors.tertiarySystemFill : SnapColors.secondarySystemBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color(.separator), lineWidth: 1)
+                    .strokeBorder(SnapColors.separator, lineWidth: 1)
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
@@ -336,13 +336,13 @@ struct ArrowKeyButton: View {
         Button(action: action) {
             Image(systemName: iconName)
                 .font(.title3.weight(.semibold))
-                .foregroundStyle(Color(.label))
+                .foregroundStyle(SnapColors.label)
                 .frame(width: 56, height: 44)
-                .background(isPressed ? Color(.tertiarySystemFill) : Color(.secondarySystemBackground))
+                .background(isPressed ? SnapColors.tertiarySystemFill : SnapColors.secondarySystemBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(Color(.separator), lineWidth: 1)
+                        .strokeBorder(SnapColors.separator, lineWidth: 1)
                 )
                 .scaleEffect(isPressed ? 0.95 : 1.0)
         }

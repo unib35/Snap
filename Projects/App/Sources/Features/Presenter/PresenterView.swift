@@ -26,10 +26,10 @@ public struct PresenterSection: View {
                 if store.isPresenting {
                     Text("Slide \(store.slideNumber)")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SnapColors.textSecondary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color(.tertiarySystemBackground))
+                        .background(SnapColors.tertiarySystemBackground)
                         .clipShape(Capsule())
                 }
             }
@@ -43,7 +43,7 @@ public struct PresenterSection: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground).opacity(0.5))
+        .background(SnapColors.secondarySystemBackground.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .onChange(of: store.isOvertime) { _, isOvertime in
             if isOvertime {
@@ -61,7 +61,7 @@ public struct PresenterSection: View {
             HStack {
                 Text("타이머 모드")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SnapColors.textSecondary)
 
                 Spacer()
 
@@ -79,7 +79,7 @@ public struct PresenterSection: View {
                 HStack {
                     Text("목표 시간")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SnapColors.textSecondary)
 
                     Spacer()
 
@@ -141,7 +141,7 @@ public struct PresenterSection: View {
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(Color(.tertiarySystemBackground))
+                            .fill(SnapColors.tertiarySystemBackground)
                             .frame(height: 8)
 
                         RoundedRectangle(cornerRadius: 4)
@@ -160,7 +160,7 @@ public struct PresenterSection: View {
             }
         }
         .padding()
-        .background(Color(.tertiarySystemBackground))
+        .background(SnapColors.tertiarySystemBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -271,12 +271,12 @@ struct SlideButton: View {
 
                 Text(label)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SnapColors.textSecondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.tertiarySystemBackground))
+                    .fill(SnapColors.tertiarySystemBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
@@ -320,7 +320,7 @@ struct ControlButton: View {
 
                 Text(label)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SnapColors.textSecondary)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 60)
@@ -343,12 +343,12 @@ struct ControlButton: View {
 
     private var backgroundColor: Color {
         if isActive { return Color.accentColor.opacity(0.15) }
-        return Color(.tertiarySystemBackground)
+        return SnapColors.tertiarySystemBackground
     }
 
     private var borderColor: Color {
         if isActive { return Color.accentColor.opacity(0.3) }
-        return Color(.separator)
+        return SnapColors.separator
     }
 }
 
