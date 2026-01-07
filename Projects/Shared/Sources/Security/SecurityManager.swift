@@ -102,10 +102,13 @@ public final class SecurityManager: @unchecked Sendable {
         var result: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
 
-        guard status == errSecSuccess, let certificate = result else {
+        guard status == errSecSuccess,
+              let certificate = result,
+              CFGetTypeID(certificate) == SecCertificateGetTypeID() else {
             return nil
         }
 
+        // CFTypeRef를 SecCertificate로 안전하게 변환 (타입 검증 후)
         // swiftlint:disable:next force_cast
         return (certificate as! SecCertificate)
     }
@@ -168,6 +171,7 @@ public final class SecurityManager: @unchecked Sendable {
             return nil
         }
 
+        // Keychain에서 kSecClassIdentity로 쿼리했으므로 SecIdentity 타입이 보장됨
         // swiftlint:disable:next force_cast
         return (identity as! SecIdentity)
     }

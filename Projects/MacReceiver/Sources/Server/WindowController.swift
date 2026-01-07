@@ -40,11 +40,14 @@ public final class WindowController {
             &focusedWindow
         )
 
-        guard result == .success, let window = focusedWindow else {
+        guard result == .success,
+              let window = focusedWindow,
+              CFGetTypeID(window) == AXUIElementGetTypeID() else {
             // 포커스된 윈도우가 없으면 첫 번째 윈도우 시도
             return getFirstWindow(for: appElement)
         }
 
+        // CFTypeRef를 AXUIElement로 안전하게 변환 (타입 검증 후)
         // swiftlint:disable:next force_cast
         return (window as! AXUIElement)
     }
@@ -176,17 +179,23 @@ public final class WindowController {
         AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &positionValue)
         AXUIElementCopyAttributeValue(window, kAXSizeAttribute as CFString, &sizeValue)
 
-        guard let posVal = positionValue, let sizeVal = sizeValue else {
+        guard let posVal = positionValue,
+              let sizeVal = sizeValue,
+              CFGetTypeID(posVal) == AXValueGetTypeID(),
+              CFGetTypeID(sizeVal) == AXValueGetTypeID() else {
             return nil
         }
 
         var position = CGPoint.zero
         var size = CGSize.zero
 
+        // CFTypeRef를 AXValue로 안전하게 변환 (타입 검증 후)
         // swiftlint:disable force_cast
-        AXValueGetValue(posVal as! AXValue, .cgPoint, &position)
-        AXValueGetValue(sizeVal as! AXValue, .cgSize, &size)
+        let positionAXValue = posVal as! AXValue
+        let sizeAXValue = sizeVal as! AXValue
         // swiftlint:enable force_cast
+        AXValueGetValue(positionAXValue, .cgPoint, &position)
+        AXValueGetValue(sizeAXValue, .cgSize, &size)
 
         return CGRect(origin: position, size: size)
     }
