@@ -1,5 +1,6 @@
 import SwiftUI
 import Shared
+import ServiceManagement
 
 @main
 struct MacReceiverApp: App {
@@ -248,9 +249,17 @@ struct SettingsView: View {
 struct GeneralSettingsView: View {
     @ObservedObject var serverManager: ServerManager
     @ObservedObject private var accessibilityManager = AccessibilityManager.shared
+    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
 
     var body: some View {
         Form {
+            Section("시작") {
+                Toggle("로그인 시 자동 시작", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { _, newValue in
+                        setLaunchAtLogin(newValue)
+                    }
+            }
+
             Section {
                 LabeledContent("서버 상태") {
                     Text(serverManager.isRunning ? "실행 중" : "중지됨")
@@ -300,6 +309,20 @@ struct GeneralSettingsView: View {
         .padding()
         .onAppear {
             accessibilityManager.checkAccessibility()
+            launchAtLogin = SMAppService.mainApp.status == .enabled
+        }
+    }
+
+    private func setLaunchAtLogin(_ enabled: Bool) {
+        do {
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+        } catch {
+            // 실패 시 상태 롤백
+            launchAtLogin = SMAppService.mainApp.status == .enabled
         }
     }
 }
