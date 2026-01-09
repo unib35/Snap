@@ -28,6 +28,10 @@ public final class SpeechRecognizer: @unchecked Sendable {
         self.speechRecognizer = SFSpeechRecognizer(locale: locale)
     }
 
+    deinit {
+        stopRecognition()
+    }
+
     // MARK: - Authorization
 
     /// 음성 인식 권한 요청
