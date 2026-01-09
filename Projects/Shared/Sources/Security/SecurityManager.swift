@@ -236,30 +236,21 @@ public final class SecurityManager: @unchecked Sendable {
     }
 
     private func createCertificateUsingKeychain(privateKey: SecKey, publicKey: SecKey) -> SecCertificate? {
-        // Keychain Services를 통한 인증서 생성은 macOS에서만 가능
-        // iOS에서는 사전 생성된 인증서를 번들에 포함하거나
-        // CryptoKit을 사용한 대안적 접근 필요
+        // ASN.1 DER 인코딩을 사용하여 자체 서명 인증서 생성
+        // iOS와 macOS 모두에서 동작
+        guard let certificate = DERCertificateBuilder.createSelfSignedCertificate(
+            privateKey: privateKey,
+            commonName: "Snap Server",
+            organization: "Snap App",
+            validityDays: 365
+        ) else {
+            logger.error("Failed to create self-signed certificate using DERCertificateBuilder")
+            return nil
+        }
 
-        #if os(macOS)
-        return createMacOSCertificate(privateKey: privateKey)
-        #else
-        // iOS에서는 Keychain을 통한 자체 서명 인증서 생성이 제한적
-        // 대신 P12 파일을 번들에 포함하거나 서버에서 발급받는 방식 사용
-        logger.warning("Self-signed certificate creation not fully supported on iOS")
-        return nil
-        #endif
+        logger.info("Successfully created self-signed certificate")
+        return certificate
     }
-
-    #if os(macOS)
-    private func createMacOSCertificate(privateKey: SecKey) -> SecCertificate? {
-        // macOS에서 SecCertificateCreateWithData를 사용하여 인증서 생성
-        // 실제로는 openssl 또는 사전 생성된 인증서 사용 권장
-
-        // 임시로 nil 반환 - 실제 구현은 사전 생성된 인증서 사용
-        // 또는 Security framework의 고급 API 활용
-        nil
-    }
-    #endif
 
     private func saveIdentity(privateKey: SecKey, certificate: SecCertificate) -> SecIdentity? {
         // 개인키 저장
