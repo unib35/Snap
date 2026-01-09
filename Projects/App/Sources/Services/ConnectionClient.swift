@@ -140,6 +140,54 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
     private var discoveryContinuation: AsyncStream<DiscoveryEvent>.Continuation?
     private var connectionContinuation: AsyncStream<ConnectionEvent>.Continuation?
 
+    // MARK: - Packet Batcher
+
+    private var packetBatcher: PacketBatcher?
+
+    private func setupBatcher() {
+        Task { @MainActor in
+            let batcher = PacketBatcher()
+            batcher.start(
+                onMouseMoveFlush: { [weak self] dx, dy in
+                    guard let self else { return }
+                    Task {
+                        await self.flushMouseMove(deltaX: dx, deltaY: dy)
+                    }
+                },
+                onScrollFlush: { [weak self] dx, dy in
+                    guard let self else { return }
+                    Task {
+                        await self.flushScroll(deltaX: dx, deltaY: dy)
+                    }
+                }
+            )
+            await self.setBatcher(batcher)
+        }
+    }
+
+    private func setBatcher(_ batcher: PacketBatcher) {
+        self.packetBatcher = batcher
+    }
+
+    private func stopBatcher() {
+        Task { @MainActor in
+            await self.packetBatcher?.stop()
+            await self.clearBatcher()
+        }
+    }
+
+    private func clearBatcher() {
+        self.packetBatcher = nil
+    }
+
+    private func flushMouseMove(deltaX: Float, deltaY: Float) {
+        client?.sendMouseMove(deltaX: deltaX, deltaY: deltaY)
+    }
+
+    private func flushScroll(deltaX: Float, deltaY: Float) {
+        client?.sendScroll(deltaX: deltaX, deltaY: deltaY, isInertia: false)
+    }
+
     // MARK: - Discovery
 
     func startDiscovery() -> AsyncStream<DiscoveryEvent> {
@@ -168,7 +216,10 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
     // MARK: - Connection
 
     func connect(host: String, port: UInt16) throws -> AsyncStream<ConnectionEvent> {
-        AsyncStream { continuation in
+        // 배칭 시작
+        setupBatcher()
+
+        return AsyncStream { continuation in
             self.connectionContinuation = continuation
 
             self.client = SnapClient()
@@ -184,6 +235,9 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
     }
 
     func disconnect() {
+        // 배칭 중지
+        stopBatcher()
+
         client?.disconnect()
         client = nil
         connectionContinuation?.finish()
@@ -193,15 +247,27 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
     // MARK: - Send Methods
 
     func sendMouseMove(deltaX: Float, deltaY: Float) {
-        client?.sendMouseMove(deltaX: deltaX, deltaY: deltaY)
+        // 배치 처리 사용
+        Task { @MainActor in
+            await self.packetBatcher?.addMouseMove(deltaX: deltaX, deltaY: deltaY)
+        }
     }
 
     func sendMouseClick(button: MouseClick.Button, action: MouseClick.Action) {
+        // 클릭은 즉시 전송 (배치 대상 아님)
         client?.sendMouseClick(button: button, action: action)
     }
 
     func sendScroll(deltaX: Float, deltaY: Float, isInertia: Bool) {
-        client?.sendScroll(deltaX: deltaX, deltaY: deltaY, isInertia: isInertia)
+        if isInertia {
+            // 관성 스크롤은 즉시 전송
+            client?.sendScroll(deltaX: deltaX, deltaY: deltaY, isInertia: isInertia)
+        } else {
+            // 일반 스크롤은 배치 처리
+            Task { @MainActor in
+                await self.packetBatcher?.addScroll(deltaX: deltaX, deltaY: deltaY)
+            }
+        }
     }
 
     func sendPinch(scale: Float, phase: Pinch.Phase) {
