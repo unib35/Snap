@@ -49,6 +49,10 @@ public final class BonjourBrowser: @unchecked Sendable {
         self.queue = DispatchQueue(label: "com.snap.bonjour.browser", qos: .userInitiated)
     }
 
+    deinit {
+        stopSearching()
+    }
+
     // MARK: - Public Methods
 
     /// 검색 시작
@@ -131,6 +135,27 @@ public final class BonjourBrowser: @unchecked Sendable {
         }
     }
 
+    /// 서비스 리졸브 타임아웃 (초)
+    private static let resolveTimeout: TimeInterval = 5.0
+
+    /// 리졸브 상태를 추적하기 위한 래퍼 클래스
+    private final class ResolveState: @unchecked Sendable {
+        private let lock = NSLock()
+        private var _isResolved = false
+
+        var isResolved: Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            return _isResolved
+        }
+
+        func markResolved() {
+            lock.lock()
+            defer { lock.unlock() }
+            _isResolved = true
+        }
+    }
+
     private func resolveService(_ result: NWBrowser.Result) {
         guard case .service(let name, _, _, _) = result.endpoint else {
             return
@@ -140,12 +165,14 @@ public final class BonjourBrowser: @unchecked Sendable {
         parameters.includePeerToPeer = true
 
         let connection = NWConnection(to: result.endpoint, using: parameters)
+        let resolveState = ResolveState()
 
         connection.stateUpdateHandler = { [weak self, weak connection] state in
-            guard let self else { return }
+            guard let self, !resolveState.isResolved else { return }
 
             switch state {
             case .ready:
+                resolveState.markResolved()
                 if let path = connection?.currentPath,
                    let endpoint = path.remoteEndpoint,
                    case .hostPort(let host, let port) = endpoint {
@@ -169,6 +196,7 @@ public final class BonjourBrowser: @unchecked Sendable {
                 connection?.cancel()
 
             case .failed, .cancelled:
+                resolveState.markResolved()
                 connection?.cancel()
 
             default:
@@ -177,6 +205,13 @@ public final class BonjourBrowser: @unchecked Sendable {
         }
 
         connection.start(queue: queue)
+
+        // 타임아웃: 일정 시간 후에도 리졸브되지 않으면 연결 취소
+        queue.asyncAfter(deadline: .now() + Self.resolveTimeout) { [weak connection] in
+            guard !resolveState.isResolved else { return }
+            logger.debug("Service resolve timeout for: \(name)")
+            connection?.cancel()
+        }
     }
 
     private func removeService(_ result: NWBrowser.Result) {

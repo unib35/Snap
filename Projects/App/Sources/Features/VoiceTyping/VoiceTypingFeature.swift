@@ -42,8 +42,7 @@ public struct VoiceTypingFeature {
     }
 
     @Dependency(\.connectionClient) var connectionClient
-
-    private let speechRecognizer = SpeechRecognizer()
+    @Dependency(\.speechRecognizerClient) var speechRecognizerClient
 
     public init() {}
 
@@ -54,10 +53,9 @@ public struct VoiceTypingFeature {
                 return .send(.checkAuthorization)
 
             case .checkAuthorization:
-                let recognizer = speechRecognizer
-                return .run { send in
-                    let speechStatus = await recognizer.requestAuthorization()
-                    let micStatus = await recognizer.requestMicrophoneAuthorization()
+                return .run { [speechRecognizerClient] send in
+                    let speechStatus = await speechRecognizerClient.requestAuthorization()
+                    let micStatus = await speechRecognizerClient.requestMicrophoneAuthorization()
 
                     let status: State.AuthorizationStatus
                     if !micStatus {
@@ -110,16 +108,15 @@ public struct VoiceTypingFeature {
                 state.isRecording = true
                 state.recognizedText = ""
 
-                let recognizer = speechRecognizer
-                return .run { send in
-                    for await event in recognizer.startRecognition() {
+                return .run { [speechRecognizerClient] send in
+                    for await event in await speechRecognizerClient.startRecognition() {
                         await send(.recognitionEvent(event))
                     }
                 }
 
             case .stopRecording:
                 state.isRecording = false
-                speechRecognizer.stopRecognition()
+                speechRecognizerClient.stopRecognition()
                 return .none
 
             case .recognitionEvent(let event):

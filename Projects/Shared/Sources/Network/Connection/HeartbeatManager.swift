@@ -46,6 +46,10 @@ public final class HeartbeatManager: @unchecked Sendable {
         self.queue = DispatchQueue(label: "com.snap.heartbeat", qos: .utility)
     }
 
+    deinit {
+        stop()
+    }
+
     // MARK: - Public Methods
 
     /// 하트비트 시작
