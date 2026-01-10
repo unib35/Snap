@@ -130,6 +130,7 @@ public struct ProductivityView: View {
                 }
                 .buttonStyle(.plain)
                 .pressEffect()
+                .accessibilityLabel("Mac 받아쓰기 시작")
 
                 Spacer()
             }
@@ -462,6 +463,8 @@ struct SiriButton: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(isActive ? "Siri 활성화됨" : "Siri 시작")
+        .accessibilityHint("탭하여 Mac의 Siri를 제어합니다")
         .onChange(of: isActive) { _, newValue in
             if newValue {
                 withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
@@ -503,6 +506,7 @@ struct WindowSnapButton: View {
         }
         .buttonStyle(.plain)
         .pressEffect()
+        .accessibilityLabel("윈도우를 \(label)으로 스냅")
     }
 }
 

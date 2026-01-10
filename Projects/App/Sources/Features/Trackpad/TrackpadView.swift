@@ -195,6 +195,8 @@ struct VoiceTypingButton: View {
         .pressEffect()
         .disabled(!isAuthorized)
         .opacity(isAuthorized ? 1 : 0.5)
+        .accessibilityLabel(isRecording ? "음성 입력 중지" : "음성 입력 시작")
+        .accessibilityHint(isRecording ? "탭하여 음성 입력을 중지합니다" : "탭하여 음성으로 텍스트를 입력합니다")
     }
 }
 
@@ -722,6 +724,7 @@ struct ClickButton: View {
                     }
             )
             .accessibilityLabel(isPrimary ? "왼쪽 클릭" : "오른쪽 클릭")
+            .accessibilityHint("길게 눌러 클릭을 유지할 수 있습니다")
     }
 }
 
