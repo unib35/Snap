@@ -25,10 +25,21 @@ public final class TCPConnection: @unchecked Sendable {
     public private(set) var state: ConnectionState = .disconnected
     public let isSecure: Bool
 
+    /// 연결 타임아웃 (초)
+    public var connectionTimeout: TimeInterval
+
+    private var timeoutWorkItem: DispatchWorkItem?
+
     // MARK: - Initialization
 
     /// 클라이언트로 초기화 (호스트에 연결)
-    public init(host: String, port: UInt16, useTLS: Bool = false, tlsOptions: NWProtocolTLS.Options? = nil) {
+    public init(
+        host: String,
+        port: UInt16,
+        useTLS: Bool = false,
+        tlsOptions: NWProtocolTLS.Options? = nil,
+        timeout: TimeInterval = NetworkConstants.connectionTimeout
+    ) {
         let endpoint = NWEndpoint.hostPort(
             host: NWEndpoint.Host(host),
             port: NWEndpoint.Port(rawValue: port) ?? .any
@@ -49,6 +60,7 @@ public final class TCPConnection: @unchecked Sendable {
 
         self.connection = NWConnection(to: endpoint, using: parameters)
         self.queue = DispatchQueue(label: "com.snap.tcp.client", qos: .userInteractive)
+        self.connectionTimeout = timeout
 
         setupConnection()
     }
@@ -58,8 +70,13 @@ public final class TCPConnection: @unchecked Sendable {
         self.connection = connection
         self.isSecure = isSecure
         self.queue = DispatchQueue(label: "com.snap.tcp.server", qos: .userInteractive)
+        self.connectionTimeout = NetworkConstants.connectionTimeout
 
         setupConnection()
+    }
+
+    deinit {
+        cancelTimeoutTimer()
     }
 
     // MARK: - Public Methods
@@ -68,6 +85,10 @@ public final class TCPConnection: @unchecked Sendable {
     public func connect() {
         guard state == .disconnected else { return }
         state = .connecting
+
+        // 타임아웃 타이머 시작
+        startTimeoutTimer()
+
         connection.start(queue: queue)
     }
 
@@ -75,7 +96,33 @@ public final class TCPConnection: @unchecked Sendable {
     public func disconnect() {
         guard state == .connected || state == .connecting else { return }
         state = .disconnecting
+
+        // 타임아웃 타이머 취소
+        cancelTimeoutTimer()
+
         connection.cancel()
+    }
+
+    // MARK: - Timeout
+
+    private func startTimeoutTimer() {
+        cancelTimeoutTimer()
+
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self, self.state == .connecting else { return }
+            logger.warning("Connection timeout after \(self.connectionTimeout) seconds")
+            self.state = .disconnected
+            self.connection.cancel()
+            self.delegate?.tcpConnectionDidDisconnect(self, error: ConnectionTimeoutError())
+        }
+
+        timeoutWorkItem = workItem
+        queue.asyncAfter(deadline: .now() + connectionTimeout, execute: workItem)
+    }
+
+    private func cancelTimeoutTimer() {
+        timeoutWorkItem?.cancel()
+        timeoutWorkItem = nil
     }
 
     /// 데이터 전송
@@ -120,6 +167,7 @@ public final class TCPConnection: @unchecked Sendable {
             break
 
         case .ready:
+            cancelTimeoutTimer()
             state = .connected
             delegate?.tcpConnectionDidConnect(self)
             startReceiving()
@@ -128,10 +176,12 @@ public final class TCPConnection: @unchecked Sendable {
             logger.debug("Waiting: \(error.localizedDescription)")
 
         case .failed(let error):
+            cancelTimeoutTimer()
             state = .disconnected
             delegate?.tcpConnectionDidDisconnect(self, error: error)
 
         case .cancelled:
+            cancelTimeoutTimer()
             state = .disconnected
             delegate?.tcpConnectionDidDisconnect(self, error: nil)
 
