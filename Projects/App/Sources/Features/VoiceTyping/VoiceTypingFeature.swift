@@ -90,18 +90,8 @@ public struct VoiceTypingFeature {
 
             case .startRecording:
                 guard state.authorizationStatus == .authorized else {
-                    state.alert = AlertState {
-                        TextState("권한 필요")
-                    } actions: {
-                        ButtonState(action: .openSettings) {
-                            TextState("설정 열기")
-                        }
-                        ButtonState(role: .cancel, action: .dismiss) {
-                            TextState("취소")
-                        }
-                    } message: {
-                        TextState("음성 인식 권한이 필요합니다. 설정에서 권한을 허용해주세요.")
-                    }
+                    state.alert = AppError.permission(.speechRecognition)
+                        .toAlertState(dismiss: .dismiss, openSettings: .openSettings)
                     return .none
                 }
 
@@ -128,28 +118,14 @@ public struct VoiceTypingFeature {
                     }
 
                 case .error(let message):
-                    state.alert = AlertState {
-                        TextState("오류")
-                    } actions: {
-                        ButtonState(action: .dismiss) {
-                            TextState("확인")
-                        }
-                    } message: {
-                        TextState(message)
-                    }
+                    state.alert = AppError.general(message)
+                        .toSimpleAlertState(dismiss: .dismiss)
                     state.isRecording = false
 
                 case .availabilityChanged(let available):
                     if !available {
-                        state.alert = AlertState {
-                            TextState("오류")
-                        } actions: {
-                            ButtonState(action: .dismiss) {
-                                TextState("확인")
-                            }
-                        } message: {
-                            TextState("음성 인식을 사용할 수 없습니다")
-                        }
+                        state.alert = AppError.speech(.notAvailable)
+                            .toSimpleAlertState(dismiss: .dismiss)
                         state.isRecording = false
                     }
                 }
