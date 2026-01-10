@@ -29,6 +29,9 @@ jobs:
       - name: Verify Tuist
         run: tuist version
 
+      - name: Install Dependencies
+        run: tuist install
+
       - name: Generate Project
         run: tuist generate --no-open
 
@@ -59,6 +62,9 @@ jobs:
 
       - name: Verify Tuist
         run: tuist version
+
+      - name: Install Dependencies
+        run: tuist install
 
       - name: Generate Project
         run: tuist generate --no-open
@@ -104,6 +110,9 @@ jobs:
 
       - name: Verify Tuist
         run: tuist version
+
+      - name: Install Dependencies
+        run: tuist install
 
       - name: Generate Project
         run: tuist generate --no-open
