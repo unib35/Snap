@@ -1,6 +1,5 @@
 import ComposableArchitecture
 import SwiftUI
-import UIKit
 
 public struct ShortsRemoteView: View {
     @Bindable var store: StoreOf<ShortsRemoteFeature>
@@ -210,11 +209,15 @@ struct SwipeNavigationArea: View {
 
                         if offset < -threshold || velocity < -100 {
                             // Swipe up -> next video
-                            triggerHaptic()
+                            Task { @MainActor in
+                                HapticManager.shared.mediumImpact()
+                            }
                             onSwipeUp()
                         } else if offset > threshold || velocity > 100 {
                             // Swipe down -> previous video
-                            triggerHaptic()
+                            Task { @MainActor in
+                                HapticManager.shared.mediumImpact()
+                            }
                             onSwipeDown()
                         }
 
@@ -228,11 +231,6 @@ struct SwipeNavigationArea: View {
         }
         .frame(height: 280)
     }
-
-    private func triggerHaptic() {
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.impactOccurred()
-    }
 }
 
 // MARK: - Shorts Control Button
@@ -245,7 +243,9 @@ struct ShortsControlButton: View {
 
     var body: some View {
         Button {
-            triggerHaptic()
+            Task { @MainActor in
+                HapticManager.shared.lightImpact()
+            }
             action()
         } label: {
             VStack(spacing: 6) {
@@ -263,11 +263,6 @@ struct ShortsControlButton: View {
             .foregroundStyle(.primary)
         }
         .buttonStyle(.plain)
-    }
-
-    private func triggerHaptic() {
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.impactOccurred()
     }
 }
 
@@ -440,10 +435,14 @@ struct CompactSwipeArea: View {
                 }
                 .onEnded { _ in
                     if offset < -threshold {
-                        triggerHaptic()
+                        Task { @MainActor in
+                            HapticManager.shared.mediumImpact()
+                        }
                         onSwipeUp()
                     } else if offset > threshold {
-                        triggerHaptic()
+                        Task { @MainActor in
+                            HapticManager.shared.mediumImpact()
+                        }
                         onSwipeDown()
                     }
                     withAnimation(.spring(response: 0.3)) {
@@ -451,11 +450,6 @@ struct CompactSwipeArea: View {
                     }
                 }
         )
-    }
-
-    private func triggerHaptic() {
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.impactOccurred()
     }
 }
 
@@ -468,7 +462,9 @@ struct CompactControlButton: View {
 
     var body: some View {
         Button {
-            triggerHaptic()
+            Task { @MainActor in
+                HapticManager.shared.lightImpact()
+            }
             action()
         } label: {
             Image(systemName: icon)
@@ -481,11 +477,6 @@ struct CompactControlButton: View {
                 .foregroundStyle(isHighlighted ? Color.accentColor : .primary)
         }
         .buttonStyle(.plain)
-    }
-
-    private func triggerHaptic() {
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.impactOccurred()
     }
 }
 

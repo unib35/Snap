@@ -1,6 +1,5 @@
 import ComposableArchitecture
 import SwiftUI
-import UIKit
 
 public struct QuickLaunchView: View {
     @Bindable var store: StoreOf<QuickLaunchFeature>
@@ -100,7 +99,9 @@ struct QuickLaunchButton: View {
 
     var body: some View {
         Button {
-            triggerHaptic()
+            Task { @MainActor in
+                HapticManager.shared.mediumImpact()
+            }
             onTap()
         } label: {
             content
@@ -174,11 +175,6 @@ struct QuickLaunchButton: View {
                 .foregroundStyle(.white, .red)
         }
         .offset(x: 8, y: -8)
-    }
-
-    private func triggerHaptic() {
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.impactOccurred()
     }
 }
 

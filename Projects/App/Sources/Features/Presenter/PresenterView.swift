@@ -47,7 +47,9 @@ public struct PresenterSection: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .onChange(of: store.isOvertime) { _, isOvertime in
             if isOvertime {
-                triggerHaptic(.error)
+                Task { @MainActor in
+                    HapticManager.shared.error()
+                }
             }
         }
     }
@@ -95,7 +97,9 @@ public struct PresenterSection: View {
             // Start Button
             Button {
                 store.send(.startPresentation)
-                triggerHaptic(.medium)
+                Task { @MainActor in
+                    HapticManager.shared.mediumImpact()
+                }
             } label: {
                 HStack {
                     Image(systemName: "play.fill")
@@ -183,7 +187,9 @@ public struct PresenterSection: View {
                 color: .secondary
             ) {
                 store.send(.previousSlide)
-                triggerHaptic(.light)
+                Task { @MainActor in
+                    HapticManager.shared.lightImpact()
+                }
             }
 
             // Next Slide
@@ -193,7 +199,9 @@ public struct PresenterSection: View {
                 color: .accentColor
             ) {
                 store.send(.nextSlide)
-                triggerHaptic(.light)
+                Task { @MainActor in
+                    HapticManager.shared.lightImpact()
+                }
             }
         }
         .frame(height: 120)
@@ -209,7 +217,9 @@ public struct PresenterSection: View {
                 isActive: store.isScreenBlank
             ) {
                 store.send(.toggleScreenBlank)
-                triggerHaptic(.medium)
+                Task { @MainActor in
+                    HapticManager.shared.mediumImpact()
+                }
             }
 
             // Timer Pause/Resume
@@ -223,7 +233,9 @@ public struct PresenterSection: View {
                 } else {
                     store.send(.startTimer)
                 }
-                triggerHaptic(.light)
+                Task { @MainActor in
+                    HapticManager.shared.lightImpact()
+                }
             }
 
             // End Presentation
@@ -234,21 +246,11 @@ public struct PresenterSection: View {
                 isDestructive: true
             ) {
                 store.send(.endPresentation)
-                triggerHaptic(.medium)
+                Task { @MainActor in
+                    HapticManager.shared.mediumImpact()
+                }
             }
         }
-    }
-
-    // MARK: - Haptic Feedback
-
-    private func triggerHaptic(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
-        let generator = UIImpactFeedbackGenerator(style: style)
-        generator.impactOccurred()
-    }
-
-    private func triggerHaptic(_ type: UINotificationFeedbackGenerator.FeedbackType) {
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(type)
     }
 }
 
@@ -390,7 +392,9 @@ public struct PresenterFullScreenView: View {
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 store.send(.previousSlide)
-                                triggerHaptic(.light)
+                                Task { @MainActor in
+                                    HapticManager.shared.lightImpact()
+                                }
                             }
 
                         // Next (Right Half)
@@ -398,7 +402,9 @@ public struct PresenterFullScreenView: View {
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 store.send(.nextSlide)
-                                triggerHaptic(.light)
+                                Task { @MainActor in
+                                    HapticManager.shared.lightImpact()
+                                }
                             }
                     }
                     .frame(height: geometry.size.height * 0.5)
@@ -444,11 +450,6 @@ public struct PresenterFullScreenView: View {
             }
         }
         .statusBarHidden()
-    }
-
-    private func triggerHaptic(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
-        let generator = UIImpactFeedbackGenerator(style: style)
-        generator.impactOccurred()
     }
 }
 
