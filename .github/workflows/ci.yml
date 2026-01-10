@@ -10,9 +10,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  TUIST_VERSION: "4.40.0"
-
 jobs:
   build-ios:
     name: Build iOS App
@@ -26,10 +23,14 @@ jobs:
         with:
           xcode-version: "16.2"
 
-      - name: Install Tuist
-        run: |
-          curl -Ls https://install.tuist.io | bash
-          tuist version
+      - name: Install mise and Tuist
+        uses: jdx/mise-action@v2
+
+      - name: Verify Tuist
+        run: tuist version
+
+      - name: Install Dependencies
+        run: tuist install
 
       - name: Generate Project
         run: tuist generate --no-open
@@ -56,10 +57,14 @@ jobs:
         with:
           xcode-version: "16.2"
 
-      - name: Install Tuist
-        run: |
-          curl -Ls https://install.tuist.io | bash
-          tuist version
+      - name: Install mise and Tuist
+        uses: jdx/mise-action@v2
+
+      - name: Verify Tuist
+        run: tuist version
+
+      - name: Install Dependencies
+        run: tuist install
 
       - name: Generate Project
         run: tuist generate --no-open
@@ -100,10 +105,14 @@ jobs:
         with:
           xcode-version: "16.2"
 
-      - name: Install Tuist
-        run: |
-          curl -Ls https://install.tuist.io | bash
-          tuist version
+      - name: Install mise and Tuist
+        uses: jdx/mise-action@v2
+
+      - name: Verify Tuist
+        run: tuist version
+
+      - name: Install Dependencies
+        run: tuist install
 
       - name: Generate Project
         run: tuist generate --no-open
