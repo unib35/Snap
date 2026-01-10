@@ -116,6 +116,19 @@ let project = Project(
             )
         ),
 
+        // MARK: - Shared Tests
+        .target(
+            name: "SharedTests",
+            destinations: [.iPhone, .iPad],
+            product: .unitTests,
+            bundleId: "com.snap.shared.tests",
+            deploymentTargets: .iOS("17.0"),
+            sources: ["Projects/Shared/Tests/**"],
+            dependencies: [
+                .target(name: "Shared"),
+            ]
+        ),
+
         // MARK: - App Tests
         .target(
             name: "AppTests",
@@ -173,6 +186,12 @@ let project = Project(
         ),
     ],
     schemes: [
+        .scheme(
+            name: "Shared",
+            shared: true,
+            buildAction: .buildAction(targets: ["Shared"]),
+            testAction: .targets(["SharedTests"])
+        ),
         .scheme(
             name: "App",
             shared: true,

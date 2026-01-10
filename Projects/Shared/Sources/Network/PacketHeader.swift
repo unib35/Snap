@@ -47,7 +47,8 @@ public struct PacketHeader: Sendable, Equatable {
             return nil
         }
 
-        let magic = data.withUnsafeBytes { $0.load(fromByteOffset: 0, as: UInt16.self) }
+        // loadUnaligned를 사용하여 정렬되지 않은 메모리에서도 안전하게 읽기
+        let magic = data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: 0, as: UInt16.self) }
         guard magic == NetworkConstants.packetMagic else {
             return nil
         }
@@ -61,8 +62,8 @@ public struct PacketHeader: Sendable, Equatable {
             return nil
         }
 
-        let timestamp = data.withUnsafeBytes { $0.load(fromByteOffset: 4, as: UInt64.self) }
-        let payloadLength = data.withUnsafeBytes { $0.load(fromByteOffset: 12, as: UInt32.self) }
+        let timestamp = data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: 4, as: UInt64.self) }
+        let payloadLength = data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: 12, as: UInt32.self) }
 
         self.magic = magic
         self.version = version
