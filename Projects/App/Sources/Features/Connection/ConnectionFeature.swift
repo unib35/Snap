@@ -9,7 +9,7 @@ public struct ConnectionFeature: Sendable {
         public var status: ConnectionStatus = .disconnected
         public var discoveredDevices: IdentifiedArrayOf<Device> = []
         public var connectedDevice: Device?
-        public var lastError: ConnectionError?
+        public var lastError: AppError?
         public var latency: TimeInterval = 0
         public var signalStrength: SignalStrength = .unknown
 
@@ -68,7 +68,7 @@ public struct ConnectionFeature: Sendable {
         case setAutoReconnect(Bool)
 
         // Error
-        case errorOccurred(ConnectionError)
+        case errorOccurred(AppError)
         case clearError
     }
 
@@ -143,8 +143,8 @@ public struct ConnectionFeature: Sendable {
                 case .deviceLost(let name):
                     state.discoveredDevices.removeAll { $0.name == name }
 
-                case .error(let message):
-                    state.lastError = .discoveryFailed(message)
+                case .error:
+                    state.lastError = .connection(.discoveryFailed)
                 }
                 return .none
 
@@ -207,8 +207,8 @@ public struct ConnectionFeature: Sendable {
                     state.isPairingRequired = false
                     state.pairingPinCode = ""
 
-                    if let message = errorMessage {
-                        state.lastError = .connectionLost(message)
+                    if errorMessage != nil {
+                        state.lastError = .connection(.connectionLost)
                     }
 
                     // 자동 재연결 시도
@@ -230,11 +230,11 @@ public struct ConnectionFeature: Sendable {
                     case .nowPlayingInfo(let info):
                         return .send(.nowPlayingInfoReceived(info))
                     case .error(let message):
-                        state.lastError = .serverError(message)
+                        state.lastError = .connection(.serverError(message))
                     }
 
-                case .error(let message):
-                    state.lastError = .connectionFailed(message)
+                case .error:
+                    state.lastError = .connection(.connectionFailed)
 
                     // 연결 중 에러 발생 시 재연결 시도
                     if case .connecting(let device) = state.status {
@@ -264,12 +264,12 @@ public struct ConnectionFeature: Sendable {
                     state.pairingPinCode = ""
                     state.reconnectAttempt = 0
 
-                case .pairingResult(let success, let message):
+                case .pairingResult(let success, _):
                     if success {
                         state.isPairingRequired = false
                         state.pairingPinCode = ""
                     } else {
-                        state.lastError = .pairingFailed(message)
+                        state.lastError = .connection(.pairingFailed)
                         state.pairingPinCode = ""
                     }
                 }
@@ -278,7 +278,7 @@ public struct ConnectionFeature: Sendable {
             // MARK: - Reconnection
 
             case .attemptReconnect:
-                guard case .reconnecting(let device, let attempt) = state.status else {
+                guard case .reconnecting(_, let attempt) = state.status else {
                     return .none
                 }
 

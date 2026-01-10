@@ -57,15 +57,8 @@ public struct LaserPointerFeature {
 
             case .startPointing:
                 guard motionClient.isAvailable() else {
-                    state.alert = AlertState {
-                        TextState("오류")
-                    } actions: {
-                        ButtonState(action: .dismiss) {
-                            TextState("확인")
-                        }
-                    } message: {
-                        TextState("자이로스코프를 사용할 수 없습니다")
-                    }
+                    state.alert = AppError.general("자이로스코프를 사용할 수 없습니다")
+                        .toSimpleAlertState(dismiss: .dismiss)
                     return .none
                 }
 
@@ -116,15 +109,8 @@ public struct LaserPointerFeature {
                     }
 
                 case .error(let message):
-                    state.alert = AlertState {
-                        TextState("오류")
-                    } actions: {
-                        ButtonState(action: .dismiss) {
-                            TextState("확인")
-                        }
-                    } message: {
-                        TextState(message)
-                    }
+                    state.alert = AppError.general(message)
+                        .toSimpleAlertState(dismiss: .dismiss)
                     state.isActive = false
                 }
                 return .none
