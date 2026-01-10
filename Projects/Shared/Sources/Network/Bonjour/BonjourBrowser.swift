@@ -2,7 +2,7 @@ import Foundation
 import Network
 import os
 
-private let logger = Logger(subsystem: "com.snap.shared", category: "BonjourBrowser")
+private let logger = NetworkLogger.bonjour
 
 /// 발견된 서비스 정보
 public struct DiscoveredService: Sendable, Equatable, Identifiable {

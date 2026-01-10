@@ -2,7 +2,7 @@ import Foundation
 import Network
 import os
 
-private let logger = Logger(subsystem: "com.snap.shared", category: "BonjourAdvertiser")
+private let logger = NetworkLogger.bonjour
 
 /// Bonjour 광고자 델리게이트
 public protocol BonjourAdvertiserDelegate: AnyObject, Sendable {

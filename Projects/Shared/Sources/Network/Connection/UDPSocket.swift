@@ -2,7 +2,7 @@ import Foundation
 import Network
 import os
 
-private let logger = Logger(subsystem: "com.snap.shared", category: "UDPSocket")
+private let logger = NetworkLogger.udp
 
 /// UDP 소켓 델리게이트
 public protocol UDPSocketDelegate: AnyObject, Sendable {

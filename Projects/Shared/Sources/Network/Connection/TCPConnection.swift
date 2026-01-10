@@ -2,7 +2,7 @@ import Foundation
 import Network
 import os
 
-private let logger = Logger(subsystem: "com.snap.shared", category: "TCPConnection")
+private let logger = NetworkLogger.tcp
 
 /// TCP 연결 델리게이트
 public protocol TCPConnectionDelegate: AnyObject, Sendable {
@@ -159,34 +159,45 @@ public final class TCPConnection: @unchecked Sendable {
     }
 
     private func handleStateChange(_ newState: NWConnection.State) {
+        let previousState = state
+
         switch newState {
         case .setup:
-            break
+            logger.debug("Connection setup")
 
         case .preparing:
-            break
+            logger.debug("Connection preparing")
 
         case .ready:
             cancelTimeoutTimer()
             state = .connected
+            NetworkLogger.logConnectionStateChange(
+                from: previousState.description,
+                to: "connected"
+            )
             delegate?.tcpConnectionDidConnect(self)
             startReceiving()
 
         case .waiting(let error):
-            logger.debug("Waiting: \(error.localizedDescription)")
+            logger.warning("Connection waiting: \(error.localizedDescription)")
 
         case .failed(let error):
             cancelTimeoutTimer()
             state = .disconnected
+            NetworkLogger.logConnectionError(error, context: "connection failed")
             delegate?.tcpConnectionDidDisconnect(self, error: error)
 
         case .cancelled:
             cancelTimeoutTimer()
             state = .disconnected
+            NetworkLogger.logConnectionStateChange(
+                from: previousState.description,
+                to: "disconnected"
+            )
             delegate?.tcpConnectionDidDisconnect(self, error: nil)
 
         @unknown default:
-            break
+            logger.warning("Unknown connection state")
         }
     }
 
