@@ -15,6 +15,21 @@ public struct AppView: View {
         return false
     }
 
+    private var connectionAccessibilityLabel: String {
+        switch store.connection.status {
+        case .disconnected:
+            return "연결 끊김"
+        case .discovering:
+            return "기기 검색 중"
+        case .connecting(let device):
+            return "\(device.name)에 연결 중"
+        case .connected(let device):
+            return "\(device.name)에 연결됨"
+        case .reconnecting(_, let attempt):
+            return "재연결 시도 중 (\(attempt)회)"
+        }
+    }
+
     public var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -76,6 +91,8 @@ public struct AppView: View {
                     } label: {
                         connectionIcon
                     }
+                    .accessibilityLabel(connectionAccessibilityLabel)
+                    .accessibilityHint("탭하여 연결 설정을 엽니다")
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
@@ -88,6 +105,7 @@ public struct AppView: View {
                         Image(systemName: "gearshape")
                             .foregroundStyle(SnapColors.textSecondary)
                     }
+                    .accessibilityLabel("설정")
                 }
             }
             .toolbarBackground(SnapColors.background, for: .navigationBar)
@@ -177,6 +195,25 @@ struct ConnectionStatusBar: View {
         .padding(.horizontal, SnapSpacing.lg)
         .padding(.vertical, SnapSpacing.sm)
         .background(backgroundColor)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        var label = statusMessage
+        if status.isConnected {
+            label += ", 신호 강도: \(signalStrengthLabel)"
+        }
+        return label
+    }
+
+    private var signalStrengthLabel: String {
+        switch signalStrength {
+        case .strong: return "강함"
+        case .moderate: return "보통"
+        case .weak: return "약함"
+        case .unknown: return "알 수 없음"
+        }
     }
 
     @ViewBuilder
