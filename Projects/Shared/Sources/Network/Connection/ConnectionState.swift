@@ -1,11 +1,20 @@
 import Foundation
 
 /// 연결 상태
-public enum ConnectionState: Sendable, Equatable {
+public enum ConnectionState: Sendable, Equatable, CustomStringConvertible {
     case disconnected
     case connecting
     case connected
     case disconnecting
+
+    public var description: String {
+        switch self {
+        case .disconnected: return "disconnected"
+        case .connecting: return "connecting"
+        case .connected: return "connected"
+        case .disconnecting: return "disconnecting"
+        }
+    }
 }
 
 /// 연결 타임아웃 에러

@@ -2,7 +2,7 @@ import Foundation
 import Network
 import os
 
-private let logger = Logger(subsystem: "com.snap.shared", category: "TCPServer")
+private let logger = NetworkLogger.tcp
 
 /// TCP 서버 델리게이트
 public protocol TCPServerDelegate: AnyObject, Sendable {
