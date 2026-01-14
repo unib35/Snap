@@ -10,6 +10,15 @@ public struct PresenterFeature {
         case countDown = "Count Down"
     }
 
+    // MARK: - Alert Type
+
+    public enum AlertType: String, CaseIterable, Sendable {
+        case vibration = "진동"
+        case sound = "사운드"
+        case both = "진동 + 사운드"
+        case none = "없음"
+    }
+
     // MARK: - State
 
     @ObservableState
@@ -22,8 +31,14 @@ public struct PresenterFeature {
         public var slideNumber: Int = 1
         public var isScreenBlank: Bool = false
 
-        // Haptic feedback intervals (in seconds)
-        public var hapticWarningInterval: Int = 60 // 1 minute warning
+        // Alert settings
+        public var alertType: AlertType = .vibration
+        public var fiveMinuteAlert: Bool = true
+        public var oneMinuteAlert: Bool = true
+        public var overtimeAlert: Bool = true
+
+        // Tracking which alerts have been triggered
+        public var triggeredAlerts: Set<Int> = []
 
         public init() {}
 
@@ -72,14 +87,21 @@ public struct PresenterFeature {
         case endPresentation
         case toggleScreenBlank
 
-        // Haptic
-        case triggerHaptic(HapticType)
+        // Alert Settings
+        case setAlertType(AlertType)
+        case toggleFiveMinuteAlert
+        case toggleOneMinuteAlert
+        case toggleOvertimeAlert
+
+        // Haptic/Sound
+        case triggerAlert(AlertLevel)
     }
 
-    public enum HapticType: Equatable, Sendable {
+    public enum AlertLevel: Equatable, Sendable {
         case slideChange
-        case warning
-        case overtime
+        case fiveMinutes    // 5분 전 알림
+        case oneMinute      // 1분 전 알림
+        case overtime       // 시간 초과 알림
     }
 
     // MARK: - Dependencies
@@ -112,7 +134,7 @@ public struct PresenterFeature {
                 state.slideNumber += 1
                 return .run { [connectionClient] send in
                     await connectionClient.sendKeyEvent(KeyCode.rightArrow, .press, 0)
-                    await send(.triggerHaptic(.slideChange))
+                    await send(.triggerAlert(.slideChange))
                 }
 
             case .previousSlide:
@@ -121,7 +143,7 @@ public struct PresenterFeature {
                 }
                 return .run { [connectionClient] send in
                     await connectionClient.sendKeyEvent(KeyCode.leftArrow, .press, 0)
-                    await send(.triggerHaptic(.slideChange))
+                    await send(.triggerAlert(.slideChange))
                 }
 
             case .startTimer:
@@ -145,25 +167,35 @@ public struct PresenterFeature {
             case .timerTick:
                 state.elapsedSeconds += 1
 
-                // Check for haptic warnings
+                // Check for alerts (countdown mode only)
+                guard state.timerMode == .countDown else { return .none }
+
                 let totalTarget = state.targetMinutes * 60
                 let elapsed = state.elapsedSeconds
+                let remaining = totalTarget - elapsed
 
-                if state.timerMode == .countDown {
-                    // Overtime warning
-                    if elapsed == totalTarget {
-                        return .send(.triggerHaptic(.overtime))
-                    }
-                    // Warning at intervals
-                    let remaining = totalTarget - elapsed
-                    if remaining > 0, remaining.isMultiple(of: state.hapticWarningInterval) {
-                        return .send(.triggerHaptic(.warning))
-                    }
-                } else {
-                    // Count up mode - warning every minute
-                    if elapsed > 0, elapsed.isMultiple(of: 60) {
-                        return .send(.triggerHaptic(.warning))
-                    }
+                // 시간 초과 알림
+                if elapsed == totalTarget,
+                   state.overtimeAlert,
+                   !state.triggeredAlerts.contains(0) {
+                    state.triggeredAlerts.insert(0)
+                    return .send(.triggerAlert(.overtime))
+                }
+
+                // 5분 전 알림 (300초)
+                if remaining == 300,
+                   state.fiveMinuteAlert,
+                   !state.triggeredAlerts.contains(300) {
+                    state.triggeredAlerts.insert(300)
+                    return .send(.triggerAlert(.fiveMinutes))
+                }
+
+                // 1분 전 알림 (60초)
+                if remaining == 60,
+                   state.oneMinuteAlert,
+                   !state.triggeredAlerts.contains(60) {
+                    state.triggeredAlerts.insert(60)
+                    return .send(.triggerAlert(.oneMinute))
                 }
 
                 return .none
@@ -181,6 +213,7 @@ public struct PresenterFeature {
                 state.elapsedSeconds = 0
                 state.slideNumber = 1
                 state.isScreenBlank = false
+                state.triggeredAlerts = []  // Reset triggered alerts
                 return .send(.startTimer)
 
             case .endPresentation:
@@ -195,8 +228,25 @@ public struct PresenterFeature {
                     await connectionClient.sendKeyEvent(KeyCode.bKey, .press, 0)
                 }
 
-            case .triggerHaptic:
-                // Haptic feedback is handled in the View
+            // Alert Settings
+            case .setAlertType(let alertType):
+                state.alertType = alertType
+                return .none
+
+            case .toggleFiveMinuteAlert:
+                state.fiveMinuteAlert.toggle()
+                return .none
+
+            case .toggleOneMinuteAlert:
+                state.oneMinuteAlert.toggle()
+                return .none
+
+            case .toggleOvertimeAlert:
+                state.overtimeAlert.toggle()
+                return .none
+
+            case .triggerAlert:
+                // Alert (haptic/sound) is handled in the View
                 return .none
             }
         }

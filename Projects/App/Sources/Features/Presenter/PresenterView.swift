@@ -1,3 +1,4 @@
+import AudioToolbox
 import ComposableArchitecture
 import SwiftUI
 
@@ -5,6 +6,7 @@ import SwiftUI
 
 public struct PresenterSection: View {
     @Bindable var store: StoreOf<PresenterFeature>
+    @State private var isOvertimeFlashing = false
 
     public init(store: StoreOf<PresenterFeature>) {
         self.store = store
@@ -47,11 +49,66 @@ public struct PresenterSection: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .onChange(of: store.isOvertime) { _, isOvertime in
             if isOvertime {
-                Task { @MainActor in
-                    HapticManager.shared.error()
+                startOvertimeFlashing()
+                triggerAlert(level: .overtime)
+            } else {
+                isOvertimeFlashing = false
+            }
+        }
+        .onChange(of: store.triggeredAlerts) { oldValue, newValue in
+            // Check for new alerts
+            let newAlerts = newValue.subtracting(oldValue)
+            for alert in newAlerts {
+                switch alert {
+                case 300:
+                    triggerAlert(level: .fiveMinutes)
+                case 60:
+                    triggerAlert(level: .oneMinute)
+                default:
+                    break
                 }
             }
         }
+    }
+
+    // MARK: - Alert Handling
+
+    private func triggerAlert(level: PresenterFeature.AlertLevel) {
+        let alertType = store.alertType
+
+        // Haptic feedback
+        if alertType == .vibration || alertType == .both {
+            switch level {
+            case .slideChange:
+                HapticManager.shared.lightImpact()
+            case .fiveMinutes:
+                HapticManager.shared.warning()
+            case .oneMinute:
+                HapticManager.shared.warning()
+                HapticManager.shared.warning()
+            case .overtime:
+                HapticManager.shared.error()
+            }
+        }
+
+        // Sound feedback
+        if alertType == .sound || alertType == .both {
+            switch level {
+            case .slideChange:
+                break  // No sound for slide change
+            case .fiveMinutes:
+                AudioServicesPlaySystemSound(1007)  // SMS Received
+            case .oneMinute:
+                AudioServicesPlaySystemSound(1005)  // Calendar Alert
+            case .overtime:
+                AudioServicesPlaySystemSound(1521)  // Strong Vibration + Sound
+            }
+        }
+    }
+
+    private func startOvertimeFlashing() {
+        isOvertimeFlashing = true
+        // Flash animation is handled by the timer display
     }
 
     // MARK: - Setup Controls
@@ -92,6 +149,9 @@ public struct PresenterSection: View {
                     )
                     .frame(width: 150)
                 }
+
+                // Alert Settings Section
+                alertSettingsSection
             }
 
             // Start Button
@@ -113,6 +173,70 @@ public struct PresenterSection: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
             .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Alert Settings Section
+
+    @ViewBuilder
+    private var alertSettingsSection: some View {
+        VStack(spacing: 12) {
+            Divider()
+                .padding(.vertical, 4)
+
+            // Alert Type Picker
+            HStack {
+                Text("알림 방식")
+                    .font(.subheadline)
+                    .foregroundStyle(SnapColors.textSecondary)
+
+                Spacer()
+
+                Picker("", selection: $store.alertType.sending(\.setAlertType)) {
+                    ForEach(PresenterFeature.AlertType.allCases, id: \.self) { type in
+                        Text(type.rawValue).tag(type)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            // Alert Timing Toggles
+            VStack(spacing: 8) {
+                alertToggleRow(
+                    title: "5분 전 알림",
+                    isOn: store.fiveMinuteAlert,
+                    action: { store.send(.toggleFiveMinuteAlert) }
+                )
+
+                alertToggleRow(
+                    title: "1분 전 알림",
+                    isOn: store.oneMinuteAlert,
+                    action: { store.send(.toggleOneMinuteAlert) }
+                )
+
+                alertToggleRow(
+                    title: "시간 초과 알림",
+                    isOn: store.overtimeAlert,
+                    action: { store.send(.toggleOvertimeAlert) }
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func alertToggleRow(title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
+        HStack {
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(SnapColors.textSecondary)
+
+            Spacer()
+
+            Toggle("", isOn: Binding(
+                get: { isOn },
+                set: { _ in action() }
+            ))
+            .labelsHidden()
         }
     }
 
@@ -139,6 +263,13 @@ public struct PresenterSection: View {
             Text(store.timerMode == .countDown ? store.remainingTime : store.displayTime)
                 .font(.system(size: 48, weight: .bold, design: .monospaced))
                 .foregroundStyle(store.isOvertime ? SnapColors.warning : .primary)
+                .opacity(store.isOvertime && isOvertimeFlashing ? 0.3 : 1.0)
+                .animation(
+                    store.isOvertime
+                        ? .easeInOut(duration: 0.5).repeatForever(autoreverses: true)
+                        : .default,
+                    value: store.isOvertime
+                )
 
             // Progress Bar (for countdown)
             if store.timerMode == .countDown {
@@ -156,16 +287,34 @@ public struct PresenterSection: View {
                 .frame(height: 8)
 
                 if store.isOvertime {
-                    Text("시간 초과!")
-                        .font(.caption)
-                        .foregroundStyle(SnapColors.warning)
-                        .fontWeight(.bold)
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                        Text("시간 초과!")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(SnapColors.warning)
+                    .fontWeight(.bold)
+                    .opacity(isOvertimeFlashing ? 0.5 : 1.0)
+                    .animation(
+                        .easeInOut(duration: 0.5).repeatForever(autoreverses: true),
+                        value: isOvertimeFlashing
+                    )
                 }
             }
         }
         .padding()
-        .background(SnapColors.tertiarySystemBackground)
+        .background(
+            store.isOvertime
+                ? SnapColors.warning.opacity(0.1)
+                : SnapColors.tertiarySystemBackground
+        )
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            store.isOvertime
+                ? RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(SnapColors.warning.opacity(0.5), lineWidth: 2)
+                : nil
+        )
     }
 
     private var progressColor: Color {
