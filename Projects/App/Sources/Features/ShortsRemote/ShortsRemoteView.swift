@@ -108,23 +108,17 @@ struct PlatformButton: View {
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? platformColor.opacity(0.15) : SnapColors.tertiarySystemBackground)
+                    .fill(isSelected ? platform.color.opacity(0.15) : SnapColors.tertiarySystemBackground)
             )
-            .foregroundStyle(isSelected ? platformColor : .secondary)
+            .foregroundStyle(isSelected ? platform.color : .secondary)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(isSelected ? platformColor.opacity(0.5) : Color.clear, lineWidth: 2)
+                    .strokeBorder(isSelected ? platform.color.opacity(0.5) : Color.clear, lineWidth: 2)
             )
         }
         .buttonStyle(.plain)
-    }
-
-    private var platformColor: Color {
-        switch platform {
-        case .youtube: return .red
-        case .instagram: return .pink
-        case .tiktok: return .primary
-        }
+        .accessibilityLabel("\(platform.rawValue) 플랫폼 선택")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -243,9 +237,7 @@ struct ShortsControlButton: View {
 
     var body: some View {
         Button {
-            Task { @MainActor in
-                HapticManager.shared.lightImpact()
-            }
+            HapticManager.shared.lightImpact()
             action()
         } label: {
             VStack(spacing: 6) {
@@ -263,6 +255,7 @@ struct ShortsControlButton: View {
             .foregroundStyle(.primary)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 }
 
@@ -324,33 +317,84 @@ public struct ShortsRemoteSection: View {
 
             // Compact Controls
             HStack(spacing: 12) {
-                CompactControlButton(icon: "gobackward.5") {
+                CompactControlButton(
+                    icon: "gobackward.5",
+                    accessibilityText: "5초 뒤로"
+                ) {
                     store.send(.seekBackward)
                 }
 
                 CompactControlButton(
                     icon: store.isPaused ? "play.fill" : "pause.fill",
-                    isHighlighted: true
+                    isHighlighted: true,
+                    accessibilityText: store.isPaused ? "재생" : "일시정지"
                 ) {
                     store.send(.togglePlayPause)
                 }
 
-                CompactControlButton(icon: "goforward.5") {
+                CompactControlButton(
+                    icon: "goforward.5",
+                    accessibilityText: "5초 앞으로"
+                ) {
                     store.send(.seekForward)
                 }
 
                 Spacer()
 
                 CompactControlButton(
-                    icon: store.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill"
+                    icon: store.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                    accessibilityText: store.isMuted ? "음소거 해제" : "음소거"
                 ) {
                     store.send(.toggleMute)
                 }
             }
+
+            // Auto Scroll Toggle
+            autoScrollSection
         }
         .padding()
         .background(SnapColors.secondarySystemBackground.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    // MARK: - Auto Scroll Section
+
+    @ViewBuilder
+    private var autoScrollSection: some View {
+        VStack(spacing: 8) {
+            Divider()
+
+            HStack {
+                Image(systemName: "arrow.clockwise.circle.fill")
+                    .foregroundStyle(store.isAutoScrollEnabled ? Color.accentColor : SnapColors.textSecondary)
+
+                Text("자동 넘기기")
+                    .font(.subheadline)
+                    .foregroundStyle(SnapColors.textSecondary)
+
+                Spacer()
+
+                if store.isAutoScrollEnabled {
+                    Stepper(
+                        "\(store.autoScrollInterval)초",
+                        value: Binding(
+                            get: { store.autoScrollInterval },
+                            set: { store.send(.setAutoScrollInterval($0)) }
+                        ),
+                        in: 3...60
+                    )
+                    .frame(width: 130)
+                }
+
+                Toggle("", isOn: Binding(
+                    get: { store.isAutoScrollEnabled },
+                    set: { _ in store.send(.toggleAutoScroll) }
+                ))
+                .labelsHidden()
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("자동 넘기기 \(store.isAutoScrollEnabled ? "켜짐, \(store.autoScrollInterval)초 간격" : "꺼짐")")
     }
 }
 
@@ -375,19 +419,13 @@ struct PlatformChip: View {
             .padding(.vertical, 8)
             .background(
                 Capsule()
-                    .fill(isSelected ? platformColor.opacity(0.15) : SnapColors.tertiarySystemBackground)
+                    .fill(isSelected ? platform.color.opacity(0.15) : SnapColors.tertiarySystemBackground)
             )
-            .foregroundStyle(isSelected ? platformColor : .secondary)
+            .foregroundStyle(isSelected ? platform.color : .secondary)
         }
         .buttonStyle(.plain)
-    }
-
-    private var platformColor: Color {
-        switch platform {
-        case .youtube: return .red
-        case .instagram: return .pink
-        case .tiktok: return .primary
-        }
+        .accessibilityLabel("\(platform.rawValue) 플랫폼 선택")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -476,13 +514,12 @@ struct CompactSwipeArea: View {
 struct CompactControlButton: View {
     let icon: String
     var isHighlighted: Bool = false
+    var accessibilityText: String = ""
     let action: () -> Void
 
     var body: some View {
         Button {
-            Task { @MainActor in
-                HapticManager.shared.lightImpact()
-            }
+            HapticManager.shared.lightImpact()
             action()
         } label: {
             Image(systemName: icon)
@@ -495,6 +532,7 @@ struct CompactControlButton: View {
                 .foregroundStyle(isHighlighted ? Color.accentColor : .primary)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityText.isEmpty ? icon : accessibilityText)
     }
 }
 
@@ -513,6 +551,8 @@ struct CompactControlButton: View {
 public struct ShortsRemoteFullScreenView: View {
     @Bindable var store: StoreOf<ShortsRemoteFeature>
     @Environment(\.dismiss) private var dismiss
+    @State private var autoScrollCountdown: Int = 0
+    @State private var autoScrollTimer: Timer?
 
     public init(store: StoreOf<ShortsRemoteFeature>) {
         self.store = store
@@ -546,6 +586,37 @@ public struct ShortsRemoteFullScreenView: View {
             }
         }
         .statusBarHidden()
+        .onAppear {
+            startAutoScrollTimerIfNeeded()
+        }
+        .onDisappear {
+            autoScrollTimer?.invalidate()
+        }
+        .onChange(of: store.isAutoScrollEnabled) { _, enabled in
+            if enabled {
+                startAutoScrollTimerIfNeeded()
+            } else {
+                autoScrollTimer?.invalidate()
+                autoScrollTimer = nil
+            }
+        }
+    }
+
+    private func startAutoScrollTimerIfNeeded() {
+        guard store.isAutoScrollEnabled else { return }
+        autoScrollCountdown = store.autoScrollInterval
+        autoScrollTimer?.invalidate()
+        autoScrollTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [self] _ in
+            Task { @MainActor in
+                guard store.isAutoScrollEnabled, !store.isPaused else { return }
+                autoScrollCountdown -= 1
+                if autoScrollCountdown <= 0 {
+                    HapticManager.shared.mediumImpact()
+                    store.send(.nextVideo)
+                    autoScrollCountdown = store.autoScrollInterval
+                }
+            }
+        }
     }
 
     // MARK: - Top Bar
@@ -563,6 +634,22 @@ public struct ShortsRemoteFullScreenView: View {
             .padding(.vertical, 8)
             .background(.ultraThinMaterial)
             .clipShape(Capsule())
+            .accessibilityLabel("\(store.selectedPlatform.rawValue) 플랫폼")
+
+            // Auto Scroll Indicator
+            if store.isAutoScrollEnabled {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.clockwise")
+                    Text("\(autoScrollCountdown)초")
+                }
+                .font(.subheadline.monospacedDigit())
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.accentColor.opacity(0.8))
+                .clipShape(Capsule())
+                .accessibilityLabel("자동 넘기기 \(autoScrollCountdown)초 후")
+            }
 
             Spacer()
 
@@ -575,6 +662,7 @@ public struct ShortsRemoteFullScreenView: View {
                     .font(.title)
                     .foregroundStyle(.white.opacity(0.8))
             }
+            .accessibilityLabel("닫기")
         }
         .padding(.top, 8)
     }
@@ -671,7 +759,8 @@ public struct ShortsRemoteFullScreenView: View {
                 icon: store.isLiked ? "heart.fill" : "heart",
                 label: "좋아요",
                 isActive: store.isLiked,
-                activeColor: .red
+                activeColor: .red,
+                accessibilityText: store.isLiked ? "좋아요 취소" : "좋아요"
             ) {
                 store.send(.toggleLike)
             }
@@ -681,9 +770,25 @@ public struct ShortsRemoteFullScreenView: View {
                 icon: store.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
                 label: store.isMuted ? "음소거" : "소리",
                 isActive: store.isMuted,
-                activeColor: .white
+                activeColor: .white,
+                accessibilityText: store.isMuted ? "음소거 해제" : "음소거"
             ) {
                 store.send(.toggleMute)
+            }
+
+            // Auto Scroll Toggle
+            SideActionButton(
+                icon: store.isAutoScrollEnabled ? "arrow.clockwise.circle.fill" : "arrow.clockwise.circle",
+                label: "자동",
+                isActive: store.isAutoScrollEnabled,
+                activeColor: .accentColor,
+                accessibilityText: store.isAutoScrollEnabled ? "자동 넘기기 끄기" : "자동 넘기기 켜기"
+            ) {
+                store.send(.toggleAutoScroll)
+                if !store.isAutoScrollEnabled {
+                    // Will be enabled, reset countdown
+                    autoScrollCountdown = store.autoScrollInterval
+                }
             }
 
             Spacer()
@@ -696,20 +801,27 @@ public struct ShortsRemoteFullScreenView: View {
     private var bottomControls: some View {
         HStack(spacing: 32) {
             // Seek Backward
-            FullScreenControlButton(icon: "gobackward.10") {
+            FullScreenControlButton(
+                icon: "gobackward.10",
+                accessibilityText: "10초 뒤로"
+            ) {
                 store.send(.seekBackward)
             }
 
             // Play/Pause (Large)
             FullScreenControlButton(
                 icon: store.isPaused ? "play.fill" : "pause.fill",
-                isLarge: true
+                isLarge: true,
+                accessibilityText: store.isPaused ? "재생" : "일시정지"
             ) {
                 store.send(.togglePlayPause)
             }
 
             // Seek Forward
-            FullScreenControlButton(icon: "goforward.10") {
+            FullScreenControlButton(
+                icon: "goforward.10",
+                accessibilityText: "10초 앞으로"
+            ) {
                 store.send(.seekForward)
             }
         }
@@ -724,6 +836,7 @@ private struct SideActionButton: View {
     let label: String
     var isActive: Bool = false
     var activeColor: Color = .white
+    var accessibilityText: String = ""
     let action: () -> Void
 
     var body: some View {
@@ -742,6 +855,7 @@ private struct SideActionButton: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityText.isEmpty ? label : accessibilityText)
     }
 }
 
@@ -750,6 +864,7 @@ private struct SideActionButton: View {
 private struct FullScreenControlButton: View {
     let icon: String
     var isLarge: Bool = false
+    var accessibilityText: String = ""
     let action: () -> Void
 
     var body: some View {
@@ -765,6 +880,7 @@ private struct FullScreenControlButton: View {
                 .clipShape(Circle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityText.isEmpty ? icon : accessibilityText)
     }
 }
 

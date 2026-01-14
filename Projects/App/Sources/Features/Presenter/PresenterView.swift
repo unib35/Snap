@@ -154,6 +154,9 @@ public struct PresenterSection: View {
                 alertSettingsSection
             }
 
+            // Auto Slide Section
+            autoSlideSection
+
             // Start Button
             Button {
                 store.send(.startPresentation)
@@ -238,6 +241,54 @@ public struct PresenterSection: View {
             ))
             .labelsHidden()
         }
+    }
+
+    // MARK: - Auto Slide Section
+
+    @ViewBuilder
+    private var autoSlideSection: some View {
+        VStack(spacing: 12) {
+            Divider()
+                .padding(.vertical, 4)
+
+            HStack {
+                Image(systemName: "play.circle.fill")
+                    .foregroundStyle(store.isAutoSlideEnabled ? Color.accentColor : SnapColors.textSecondary)
+
+                Text("자동 슬라이드")
+                    .font(.subheadline)
+                    .foregroundStyle(SnapColors.textSecondary)
+
+                Spacer()
+
+                if store.isAutoSlideEnabled {
+                    Stepper(
+                        "\(store.autoSlideInterval)초",
+                        value: Binding(
+                            get: { store.autoSlideInterval },
+                            set: { store.send(.setAutoSlideInterval($0)) }
+                        ),
+                        in: 5...120
+                    )
+                    .frame(width: 140)
+                }
+
+                Toggle("", isOn: Binding(
+                    get: { store.isAutoSlideEnabled },
+                    set: { _ in store.send(.toggleAutoSlide) }
+                ))
+                .labelsHidden()
+            }
+
+            if store.isAutoSlideEnabled {
+                Text("설정한 간격마다 자동으로 다음 슬라이드로 넘어갑니다")
+                    .font(.caption)
+                    .foregroundStyle(SnapColors.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("자동 슬라이드 \(store.isAutoSlideEnabled ? "켜짐, \(store.autoSlideInterval)초 간격" : "꺼짐")")
     }
 
     // MARK: - Presentation Controls
@@ -508,6 +559,8 @@ struct ControlButton: View {
 public struct PresenterFullScreenView: View {
     @Bindable var store: StoreOf<PresenterFeature>
     @Environment(\.dismiss) private var dismiss
+    @State private var autoSlideCountdown: Int = 0
+    @State private var autoSlideTimer: Timer?
 
     public init(store: StoreOf<PresenterFeature>) {
         self.store = store
@@ -520,85 +573,253 @@ public struct PresenterFullScreenView: View {
                 Color.black.ignoresSafeArea()
 
                 VStack(spacing: 0) {
+                    // Top Bar
+                    fullScreenTopBar
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16)
+
                     // Timer
                     Text(store.timerMode == .countDown ? store.remainingTime : store.displayTime)
                         .font(.system(size: 72, weight: .bold, design: .monospaced))
                         .foregroundStyle(store.isOvertime ? SnapColors.warning : .white)
-                        .padding(.top, 60)
+                        .padding(.top, 24)
+                        .accessibilityLabel("경과 시간 \(store.displayTime)")
 
                     // Slide Number
                     Text("Slide \(store.slideNumber)")
                         .font(.title2)
                         .foregroundStyle(.white.opacity(0.6))
-                        .padding(.top, 16)
+                        .padding(.top, 8)
 
                     Spacer()
 
-                    // Large Touch Areas for Slide Navigation
-                    HStack(spacing: 0) {
-                        // Previous (Left Half)
-                        Color.clear
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                store.send(.previousSlide)
-                                Task { @MainActor in
-                                    HapticManager.shared.lightImpact()
-                                }
-                            }
-
-                        // Next (Right Half)
-                        Color.clear
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                store.send(.nextSlide)
-                                Task { @MainActor in
-                                    HapticManager.shared.lightImpact()
-                                }
-                            }
-                    }
-                    .frame(height: geometry.size.height * 0.5)
+                    // Large Slide Navigation Buttons
+                    slideNavigationArea(geometry: geometry)
 
                     Spacer()
 
-                    // Control Bar
-                    HStack(spacing: 32) {
-                        // Screen Blank
-                        Button {
-                            store.send(.toggleScreenBlank)
-                        } label: {
-                            Image(systemName: store.isScreenBlank ? "rectangle.slash" : "rectangle")
-                                .font(.title)
-                                .foregroundStyle(store.isScreenBlank ? Color.accentColor : .white)
-                        }
-
-                        // Timer Control
-                        Button {
-                            if store.isTimerRunning {
-                                store.send(.stopTimer)
-                            } else {
-                                store.send(.startTimer)
-                            }
-                        } label: {
-                            Image(systemName: store.isTimerRunning ? "pause.fill" : "play.fill")
-                                .font(.title)
-                                .foregroundStyle(.white)
-                        }
-
-                        // End
-                        Button {
-                            store.send(.endPresentation)
-                            dismiss()
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.title)
-                                .foregroundStyle(SnapColors.destructive)
-                        }
-                    }
-                    .padding(.bottom, 60)
+                    // Bottom Control Bar
+                    fullScreenControlBar
+                        .padding(.bottom, 40)
                 }
             }
         }
         .statusBarHidden()
+        .onAppear {
+            startAutoSlideTimerIfNeeded()
+        }
+        .onDisappear {
+            autoSlideTimer?.invalidate()
+        }
+        .onChange(of: store.isAutoSlideEnabled) { _, enabled in
+            if enabled {
+                startAutoSlideTimerIfNeeded()
+            } else {
+                autoSlideTimer?.invalidate()
+                autoSlideTimer = nil
+            }
+        }
+    }
+
+    // MARK: - Auto Slide Timer
+
+    private func startAutoSlideTimerIfNeeded() {
+        guard store.isAutoSlideEnabled else { return }
+        autoSlideCountdown = store.autoSlideInterval
+        autoSlideTimer?.invalidate()
+        autoSlideTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [self] _ in
+            Task { @MainActor in
+                guard store.isAutoSlideEnabled, store.isTimerRunning else { return }
+                autoSlideCountdown -= 1
+                if autoSlideCountdown <= 0 {
+                    HapticManager.shared.lightImpact()
+                    store.send(.nextSlide)
+                    autoSlideCountdown = store.autoSlideInterval
+                }
+            }
+        }
+    }
+
+    // MARK: - Top Bar
+
+    private var fullScreenTopBar: some View {
+        HStack {
+            // Auto Slide Indicator
+            if store.isAutoSlideEnabled {
+                HStack(spacing: 6) {
+                    Image(systemName: "play.circle.fill")
+                    Text("자동 \(autoSlideCountdown)초")
+                }
+                .font(.subheadline.monospacedDigit())
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.accentColor.opacity(0.8))
+                .clipShape(Capsule())
+                .accessibilityLabel("자동 슬라이드 \(autoSlideCountdown)초 후")
+            }
+
+            Spacer()
+
+            // Close Button
+            Button {
+                store.send(.endPresentation)
+                dismiss()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title)
+                    .foregroundStyle(.white.opacity(0.8))
+            }
+            .accessibilityLabel("발표 종료")
+        }
+    }
+
+    // MARK: - Slide Navigation Area
+
+    private func slideNavigationArea(geometry: GeometryProxy) -> some View {
+        HStack(spacing: 24) {
+            // Previous Slide Button
+            Button {
+                HapticManager.shared.lightImpact()
+                store.send(.previousSlide)
+            } label: {
+                VStack(spacing: 12) {
+                    Image(systemName: "chevron.left.circle.fill")
+                        .font(.system(size: 64))
+                    Text("이전 슬라이드")
+                        .font(.headline)
+                }
+                .foregroundStyle(.white.opacity(0.7))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 24)
+                        .fill(.white.opacity(0.1))
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("이전 슬라이드")
+            .accessibilityHint("이전 슬라이드로 이동합니다")
+
+            // Next Slide Button
+            Button {
+                HapticManager.shared.lightImpact()
+                store.send(.nextSlide)
+            } label: {
+                VStack(spacing: 12) {
+                    Image(systemName: "chevron.right.circle.fill")
+                        .font(.system(size: 64))
+                    Text("다음 슬라이드")
+                        .font(.headline)
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 24)
+                        .fill(Color.accentColor.opacity(0.3))
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("다음 슬라이드")
+            .accessibilityHint("다음 슬라이드로 이동합니다")
+        }
+        .frame(height: geometry.size.height * 0.35)
+        .padding(.horizontal, 20)
+    }
+
+    // MARK: - Bottom Control Bar
+
+    private var fullScreenControlBar: some View {
+        HStack(spacing: 20) {
+            // Screen Blank
+            PresenterControlButton(
+                icon: store.isScreenBlank ? "rectangle.slash.fill" : "rectangle.fill",
+                label: "화면",
+                isActive: store.isScreenBlank
+            ) {
+                store.send(.toggleScreenBlank)
+            }
+
+            // Timer Control
+            PresenterControlButton(
+                icon: store.isTimerRunning ? "pause.fill" : "play.fill",
+                label: store.isTimerRunning ? "일시정지" : "재개",
+                isActive: false
+            ) {
+                if store.isTimerRunning {
+                    store.send(.stopTimer)
+                } else {
+                    store.send(.startTimer)
+                }
+            }
+
+            // Auto Slide Toggle
+            PresenterControlButton(
+                icon: store.isAutoSlideEnabled ? "play.circle.fill" : "play.circle",
+                label: "자동",
+                isActive: store.isAutoSlideEnabled
+            ) {
+                store.send(.toggleAutoSlide)
+                if !store.isAutoSlideEnabled {
+                    autoSlideCountdown = store.autoSlideInterval
+                }
+            }
+
+            // End Presentation
+            PresenterControlButton(
+                icon: "stop.fill",
+                label: "종료",
+                isActive: false,
+                isDestructive: true
+            ) {
+                store.send(.endPresentation)
+                dismiss()
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+}
+
+// MARK: - Presenter Control Button (Full Screen)
+
+private struct PresenterControlButton: View {
+    let icon: String
+    let label: String
+    var isActive: Bool = false
+    var isDestructive: Bool = false
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            HapticManager.shared.mediumImpact()
+            action()
+        } label: {
+            VStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 24))
+                    .foregroundStyle(foregroundColor)
+
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.8))
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 72)
+            .background(backgroundColor)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    private var foregroundColor: Color {
+        if isDestructive { return SnapColors.destructive }
+        if isActive { return Color.accentColor }
+        return .white
+    }
+
+    private var backgroundColor: Color {
+        if isActive { return Color.accentColor.opacity(0.3) }
+        return .white.opacity(0.15)
     }
 }
 

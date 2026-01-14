@@ -40,6 +40,10 @@ public struct PresenterFeature {
         // Tracking which alerts have been triggered
         public var triggeredAlerts: Set<Int> = []
 
+        // Auto slide
+        public var isAutoSlideEnabled: Bool = false
+        public var autoSlideInterval: Int = 30  // seconds
+
         public init() {}
 
         // Computed properties
@@ -95,6 +99,10 @@ public struct PresenterFeature {
 
         // Haptic/Sound
         case triggerAlert(AlertLevel)
+
+        // Auto Slide
+        case toggleAutoSlide
+        case setAutoSlideInterval(Int)
     }
 
     public enum AlertLevel: Equatable, Sendable {
@@ -247,6 +255,14 @@ public struct PresenterFeature {
 
             case .triggerAlert:
                 // Alert (haptic/sound) is handled in the View
+                return .none
+
+            case .toggleAutoSlide:
+                state.isAutoSlideEnabled.toggle()
+                return .none
+
+            case .setAutoSlideInterval(let interval):
+                state.autoSlideInterval = max(5, min(120, interval))
                 return .none
             }
         }

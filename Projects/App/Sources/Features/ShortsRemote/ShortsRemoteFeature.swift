@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import Foundation
+import SwiftUI
 
 @Reducer
 public struct ShortsRemoteFeature {
@@ -17,6 +18,14 @@ public struct ShortsRemoteFeature {
             case .tiktok: return "music.note"
             }
         }
+
+        var color: Color {
+            switch self {
+            case .youtube: return .red
+            case .instagram: return .pink
+            case .tiktok: return .primary
+            }
+        }
     }
 
     // MARK: - State
@@ -28,6 +37,10 @@ public struct ShortsRemoteFeature {
         public var isMuted: Bool = false
         public var isPaused: Bool = false
         public var isLiked: Bool = false
+
+        // Auto scroll
+        public var isAutoScrollEnabled: Bool = false
+        public var autoScrollInterval: Int = 10  // seconds
 
         public init() {}
     }
@@ -55,15 +68,24 @@ public struct ShortsRemoteFeature {
         // Interaction
         case toggleLike
 
-        // Haptic
-        case triggerHaptic
+        // Auto Scroll
+        case toggleAutoScroll
+        case setAutoScrollInterval(Int)
+        case autoScrollTick
     }
 
     // MARK: - Dependencies
 
     @Dependency(\.connectionClient) var connectionClient
+    @Dependency(\.continuousClock) var clock
 
     public init() {}
+
+    // MARK: - Cancel ID
+
+    private enum CancelID {
+        case autoScroll
+    }
 
     // MARK: - Key Codes
 
@@ -102,56 +124,68 @@ public struct ShortsRemoteFeature {
             case .nextVideo:
                 state.isLiked = false  // Reset like state for new video
                 // All platforms use down arrow for next video in fullscreen/shorts mode
-                return .run { [connectionClient] send in
+                return .run { [connectionClient] _ in
                     await connectionClient.sendKeyEvent(KeyCode.downArrow, .press, 0)
-                    await send(.triggerHaptic)
                 }
 
             case .previousVideo:
                 // All platforms use up arrow for previous video
-                return .run { [connectionClient] send in
+                return .run { [connectionClient] _ in
                     await connectionClient.sendKeyEvent(KeyCode.upArrow, .press, 0)
-                    await send(.triggerHaptic)
                 }
 
             case .togglePlayPause:
                 state.isPaused.toggle()
-                return .run { [connectionClient] send in
+                return .run { [connectionClient] _ in
                     // Space to toggle play/pause
                     await connectionClient.sendKeyEvent(KeyCode.space, .press, 0)
-                    await send(.triggerHaptic)
                 }
 
             case .toggleMute:
                 state.isMuted.toggle()
-                return .run { [connectionClient] send in
+                return .run { [connectionClient] _ in
                     // M key to toggle mute
                     await connectionClient.sendKeyEvent(KeyCode.mKey, .press, 0)
-                    await send(.triggerHaptic)
                 }
 
             case .seekForward:
-                return .run { [connectionClient] send in
+                return .run { [connectionClient] _ in
                     await connectionClient.sendKeyEvent(KeyCode.rightArrow, .press, 0)
-                    await send(.triggerHaptic)
                 }
 
             case .seekBackward:
-                return .run { [connectionClient] send in
+                return .run { [connectionClient] _ in
                     await connectionClient.sendKeyEvent(KeyCode.leftArrow, .press, 0)
-                    await send(.triggerHaptic)
                 }
 
             case .toggleLike:
                 state.isLiked.toggle()
-                return .run { [connectionClient] send in
+                return .run { [connectionClient] _ in
                     // L key to like on YouTube
                     await connectionClient.sendKeyEvent(KeyCode.lKey, .press, 0)
-                    await send(.triggerHaptic)
                 }
 
-            case .triggerHaptic:
-                // Haptic feedback is handled in the View
+            case .toggleAutoScroll:
+                state.isAutoScrollEnabled.toggle()
+                if state.isAutoScrollEnabled {
+                    return .run { [clock] send in
+                        for await _ in clock.timer(interval: .seconds(1)) {
+                            await send(.autoScrollTick)
+                        }
+                    }
+                    .cancellable(id: CancelID.autoScroll)
+                } else {
+                    return .cancel(id: CancelID.autoScroll)
+                }
+
+            case .setAutoScrollInterval(let interval):
+                state.autoScrollInterval = max(3, min(60, interval))
+                return .none
+
+            case .autoScrollTick:
+                guard state.isAutoScrollEnabled, !state.isPaused else { return .none }
+                // Use modulo to check if it's time to scroll
+                // This is tracked externally in the view with a countdown
                 return .none
             }
         }
