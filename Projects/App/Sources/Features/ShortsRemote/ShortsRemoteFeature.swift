@@ -23,9 +23,11 @@ public struct ShortsRemoteFeature {
 
     @ObservableState
     public struct State: Equatable {
+        public var isActive: Bool = false
         public var selectedPlatform: Platform = .youtube
         public var isMuted: Bool = false
         public var isPaused: Bool = false
+        public var isLiked: Bool = false
 
         public init() {}
     }
@@ -33,6 +35,10 @@ public struct ShortsRemoteFeature {
     // MARK: - Action
 
     public enum Action: Equatable, Sendable {
+        // Mode
+        case start
+        case stop
+
         // Platform
         case platformSelected(Platform)
 
@@ -45,6 +51,9 @@ public struct ShortsRemoteFeature {
         case toggleMute
         case seekForward
         case seekBackward
+
+        // Interaction
+        case toggleLike
 
         // Haptic
         case triggerHaptic
@@ -65,6 +74,7 @@ public struct ShortsRemoteFeature {
         static let rightArrow: UInt32 = 124
         static let space: UInt32 = 49
         static let mKey: UInt32 = 46
+        static let lKey: UInt32 = 37  // YouTube like
         static let kKey: UInt32 = 40  // YouTube prev
         static let jKey: UInt32 = 38  // YouTube next
     }
@@ -74,11 +84,23 @@ public struct ShortsRemoteFeature {
     public var body: some ReducerOf<Self> {
         Reduce { state, action in
             switch action {
+            case .start:
+                state.isActive = true
+                state.isPaused = false
+                state.isMuted = false
+                state.isLiked = false
+                return .none
+
+            case .stop:
+                state.isActive = false
+                return .none
+
             case .platformSelected(let platform):
                 state.selectedPlatform = platform
                 return .none
 
             case .nextVideo:
+                state.isLiked = false  // Reset like state for new video
                 // All platforms use down arrow for next video in fullscreen/shorts mode
                 return .run { [connectionClient] send in
                     await connectionClient.sendKeyEvent(KeyCode.downArrow, .press, 0)
@@ -117,6 +139,14 @@ public struct ShortsRemoteFeature {
             case .seekBackward:
                 return .run { [connectionClient] send in
                     await connectionClient.sendKeyEvent(KeyCode.leftArrow, .press, 0)
+                    await send(.triggerHaptic)
+                }
+
+            case .toggleLike:
+                state.isLiked.toggle()
+                return .run { [connectionClient] send in
+                    // L key to like on YouTube
+                    await connectionClient.sendKeyEvent(KeyCode.lKey, .press, 0)
                     await send(.triggerHaptic)
                 }
 

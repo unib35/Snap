@@ -41,6 +41,42 @@ public struct ProductivityView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(SnapColors.background)
+        // Presenter Full Screen
+        .fullScreenCover(isPresented: presenterBinding) {
+            PresenterFullScreenView(
+                store: store.scope(state: \.presenter, action: \.presenter)
+            )
+        }
+        // Shorts Remote Full Screen
+        .fullScreenCover(isPresented: shortsRemoteBinding) {
+            ShortsRemoteFullScreenView(
+                store: store.scope(state: \.shortsRemote, action: \.shortsRemote)
+            )
+        }
+    }
+
+    // MARK: - Full Screen Bindings
+
+    private var presenterBinding: Binding<Bool> {
+        Binding(
+            get: { store.presenter.isPresenting },
+            set: { newValue in
+                if !newValue {
+                    store.send(.presenter(.endPresentation))
+                }
+            }
+        )
+    }
+
+    private var shortsRemoteBinding: Binding<Bool> {
+        Binding(
+            get: { store.shortsRemote.isActive },
+            set: { newValue in
+                if !newValue {
+                    store.send(.shortsRemote(.stop))
+                }
+            }
+        )
     }
 
     // MARK: - Quick Launch Section

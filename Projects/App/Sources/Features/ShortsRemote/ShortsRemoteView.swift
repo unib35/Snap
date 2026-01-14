@@ -284,6 +284,24 @@ public struct ShortsRemoteSection: View {
                 Text("숏폼 리모컨")
                     .font(.headline)
                 Spacer()
+
+                // Full Screen Button
+                Button {
+                    HapticManager.shared.mediumImpact()
+                    store.send(.start)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        Text("전체화면")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.accentColor.opacity(0.15))
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
             }
 
             // Platform Picker
@@ -490,6 +508,266 @@ struct CompactControlButton: View {
     )
 }
 
+// MARK: - Full Screen View
+
+public struct ShortsRemoteFullScreenView: View {
+    @Bindable var store: StoreOf<ShortsRemoteFeature>
+    @Environment(\.dismiss) private var dismiss
+
+    public init(store: StoreOf<ShortsRemoteFeature>) {
+        self.store = store
+    }
+
+    public var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                // Background
+                Color.black.ignoresSafeArea()
+
+                // Full Screen Swipe Area
+                fullScreenSwipeArea(geometry: geometry)
+
+                // Overlay Controls
+                VStack {
+                    // Top Bar
+                    topBar
+
+                    Spacer()
+
+                    // Bottom Controls
+                    bottomControls
+                }
+                .padding()
+
+                // Side Actions (YouTube Style)
+                sideActions
+                    .padding(.trailing, 16)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+        .statusBarHidden()
+    }
+
+    // MARK: - Top Bar
+
+    private var topBar: some View {
+        HStack {
+            // Platform Indicator
+            HStack(spacing: 8) {
+                Image(systemName: store.selectedPlatform.icon)
+                Text(store.selectedPlatform.rawValue)
+            }
+            .font(.headline)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial)
+            .clipShape(Capsule())
+
+            Spacer()
+
+            // Close Button
+            Button {
+                store.send(.stop)
+                dismiss()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title)
+                    .foregroundStyle(.white.opacity(0.8))
+            }
+        }
+        .padding(.top, 8)
+    }
+
+    // MARK: - Full Screen Swipe Area
+
+    private func fullScreenSwipeArea(geometry: GeometryProxy) -> some View {
+        ZStack {
+            // Swipe detection area
+            Color.clear
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 50)
+                        .onEnded { value in
+                            let verticalMovement = value.translation.height
+                            let horizontalMovement = value.translation.width
+
+                            // Prioritize vertical swipes
+                            if abs(verticalMovement) > abs(horizontalMovement) {
+                                if verticalMovement < -50 {
+                                    // Swipe up -> next video
+                                    HapticManager.shared.mediumImpact()
+                                    store.send(.nextVideo)
+                                } else if verticalMovement > 50 {
+                                    // Swipe down -> previous video
+                                    HapticManager.shared.mediumImpact()
+                                    store.send(.previousVideo)
+                                }
+                            } else {
+                                // Horizontal swipes for seek
+                                if horizontalMovement > 50 {
+                                    HapticManager.shared.lightImpact()
+                                    store.send(.seekForward)
+                                } else if horizontalMovement < -50 {
+                                    HapticManager.shared.lightImpact()
+                                    store.send(.seekBackward)
+                                }
+                            }
+                        }
+                )
+                .onTapGesture {
+                    // Tap to play/pause
+                    HapticManager.shared.lightImpact()
+                    store.send(.togglePlayPause)
+                }
+
+            // Visual Guide
+            VStack(spacing: 24) {
+                // Up indicator
+                VStack(spacing: 8) {
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: 32, weight: .bold))
+                    Text("이전 영상")
+                        .font(.caption)
+                }
+                .foregroundStyle(.white.opacity(0.3))
+
+                Spacer()
+
+                // Center indicator
+                VStack(spacing: 16) {
+                    Image(systemName: store.isPaused ? "play.fill" : "pause.fill")
+                        .font(.system(size: 64))
+                        .foregroundStyle(.white.opacity(0.5))
+
+                    Text("탭하여 \(store.isPaused ? "재생" : "일시정지")")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.4))
+                }
+
+                Spacer()
+
+                // Down indicator
+                VStack(spacing: 8) {
+                    Text("다음 영상")
+                        .font(.caption)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 32, weight: .bold))
+                }
+                .foregroundStyle(.white.opacity(0.3))
+            }
+            .padding(.vertical, 80)
+        }
+    }
+
+    // MARK: - Side Actions (YouTube Style)
+
+    private var sideActions: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            // Like Button
+            SideActionButton(
+                icon: store.isLiked ? "heart.fill" : "heart",
+                label: "좋아요",
+                isActive: store.isLiked,
+                activeColor: .red
+            ) {
+                store.send(.toggleLike)
+            }
+
+            // Mute Button
+            SideActionButton(
+                icon: store.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                label: store.isMuted ? "음소거" : "소리",
+                isActive: store.isMuted,
+                activeColor: .white
+            ) {
+                store.send(.toggleMute)
+            }
+
+            Spacer()
+                .frame(height: 100)
+        }
+    }
+
+    // MARK: - Bottom Controls
+
+    private var bottomControls: some View {
+        HStack(spacing: 32) {
+            // Seek Backward
+            FullScreenControlButton(icon: "gobackward.10") {
+                store.send(.seekBackward)
+            }
+
+            // Play/Pause (Large)
+            FullScreenControlButton(
+                icon: store.isPaused ? "play.fill" : "pause.fill",
+                isLarge: true
+            ) {
+                store.send(.togglePlayPause)
+            }
+
+            // Seek Forward
+            FullScreenControlButton(icon: "goforward.10") {
+                store.send(.seekForward)
+            }
+        }
+        .padding(.bottom, 32)
+    }
+}
+
+// MARK: - Side Action Button
+
+private struct SideActionButton: View {
+    let icon: String
+    let label: String
+    var isActive: Bool = false
+    var activeColor: Color = .white
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            HapticManager.shared.mediumImpact()
+            action()
+        } label: {
+            VStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 28))
+                    .foregroundStyle(isActive ? activeColor : .white)
+
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.8))
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Full Screen Control Button
+
+private struct FullScreenControlButton: View {
+    let icon: String
+    var isLarge: Bool = false
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            HapticManager.shared.lightImpact()
+            action()
+        } label: {
+            Image(systemName: icon)
+                .font(.system(size: isLarge ? 36 : 24))
+                .foregroundStyle(.white)
+                .frame(width: isLarge ? 72 : 56, height: isLarge ? 72 : 56)
+                .background(.ultraThinMaterial)
+                .clipShape(Circle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 #Preview("Section") {
     ShortsRemoteSection(
         store: Store(initialState: ShortsRemoteFeature.State()) {
@@ -497,4 +775,14 @@ struct CompactControlButton: View {
         }
     )
     .padding()
+}
+
+#Preview("Full Screen") {
+    var state = ShortsRemoteFeature.State()
+    state.isActive = true
+    return ShortsRemoteFullScreenView(
+        store: Store(initialState: state) {
+            ShortsRemoteFeature()
+        }
+    )
 }
