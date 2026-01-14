@@ -44,14 +44,18 @@ struct PacketHeaderTests {
         #expect(header == nil)
     }
 
-    @Test("Unsupported version returns nil")
-    func unsupportedVersion() {
+    @Test("Different version is handled gracefully with warning")
+    func differentVersionHandledGracefully() {
         var data = PacketHeader(type: .handshake, payloadLength: 0).toData()
-        // Wrong version
+        // Different version (handled gracefully for backward compatibility)
         data[2] = 0xFF
 
         let header = PacketHeader(data: data)
-        #expect(header == nil)
+        #expect(header != nil)
+        #expect(header?.version == 0xFF)
+        #expect(header?.hasVersionMismatch == true)
+        #expect(header?.isValid == true)  // Still valid (magic is correct)
+        #expect(header?.isExactVersionMatch == false)
     }
 
     @Test("Too short data returns nil")
@@ -65,6 +69,27 @@ struct PacketHeaderTests {
     func headerIsValid() {
         let header = PacketHeader(type: .mouseMove, payloadLength: 0)
         #expect(header.isValid == true)
+        #expect(header.isExactVersionMatch == true)
+        #expect(header.hasVersionMismatch == false)
+    }
+
+    @Test("Decode packet with version mismatch succeeds")
+    func decodePacketWithVersionMismatch() throws {
+        // Create packet with different version
+        var data = PacketHeader(type: .handshake, payloadLength: 0).toData()
+        data[2] = 0x02  // Different version
+
+        // Update payload length to match actual payload
+        let payload = try JSONEncoder().encode(Handshake(deviceName: "Test", deviceID: "123", protocolVersion: 2))
+        var payloadLengthBytes = Data()
+        withUnsafeBytes(of: UInt32(payload.count).littleEndian) { payloadLengthBytes.append(contentsOf: $0) }
+        data.replaceSubrange(12..<16, with: payloadLengthBytes)
+        data.append(payload)
+
+        // Decode should succeed despite version mismatch
+        let decoded = try PacketDecoder.decode(data)
+        #expect(decoded.header.hasVersionMismatch == true)
+        #expect(decoded.header.version == 0x02)
     }
 }
 

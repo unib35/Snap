@@ -1,4 +1,7 @@
 import Foundation
+import OSLog
+
+private let logger = Logger(subsystem: "com.snap.shared", category: "PacketHeader")
 
 /// 패킷 헤더 구조체
 ///
@@ -27,6 +30,9 @@ public struct PacketHeader: Sendable, Equatable {
     /// 페이로드 길이
     public let payloadLength: UInt32
 
+    /// 버전 불일치 여부 (하위 호환성을 위해 처리는 계속하지만 경고 로깅)
+    public let hasVersionMismatch: Bool
+
     // MARK: - Initialization
 
     public init(
@@ -39,9 +45,12 @@ public struct PacketHeader: Sendable, Equatable {
         self.type = type
         self.timestamp = timestamp
         self.payloadLength = payloadLength
+        self.hasVersionMismatch = false
     }
 
     /// 바이트 배열에서 헤더 파싱
+    /// - Parameter data: 헤더 데이터
+    /// - Note: 버전이 다르더라도 파싱을 시도하며, 버전 불일치 시 경고 로깅
     public init?(data: Data) {
         guard data.count >= NetworkConstants.packetHeaderSize else {
             return nil
@@ -54,8 +63,16 @@ public struct PacketHeader: Sendable, Equatable {
         }
 
         let version = data[2]
-        guard version == NetworkConstants.protocolVersion else {
-            return nil
+
+        // 버전 불일치 시 경고 로깅하고 처리 계속 (하위 호환성)
+        if version != NetworkConstants.protocolVersion {
+            logger.warning(
+                """
+                Protocol version mismatch - received: \(version), \
+                expected: \(NetworkConstants.protocolVersion). \
+                Attempting to process packet anyway.
+                """
+            )
         }
 
         guard let type = MessageType(rawValue: data[3]) else {
@@ -70,6 +87,7 @@ public struct PacketHeader: Sendable, Equatable {
         self.type = type
         self.timestamp = timestamp
         self.payloadLength = payloadLength
+        self.hasVersionMismatch = version != NetworkConstants.protocolVersion
     }
 
     // MARK: - Serialization
@@ -98,9 +116,13 @@ public struct PacketHeader: Sendable, Equatable {
 
     // MARK: - Validation
 
-    /// 헤더 유효성 검사
+    /// 헤더 유효성 검사 (매직 넘버만 확인, 버전은 하위 호환성을 위해 무시)
     public var isValid: Bool {
-        magic == NetworkConstants.packetMagic &&
+        magic == NetworkConstants.packetMagic
+    }
+
+    /// 버전이 정확히 일치하는지 확인
+    public var isExactVersionMatch: Bool {
         version == NetworkConstants.protocolVersion
     }
 }
