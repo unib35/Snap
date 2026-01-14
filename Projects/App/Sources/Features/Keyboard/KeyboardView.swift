@@ -36,7 +36,7 @@ public struct KeyboardView: View {
 
     private var textInputArea: some View {
         HStack(spacing: 16) {
-            TextField("Type here...", text: $store.inputText.sending(\.textChanged))
+            TextField(String(localized: "keyboard.placeholder"), text: $store.inputText.sending(\.textChanged))
                 .textFieldStyle(.plain)
                 .font(.body)
                 .padding()
@@ -48,8 +48,8 @@ public struct KeyboardView: View {
                 )
                 .foregroundStyle(SnapColors.label)
                 .focused($isTextFieldFocused)
-                .accessibilityLabel("텍스트 입력")
-                .accessibilityHint("Mac으로 보낼 텍스트를 입력하세요")
+                .accessibilityLabel(String(localized: "keyboard.textInput"))
+                .accessibilityHint(String(localized: "keyboard.textInputHint"))
 
             Button {
                 store.send(.clearText)
@@ -59,7 +59,7 @@ public struct KeyboardView: View {
                     .foregroundStyle(SnapColors.tertiaryLabel)
             }
             .opacity(store.inputText.isEmpty ? 0 : 1)
-            .accessibilityLabel("텍스트 지우기")
+            .accessibilityLabel(String(localized: "keyboard.clearText"))
         }
     }
 
@@ -152,7 +152,7 @@ public struct KeyboardView: View {
                     )
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("스페이스 키")
+            .accessibilityLabel(String(localized: "keyboard.spaceKey"))
         }
     }
 
@@ -235,9 +235,9 @@ struct ModifierKeyButton: View {
                     onDoubleTap()
                 }
         )
-        .accessibilityLabel("\(label) 키")
-        .accessibilityValue(isLocked ? "잠김" : (isActive ? "활성화" : "비활성화"))
-        .accessibilityHint("탭하여 토글, 더블탭하여 잠금")
+        .accessibilityLabel(String(localized: "keyboard.key \(label)"))
+        .accessibilityValue(isLocked ? String(localized: "keyboard.locked") : (isActive ? String(localized: "keyboard.active") : String(localized: "keyboard.inactive")))
+        .accessibilityHint(String(localized: "keyboard.toggleHint"))
     }
 
     private var foregroundColor: Color {
@@ -293,7 +293,7 @@ struct SpecialKeyButton: View {
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(label) 키")
+        .accessibilityLabel(String(localized: "keyboard.key \(label)"))
         .pressEvents {
             withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
                 isPressed = true
@@ -325,10 +325,10 @@ struct ArrowKeyButton: View {
 
     private var accessibilityLabel: String {
         switch direction {
-        case .up: return "위쪽 화살표"
-        case .down: return "아래쪽 화살표"
-        case .left: return "왼쪽 화살표"
-        case .right: return "오른쪽 화살표"
+        case .up: return String(localized: "arrow.up")
+        case .down: return String(localized: "arrow.down")
+        case .left: return String(localized: "arrow.left")
+        case .right: return String(localized: "arrow.right")
         }
     }
 

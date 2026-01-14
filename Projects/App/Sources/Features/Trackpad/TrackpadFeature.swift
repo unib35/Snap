@@ -25,8 +25,8 @@ public struct TrackpadFeature {
 
         public var title: String {
             switch self {
-            case .trackpad: return "Trackpad"
-            case .laser: return "Laser"
+            case .trackpad: return String(localized: "mode.trackpad")
+            case .laser: return String(localized: "mode.laser")
             }
         }
     }

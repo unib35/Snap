@@ -18,15 +18,15 @@ public struct AppView: View {
     private var connectionAccessibilityLabel: String {
         switch store.connection.status {
         case .disconnected:
-            return "연결 끊김"
+            return String(localized: "connection.disconnected")
         case .discovering:
-            return "기기 검색 중"
+            return String(localized: "connection.discovering")
         case .connecting(let device):
-            return "\(device.name)에 연결 중"
+            return String(localized: "connection.connecting \(device.name)")
         case .connected(let device):
-            return "\(device.name)에 연결됨"
+            return String(localized: "connection.connected \(device.name)")
         case .reconnecting(_, let attempt):
-            return "재연결 시도 중 (\(attempt)회)"
+            return String(localized: "connection.reconnecting \(attempt)")
         }
     }
 
@@ -92,7 +92,7 @@ public struct AppView: View {
                         connectionIcon
                     }
                     .accessibilityLabel(connectionAccessibilityLabel)
-                    .accessibilityHint("탭하여 연결 설정을 엽니다")
+                    .accessibilityHint(String(localized: "connection.hint"))
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
@@ -105,7 +105,7 @@ public struct AppView: View {
                         Image(systemName: "gearshape")
                             .foregroundStyle(SnapColors.textSecondary)
                     }
-                    .accessibilityLabel("설정")
+                    .accessibilityLabel(String(localized: "settings"))
                 }
             }
             .toolbarBackground(SnapColors.background, for: .navigationBar)
@@ -214,17 +214,17 @@ struct ConnectionStatusBar: View {
     private var accessibilityLabel: String {
         var label = statusMessage
         if status.isConnected {
-            label += ", 신호 강도: \(signalStrengthLabel)"
+            label += String(localized: "signal.label \(signalStrengthLabel)")
         }
         return label
     }
 
     private var signalStrengthLabel: String {
         switch signalStrength {
-        case .strong: return "강함"
-        case .moderate: return "보통"
-        case .weak: return "약함"
-        case .unknown: return "알 수 없음"
+        case .strong: return String(localized: "signal.strong")
+        case .moderate: return String(localized: "signal.moderate")
+        case .weak: return String(localized: "signal.weak")
+        case .unknown: return String(localized: "signal.unknown")
         }
     }
 
@@ -259,15 +259,15 @@ struct ConnectionStatusBar: View {
     private var statusMessage: String {
         switch status {
         case .disconnected:
-            "연결 안됨"
+            String(localized: "status.notConnected")
         case .discovering:
-            "검색 중..."
+            String(localized: "status.searching")
         case .connecting(let device):
-            "\(device.name)에 연결 중..."
+            String(localized: "status.connectingTo \(device.name)")
         case .connected(let device):
-            "\(device.name)에 연결됨"
+            String(localized: "status.connectedTo \(device.name)")
         case .reconnecting(_, let attempt):
-            "재연결 중... (\(attempt)/3)"
+            String(localized: "status.reconnecting \(attempt)")
         }
     }
 
@@ -373,11 +373,11 @@ struct ConnectionSheetView: View {
                 .glowAnimation(color: SnapColors.cyberBlue, isActive: true)
 
                 VStack(spacing: SnapSpacing.sm) {
-                    Text("Mac에 연결")
+                    Text("connection.connectToMac")
                         .font(SnapTypography.headlineLarge)
                         .foregroundStyle(SnapColors.textPrimary)
 
-                    Text("Mac에서 Snap Receiver가 실행 중인지 확인하세요")
+                    Text("connection.ensureReceiverRunning")
                         .font(SnapTypography.bodyMedium)
                         .foregroundStyle(SnapColors.textSecondary)
                         .multilineTextAlignment(.center)
@@ -389,7 +389,7 @@ struct ConnectionSheetView: View {
                     ProgressView()
                         .tint(SnapColors.cyberBlue)
 
-                    Text("기기 검색 중...")
+                    Text("connection.searchingDevices")
                         .font(SnapTypography.labelMedium)
                         .foregroundStyle(SnapColors.textTertiary)
                 }
@@ -398,17 +398,19 @@ struct ConnectionSheetView: View {
             }
             .padding(SnapSpacing.xl)
             .background(SnapColors.background)
-            .navigationTitle("연결")
+            .navigationTitle(Text("connection.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(SnapColors.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("완료") {
+                    Button {
                         Task { @MainActor in
                             HapticManager.shared.buttonTap()
                         }
                         onDismiss()
+                    } label: {
+                        Text("done")
                     }
                     .foregroundStyle(SnapColors.cyberBlue)
                 }
@@ -447,11 +449,11 @@ struct PairingPinView: View {
 
                 // Title
                 VStack(spacing: SnapSpacing.sm) {
-                    Text("PIN 코드 입력")
+                    Text("pairing.enterPin")
                         .font(SnapTypography.headlineLarge)
                         .foregroundStyle(SnapColors.textPrimary)
 
-                    Text("\(serverName)에 표시된\n4자리 PIN을 입력하세요")
+                    Text("pairing.enterPinDescription \(serverName)")
                         .font(SnapTypography.bodyMedium)
                         .foregroundStyle(SnapColors.textSecondary)
                         .multilineTextAlignment(.center)
@@ -502,7 +504,7 @@ struct PairingPinView: View {
                     }
                     onSubmit()
                 } label: {
-                    Text("연결")
+                    Text("pairing.connect")
                         .font(SnapTypography.labelLarge)
                         .foregroundStyle(SnapColors.background)
                         .frame(maxWidth: .infinity)
@@ -518,17 +520,19 @@ struct PairingPinView: View {
             }
             .padding(SnapSpacing.xl)
             .background(SnapColors.background)
-            .navigationTitle("페어링")
+            .navigationTitle(Text("pairing.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(SnapColors.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("취소") {
+                    Button {
                         Task { @MainActor in
                             HapticManager.shared.buttonTap()
                         }
                         onCancel()
+                    } label: {
+                        Text("cancel")
                     }
                     .foregroundStyle(SnapColors.neonRed)
                 }

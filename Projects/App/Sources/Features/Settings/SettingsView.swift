@@ -28,12 +28,14 @@ public struct SettingsView: View {
                 // Reset Section
                 resetSection
             }
-            .navigationTitle("설정")
+            .navigationTitle(Text("settings"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("완료") {
+                    Button {
                         onDismiss()
+                    } label: {
+                        Text("done")
                     }
                 }
             }
@@ -50,7 +52,7 @@ public struct SettingsView: View {
         Section {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("트랙패드 감도")
+                    Text("settings.trackpadSensitivity")
                     Spacer()
                     Text(String(format: "%.1f", store.trackpadSensitivity))
                         .foregroundStyle(SnapColors.textSecondary)
@@ -63,12 +65,12 @@ public struct SettingsView: View {
                 )
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("트랙패드 감도")
+            .accessibilityLabel(String(localized: "settings.trackpadSensitivity"))
             .accessibilityValue(String(format: "%.1f", store.trackpadSensitivity))
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("스크롤 감도")
+                    Text("settings.scrollSensitivity")
                     Spacer()
                     Text(String(format: "%.1f", store.scrollSensitivity))
                         .foregroundStyle(SnapColors.textSecondary)
@@ -81,12 +83,12 @@ public struct SettingsView: View {
                 )
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("스크롤 감도")
+            .accessibilityLabel(String(localized: "settings.scrollSensitivity"))
             .accessibilityValue(String(format: "%.1f", store.scrollSensitivity))
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("레이저 포인터 감도")
+                    Text("settings.laserSensitivity")
                     Spacer()
                     Text(String(format: "%.1f", store.laserSensitivity))
                         .foregroundStyle(SnapColors.textSecondary)
@@ -99,10 +101,10 @@ public struct SettingsView: View {
                 )
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("레이저 포인터 감도")
+            .accessibilityLabel(String(localized: "settings.laserSensitivity"))
             .accessibilityValue(String(format: "%.1f", store.laserSensitivity))
         } header: {
-            Text("감도")
+            Text("settings.sensitivity")
         }
     }
 
@@ -111,17 +113,17 @@ public struct SettingsView: View {
     @ViewBuilder
     private var trackpadOptionsSection: some View {
         Section {
-            Toggle("자연스러운 스크롤", isOn: Binding(
+            Toggle(String(localized: "settings.naturalScrolling"), isOn: Binding(
                 get: { store.isNaturalScrolling },
                 set: { _ in store.send(.toggleNaturalScrolling) }
             ))
 
-            Toggle("탭하여 클릭", isOn: Binding(
+            Toggle(String(localized: "settings.tapToClick"), isOn: Binding(
                 get: { store.isTapToClick },
                 set: { _ in store.send(.toggleTapToClick) }
             ))
         } header: {
-            Text("트랙패드")
+            Text("settings.trackpad")
         }
     }
 
@@ -130,7 +132,7 @@ public struct SettingsView: View {
     @ViewBuilder
     private var hapticSection: some View {
         Section {
-            Picker("햅틱 강도", selection: Binding(
+            Picker(String(localized: "settings.hapticIntensity"), selection: Binding(
                 get: { store.hapticIntensity },
                 set: { store.send(.setHapticIntensity($0)) }
             )) {
@@ -140,9 +142,9 @@ public struct SettingsView: View {
             }
             .pickerStyle(.segmented)
         } header: {
-            Text("햅틱 피드백")
+            Text("settings.hapticFeedback")
         } footer: {
-            Text("터치 시 진동 피드백의 강도를 설정합니다.")
+            Text("settings.hapticFooter")
         }
     }
 
@@ -168,7 +170,7 @@ public struct SettingsView: View {
             }
             .padding(.vertical, 8)
         } header: {
-            Text("테마 색상")
+            Text("settings.themeColor")
         }
     }
 
@@ -182,7 +184,7 @@ public struct SettingsView: View {
             } label: {
                 HStack {
                     Spacer()
-                    Text("기본값으로 재설정")
+                    Text("settings.resetToDefaults")
                     Spacer()
                 }
             }

@@ -29,10 +29,10 @@ public struct AppFeature {
 
         public var title: String {
             switch self {
-            case .trackpad: return "Trackpad"
-            case .keyboard: return "Keyboard"
-            case .media: return "Media"
-            case .productivity: return "More"
+            case .trackpad: return String(localized: "tab.trackpad")
+            case .keyboard: return String(localized: "tab.keyboard")
+            case .media: return String(localized: "tab.media")
+            case .productivity: return String(localized: "tab.more")
             }
         }
 
