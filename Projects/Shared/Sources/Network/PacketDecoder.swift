@@ -1,10 +1,13 @@
 import Foundation
+import OSLog
+
+private let logger = Logger(subsystem: "com.snap.shared", category: "PacketDecoder")
 
 /// 디코딩 에러
 public enum PacketDecodingError: Error, Sendable {
     case invalidHeader
     case invalidMagic
-    case unsupportedVersion
+    case unsupportedVersion(received: UInt8, expected: UInt8)
     case unknownMessageType
     case payloadTooShort
     case decodingFailed(Error)
@@ -112,10 +115,26 @@ public enum PacketDecoder {
     private static let decoder = JSONDecoder()
 
     /// 데이터에서 패킷 디코딩
+    /// - Parameter data: 패킷 데이터
+    /// - Returns: 디코딩된 패킷
+    /// - Throws: PacketDecodingError
+    /// - Note: 버전 불일치 시 경고 로깅 후 처리를 계속합니다 (하위 호환성)
     public static func decode(_ data: Data) throws -> DecodedPacket {
         // 헤더 파싱
         guard let header = PacketHeader(data: data) else {
             throw PacketDecodingError.invalidHeader
+        }
+
+        // 버전 불일치 경고 로깅 (처리는 계속)
+        if header.hasVersionMismatch {
+            logger.warning(
+                """
+                Decoding packet with version mismatch - \
+                received: \(header.version), \
+                expected: \(NetworkConstants.protocolVersion). \
+                Message type: \(String(describing: header.type))
+                """
+            )
         }
 
         // 페이로드 추출
@@ -220,5 +239,23 @@ public enum PacketDecoder {
     /// 헤더만 파싱 (페이로드 길이 확인용)
     public static func parseHeader(_ data: Data) -> PacketHeader? {
         PacketHeader(data: data)
+    }
+
+    /// 버전 호환성 확인
+    /// - Parameter version: 확인할 프로토콜 버전
+    /// - Returns: 호환 가능 여부
+    /// - Note: 현재 구현에서는 모든 버전을 허용하고 경고만 로깅합니다
+    public static func isVersionCompatible(_ version: UInt8) -> Bool {
+        if version != NetworkConstants.protocolVersion {
+            logger.info(
+                """
+                Version compatibility check - \
+                received: \(version), \
+                current: \(NetworkConstants.protocolVersion). \
+                Allowing for backward compatibility.
+                """
+            )
+        }
+        return true  // 하위 호환성을 위해 모든 버전 허용
     }
 }
