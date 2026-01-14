@@ -12,9 +12,11 @@ public struct AppFeature {
         public var productivity: ProductivityFeature.State = .init()
         public var selectedTab: Tab = .trackpad
         public var isOnboarded: Bool = false
+        public var isOnboardingPresented: Bool = false
         public var isConnectionSheetPresented: Bool = false
         public var isSettingsPresented: Bool = false
         public var settings: SettingsFeature.State = .init()
+        public var onboarding: OnboardingFeature.State = .init()
 
         public init() {}
     }
@@ -51,8 +53,13 @@ public struct AppFeature {
         case media(MediaFeature.Action)
         case productivity(ProductivityFeature.Action)
         case settings(SettingsFeature.Action)
+        case onboarding(OnboardingFeature.Action)
         case tabSelected(Tab)
         case onAppear
+        case checkOnboardingStatus
+        case showOnboarding
+        case hideOnboarding
+        case completeOnboarding
         case scenePhaseChanged(ScenePhase)
         case showConnectionSheet
         case hideConnectionSheet
@@ -60,6 +67,8 @@ public struct AppFeature {
         case hideSettings
         case handleURL(URL)
     }
+
+    @Dependency(\.onboardingClient) var onboardingClient
 
     public init() {}
 
@@ -88,11 +97,45 @@ public struct AppFeature {
             SettingsFeature()
         }
 
+        Scope(state: \.onboarding, action: \.onboarding) {
+            OnboardingFeature()
+        }
+
         Reduce { state, action in
             switch action {
             case .onAppear:
-                // 앱 시작 시 자동으로 디바이스 검색 시작
-                return .send(.connection(.startDiscovery))
+                // 온보딩 상태 확인 후 디바이스 검색 시작
+                return .merge(
+                    .send(.checkOnboardingStatus),
+                    .send(.connection(.startDiscovery))
+                )
+
+            case .checkOnboardingStatus:
+                let hasCompleted = onboardingClient.hasCompletedOnboarding()
+                state.isOnboarded = hasCompleted
+                if !hasCompleted {
+                    state.isOnboardingPresented = true
+                }
+                return .none
+
+            case .showOnboarding:
+                state.isOnboardingPresented = true
+                return .none
+
+            case .hideOnboarding:
+                state.isOnboardingPresented = false
+                return .none
+
+            case .completeOnboarding:
+                state.isOnboarded = true
+                state.isOnboardingPresented = false
+                return .none
+
+            case .onboarding(.completeOnboarding):
+                return .send(.completeOnboarding)
+
+            case .onboarding:
+                return .none
 
             case .scenePhaseChanged(let phase):
                 switch phase {

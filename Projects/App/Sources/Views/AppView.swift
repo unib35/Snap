@@ -148,6 +148,18 @@ public struct AppView: View {
                 onCancel: { store.send(.connection(.cancelPairing)) }
             )
         }
+        .fullScreenCover(
+            isPresented: Binding(
+                get: { store.isOnboardingPresented },
+                set: { if !$0 { store.send(.hideOnboarding) } }
+            )
+        ) {
+            OnboardingView(
+                store: store.scope(state: \.onboarding, action: \.onboarding)
+            ) {
+                store.send(.completeOnboarding)
+            }
+        }
         .onAppear {
             store.send(.onAppear)
             store.send(.settings(.onAppear))
