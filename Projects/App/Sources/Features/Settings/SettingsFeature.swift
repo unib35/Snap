@@ -67,10 +67,10 @@ public enum HapticIntensity: Int, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .off: return "끔"
-        case .light: return "약하게"
-        case .medium: return "보통"
-        case .strong: return "강하게"
+        case .off: return String(localized: "haptic.off")
+        case .light: return String(localized: "haptic.light")
+        case .medium: return String(localized: "haptic.medium")
+        case .strong: return String(localized: "haptic.strong")
         }
     }
 }
@@ -100,14 +100,14 @@ public enum AccentColor: Int, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .blue: return "파랑"
-        case .purple: return "보라"
-        case .pink: return "분홍"
-        case .red: return "빨강"
-        case .orange: return "주황"
-        case .yellow: return "노랑"
-        case .green: return "초록"
-        case .teal: return "청록"
+        case .blue: return String(localized: "color.blue")
+        case .purple: return String(localized: "color.purple")
+        case .pink: return String(localized: "color.pink")
+        case .red: return String(localized: "color.red")
+        case .orange: return String(localized: "color.orange")
+        case .yellow: return String(localized: "color.yellow")
+        case .green: return String(localized: "color.green")
+        case .teal: return String(localized: "color.teal")
         }
     }
 }
