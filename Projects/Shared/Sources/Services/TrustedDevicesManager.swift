@@ -24,14 +24,14 @@ public final class TrustedDevicesManager: @unchecked Sendable {
 
     // MARK: - Private Properties
 
-    private let userDefaults: UserDefaults
+    private let persistence: PersistenceManager
     private let trustedDevicesKey = "com.snap.trustedDevices"
     private let queue = DispatchQueue(label: "com.snap.trustedDevices", attributes: .concurrent)
 
     // MARK: - Initialization
 
-    public init(userDefaults: UserDefaults = .standard) {
-        self.userDefaults = userDefaults
+    public init(persistence: PersistenceManager = UserDefaultsPersistence.shared) {
+        self.persistence = persistence
     }
 
     // MARK: - Public Methods
@@ -100,24 +100,11 @@ public final class TrustedDevicesManager: @unchecked Sendable {
     // MARK: - Private Methods
 
     private func loadTrustedDevices() -> [TrustedDevice] {
-        guard let data = userDefaults.data(forKey: trustedDevicesKey) else {
-            return []
-        }
-
-        do {
-            return try JSONDecoder().decode([TrustedDevice].self, from: data)
-        } catch {
-            return []
-        }
+        persistence.load(forKey: trustedDevicesKey, default: [])
     }
 
     private func saveTrustedDevices(_ devices: [TrustedDevice]) {
-        do {
-            let data = try JSONEncoder().encode(devices)
-            userDefaults.set(data, forKey: trustedDevicesKey)
-        } catch {
-            // Silently fail
-        }
+        persistence.save(devices, forKey: trustedDevicesKey)
     }
 }
 

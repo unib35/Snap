@@ -19,19 +19,14 @@ public struct MacroFeature {
         // MARK: - Persistence
 
         private static let macrosKey = "snap.macros"
+        private static let persistence: PersistenceManager = UserDefaultsPersistence.shared
 
         static func loadMacros() -> [Macro] {
-            guard let data = UserDefaults.standard.data(forKey: macrosKey),
-                  let macros = try? JSONDecoder().decode([Macro].self, from: data) else {
-                return Macro.defaults
-            }
-            return macros
+            persistence.load(forKey: macrosKey, default: Macro.defaults)
         }
 
         mutating func saveMacros() {
-            if let data = try? JSONEncoder().encode(macros) {
-                UserDefaults.standard.set(data, forKey: Self.macrosKey)
-            }
+            Self.persistence.save(macros, forKey: Self.macrosKey)
         }
     }
 
