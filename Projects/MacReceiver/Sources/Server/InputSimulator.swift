@@ -162,26 +162,15 @@ public final class InputSimulator: @unchecked Sendable {
             return
         }
 
-        event.flags = cgEventFlags(from: modifiers)
+        let flags = ModifierFlags(rawValue: modifiers)
+        event.flags = flags.cgEventFlags
         event.post(tap: .cghidEventTap)
     }
 
     private func setModifiers(_ modifiers: UInt32, keyDown: Bool) {
-        // Shift
-        if modifiers & 0x01 != 0 {
-            postKeyEvent(keyCode: 56, keyDown: keyDown, modifiers: modifiers) // kVK_Shift
-        }
-        // Control
-        if modifiers & 0x02 != 0 {
-            postKeyEvent(keyCode: 59, keyDown: keyDown, modifiers: modifiers) // kVK_Control
-        }
-        // Option
-        if modifiers & 0x04 != 0 {
-            postKeyEvent(keyCode: 58, keyDown: keyDown, modifiers: modifiers) // kVK_Option
-        }
-        // Command
-        if modifiers & 0x08 != 0 {
-            postKeyEvent(keyCode: 55, keyDown: keyDown, modifiers: modifiers) // kVK_Command
+        let flags = ModifierFlags(rawValue: modifiers)
+        for keyCode in flags.virtualKeyCodes {
+            postKeyEvent(keyCode: CGKeyCode(keyCode), keyDown: keyDown, modifiers: modifiers)
         }
     }
 
@@ -207,18 +196,5 @@ public final class InputSimulator: @unchecked Sendable {
         case .right: return .rightMouseUp
         case .middle: return .otherMouseUp
         }
-    }
-
-    private func cgEventFlags(from modifiers: UInt32) -> CGEventFlags {
-        var flags = CGEventFlags()
-
-        if modifiers & 0x01 != 0 { flags.insert(.maskShift) }
-        if modifiers & 0x02 != 0 { flags.insert(.maskControl) }
-        if modifiers & 0x04 != 0 { flags.insert(.maskAlternate) }
-        if modifiers & 0x08 != 0 { flags.insert(.maskCommand) }
-        if modifiers & 0x10 != 0 { flags.insert(.maskAlphaShift) }
-        if modifiers & 0x20 != 0 { flags.insert(.maskSecondaryFn) }
-
-        return flags
     }
 }
