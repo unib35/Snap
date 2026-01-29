@@ -65,6 +65,7 @@ let project = Project(
                 "NSBonjourServices": ["_snap._tcp.", "_snap._udp."],
                 "NSSpeechRecognitionUsageDescription": "Snap uses speech recognition for voice typing.",
                 "NSMicrophoneUsageDescription": "Snap uses microphone for voice typing.",
+                "NSSupportsLiveActivities": true,
                 "CFBundleURLTypes": [
                     [
                         "CFBundleURLName": "com.snap.app",
@@ -102,6 +103,7 @@ let project = Project(
                 "NSExtension": [
                     "NSExtensionPointIdentifier": "com.apple.widgetkit-extension",
                 ],
+                "NSSupportsLiveActivities": true,
             ]),
             sources: ["Projects/Widget/Sources/**"],
             dependencies: [

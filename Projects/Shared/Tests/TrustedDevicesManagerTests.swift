@@ -67,7 +67,8 @@ struct TrustedDevicesManagerTests {
         let suiteName = "com.snap.test.\(UUID().uuidString)"
         // swiftlint:disable:next force_unwrapping
         let testDefaults = UserDefaults(suiteName: suiteName)!
-        return TrustedDevicesManager(userDefaults: testDefaults)
+        let persistence = UserDefaultsPersistence(userDefaults: testDefaults)
+        return TrustedDevicesManager(persistence: persistence)
     }
 
     /// Waits for async barrier operations to complete
@@ -228,14 +229,15 @@ struct TrustedDevicesManagerTests {
         let suiteName = "com.snap.test.persistence.\(UUID().uuidString)"
         // swiftlint:disable:next force_unwrapping
         let testDefaults = UserDefaults(suiteName: suiteName)!
+        let persistence = UserDefaultsPersistence(userDefaults: testDefaults)
 
         // First manager instance
-        let manager1 = TrustedDevicesManager(userDefaults: testDefaults)
+        let manager1 = TrustedDevicesManager(persistence: persistence)
         manager1.addTrustedDevice(deviceID: "persistent-device", deviceName: "Persistent")
         waitForBarrier()
 
-        // Second manager instance with same UserDefaults
-        let manager2 = TrustedDevicesManager(userDefaults: testDefaults)
+        // Second manager instance with same persistence
+        let manager2 = TrustedDevicesManager(persistence: persistence)
 
         #expect(manager2.trustedDevices.count == 1)
         #expect(manager2.isTrusted(deviceID: "persistent-device") == true)

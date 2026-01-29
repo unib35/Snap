@@ -47,4 +47,25 @@ enum WidgetDataManager {
             userDefaults?.set(data, forKey: macrosKey)
         }
     }
+
+    // MARK: - Now Playing
+
+    private static let nowPlayingKey = "widget.nowPlaying"
+
+    static func loadNowPlaying() -> WidgetNowPlaying? {
+        guard let data = userDefaults?.data(forKey: nowPlayingKey),
+              let nowPlaying = try? JSONDecoder().decode(WidgetNowPlaying.self, from: data) else {
+            return nil
+        }
+        return nowPlaying
+    }
+
+    static func saveNowPlaying(_ nowPlaying: WidgetNowPlaying?) {
+        if let nowPlaying = nowPlaying,
+           let data = try? JSONEncoder().encode(nowPlaying) {
+            userDefaults?.set(data, forKey: nowPlayingKey)
+        } else {
+            userDefaults?.removeObject(forKey: nowPlayingKey)
+        }
+    }
 }
