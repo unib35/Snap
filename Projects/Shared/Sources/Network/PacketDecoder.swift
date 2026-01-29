@@ -3,17 +3,58 @@ import OSLog
 
 private let logger = Logger(subsystem: "com.snap.shared", category: "PacketDecoder")
 
-/// 디코딩 에러
+// MARK: - PacketDecodingError
+
+/// 패킷 디코딩 중 발생할 수 있는 에러.
+///
+/// - SeeAlso: ``PacketDecoder``
 public enum PacketDecodingError: Error, Sendable {
+    /// 패킷 헤더가 유효하지 않음 (크기 부족 또는 형식 오류)
     case invalidHeader
+
+    /// 매직 넘버가 일치하지 않음 (Snap 프로토콜이 아님)
     case invalidMagic
+
+    /// 지원하지 않는 프로토콜 버전
+    /// - Parameters:
+    ///   - received: 수신된 버전
+    ///   - expected: 예상 버전
     case unsupportedVersion(received: UInt8, expected: UInt8)
+
+    /// 알 수 없는 메시지 타입
     case unknownMessageType
+
+    /// 페이로드 데이터가 헤더에 명시된 길이보다 짧음
     case payloadTooShort
+
+    /// JSON 디코딩 실패
+    /// - Parameter error: 원본 디코딩 에러
     case decodingFailed(Error)
 }
 
-/// 디코딩된 패킷
+// MARK: - DecodedPacket
+
+/// 디코딩된 Snap 프로토콜 패킷.
+///
+/// 수신된 네트워크 데이터를 디코딩한 결과로, 메시지 타입에 따라 연관된 데이터와 헤더를 포함합니다.
+///
+/// ## 메시지 카테고리
+/// - **UDP 메시지**: 마우스 이동, 스크롤, 자이로 데이터 등 (저지연, 손실 허용)
+/// - **TCP 메시지**: 키보드 입력, 미디어 컨트롤 등 (신뢰성 보장)
+/// - **시스템 메시지**: 핸드셰이크, 하트비트, 페어링 등
+///
+/// ## 사용 예제
+/// ```swift
+/// let packet = try PacketDecoder.decode(data)
+/// switch packet {
+/// case .mouseMove(let move, _):
+///     handleMouseMove(move.deltaX, move.deltaY)
+/// case .keyEvent(let event, _):
+///     handleKeyEvent(event)
+/// default:
+///     break
+/// }
+/// ```
 public enum DecodedPacket: Sendable {
     // UDP Messages
     case mouseMove(MouseMove, header: PacketHeader)
@@ -32,6 +73,8 @@ public enum DecodedPacket: Sendable {
     case appListResponse(AppListResponse, header: PacketHeader)
     case appFocus(AppFocus, header: PacketHeader)
     case openURL(OpenURL, header: PacketHeader)
+    case systemCommand(SystemCommand, header: PacketHeader)
+    case shortsCommand(ShortsCommand, header: PacketHeader)
     case presentation(Presentation, header: PacketHeader)
     case voiceText(VoiceText, header: PacketHeader)
     case siriCommand(SiriCommand, header: PacketHeader)
@@ -63,6 +106,8 @@ public enum DecodedPacket: Sendable {
         case .appListResponse: return .appListResponse
         case .appFocus: return .appFocus
         case .openURL: return .openURL
+        case .systemCommand: return .systemCommand
+        case .shortsCommand: return .shortsCommand
         case .presentation: return .presentation
         case .voiceText: return .voiceText
         case .siriCommand: return .siriCommand
@@ -94,6 +139,8 @@ public enum DecodedPacket: Sendable {
              .appListResponse(_, let header),
              .appFocus(_, let header),
              .openURL(_, let header),
+             .systemCommand(_, let header),
+             .shortsCommand(_, let header),
              .presentation(_, let header),
              .voiceText(_, let header),
              .siriCommand(_, let header),
@@ -110,14 +157,52 @@ public enum DecodedPacket: Sendable {
     }
 }
 
-/// 패킷 디코더
+// MARK: - PacketDecoder
+
+/// Snap 프로토콜 패킷을 디코딩하는 유틸리티.
+///
+/// `PacketDecoder`는 네트워크에서 수신한 바이너리 데이터를 파싱하여
+/// 타입 안전한 Swift 객체로 변환합니다.
+///
+/// ## 패킷 구조
+/// ```
+/// +----------------+------------------+
+/// | Header (5B)    | Payload (N Bytes)|
+/// +----------------+------------------+
+/// | Type (1B)      |                  |
+/// | Length (4B)    | JSON Encoded     |
+/// +----------------+------------------+
+/// ```
+///
+/// ## 사용 예제
+/// ```swift
+/// // 전체 패킷 디코딩
+/// do {
+///     let packet = try PacketDecoder.decode(receivedData)
+///     print("수신된 메시지 타입: \(packet.messageType)")
+/// } catch PacketDecodingError.invalidHeader {
+///     print("잘못된 헤더")
+/// } catch PacketDecodingError.payloadTooShort {
+///     print("불완전한 패킷")
+/// }
+///
+/// // 헤더만 파싱 (스트리밍 수신 시)
+/// if let header = PacketDecoder.parseHeader(partialData) {
+///     let totalLength = NetworkConstants.packetHeaderSize + Int(header.payloadLength)
+///     // totalLength만큼 데이터가 수신될 때까지 대기
+/// }
+/// ```
+///
+/// - Note: 프로토콜 버전이 다르더라도 하위 호환성을 위해 디코딩을 시도합니다.
+/// - SeeAlso: ``PacketEncoder``, ``DecodedPacket``, ``PacketHeader``
 public enum PacketDecoder {
     private static let decoder = JSONDecoder()
 
-    /// 데이터에서 패킷 디코딩
-    /// - Parameter data: 패킷 데이터
+    /// 바이너리 데이터에서 패킷을 디코딩합니다.
+    ///
+    /// - Parameter data: 수신된 패킷 데이터 (헤더 + 페이로드)
     /// - Returns: 디코딩된 패킷
-    /// - Throws: PacketDecodingError
+    /// - Throws: ``PacketDecodingError``
     /// - Note: 버전 불일치 시 경고 로깅 후 처리를 계속합니다 (하위 호환성)
     public static func decode(_ data: Data) throws -> DecodedPacket {
         // 헤더 파싱
@@ -195,6 +280,12 @@ public enum PacketDecoder {
             case .openURL:
                 let message = try decoder.decode(OpenURL.self, from: payload)
                 return .openURL(message, header: header)
+            case .systemCommand:
+                let message = try decoder.decode(SystemCommand.self, from: payload)
+                return .systemCommand(message, header: header)
+            case .shortsCommand:
+                let message = try decoder.decode(ShortsCommand.self, from: payload)
+                return .shortsCommand(message, header: header)
             case .presentation:
                 let message = try decoder.decode(Presentation.self, from: payload)
                 return .presentation(message, header: header)

@@ -1,8 +1,35 @@
 import SwiftUI
 
-// MARK: - Snap Design System Colors
+// MARK: - SnapColors
 
-/// Deep Dark Mode 컬러 시스템 (OLED 최적화)
+/// Snap 앱의 색상 시스템.
+///
+/// `SnapColors`는 OLED 디스플레이에 최적화된 딥 다크 모드 컬러 팔레트를 제공합니다.
+/// 모든 색상은 정적 프로퍼티로 제공되어 일관된 시각적 경험을 보장합니다.
+///
+/// ## 색상 카테고리
+/// - **배경색**: 계층 구조를 표현하는 4단계 배경색
+/// - **네온 액센트**: 강렬한 시각적 강조를 위한 네온 색상
+/// - **텍스트**: 가독성을 고려한 4단계 텍스트 색상
+/// - **시스템 별칭**: SwiftUI 시스템 색상의 다크 모드 대체
+/// - **상태 색상**: 연결 상태, 녹음 상태 등 시맨틱 색상
+///
+/// ## 사용 예제
+/// ```swift
+/// Text("Hello")
+///     .foregroundStyle(SnapColors.textPrimary)
+///     .background(SnapColors.backgroundElevated)
+///
+/// Circle()
+///     .fill(SnapColors.statusConnected)
+/// ```
+///
+/// ## OLED 최적화
+/// 배경색은 순수 검정(#000000)부터 시작하여 OLED 디스플레이에서
+/// 완벽한 블랙을 표현하고 배터리 효율을 높입니다.
+///
+/// - Note: 모든 색상은 다크 모드 전용으로 설계되었습니다.
+/// - SeeAlso: ``SnapTypography``, ``SnapSpacing``
 public enum SnapColors {
     // MARK: - Background Colors (Deep Dark)
 

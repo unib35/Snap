@@ -1,8 +1,27 @@
 import Foundation
 
-// MARK: - Modifier Flags
+// MARK: - ModifierFlags
 
-/// 키보드 수정자 플래그
+/// 키보드 수정자(모디파이어) 플래그.
+///
+/// 비트마스크로 여러 수정자를 조합할 수 있습니다.
+///
+/// ## 사용 예제
+/// ```swift
+/// // Command + Shift 조합
+/// let mods: ModifierFlags = [.command, .shift]
+///
+/// // 원시 값으로 생성
+/// let mods = ModifierFlags(rawValue: 0x09)  // Command + Shift
+/// ```
+///
+/// ## 비트 맵
+/// - Shift: 0x01
+/// - Control: 0x02
+/// - Option: 0x04
+/// - Command: 0x08
+/// - CapsLock: 0x10
+/// - Function: 0x20
 public struct ModifierFlags: OptionSet, Codable, Sendable {
     public let rawValue: UInt32
 
@@ -74,17 +93,44 @@ public extension ModifierFlags {
 
 // MARK: - KeyEvent
 
-/// 키 이벤트
+/// 키보드 키 이벤트 메시지.
+///
+/// 단일 키 입력을 전달합니다.
+/// TCP로 전송되어 모든 키 입력이 순서대로 전달됨을 보장합니다.
+///
+/// ## 사용 예제
+/// ```swift
+/// // Return 키 누르기
+/// let returnKey = KeyEvent(keyCode: 36, action: .press, modifiers: 0)
+///
+/// // Command + A (전체 선택)
+/// let selectAll = KeyEvent(
+///     keyCode: 0,  // 'A' key
+///     action: .press,
+///     modifiers: ModifierFlags.command.rawValue
+/// )
+/// ```
 public struct KeyEvent: Codable, Sendable, Equatable {
+    /// 키 동작
     public enum Action: Int, Codable, Sendable, CaseIterable {
+        /// 키 누름
         case down = 0
+        /// 키 뗌
         case up = 1
+        /// 키 누르고 떼기 (press = down + up)
         case press = 2
     }
 
+    /// macOS 가상 키 코드
     public var keyCode: UInt32
+
+    /// 수행할 동작
     public var action: Action
+
+    /// 수정자 플래그 (ModifierFlags의 rawValue)
     public var modifiers: UInt32
+
+    /// 입력 문자 (텍스트 입력용, 선택적)
     public var character: String
 
     public init(
@@ -102,9 +148,30 @@ public struct KeyEvent: Codable, Sendable, Equatable {
 
 // MARK: - KeyCombo
 
-/// 단축키 조합 (매크로용)
+/// 단축키 조합 메시지 (매크로용).
+///
+/// 여러 키를 동시에 누른 것처럼 전송합니다.
+/// 매크로 실행이나 복잡한 단축키에 사용됩니다.
+///
+/// ## 사용 예제
+/// ```swift
+/// // Command + Shift + 4 (스크린샷 영역 선택)
+/// let screenshot = KeyCombo(
+///     keyCodes: [21],  // '4' key
+///     modifiers: (ModifierFlags.command.rawValue | ModifierFlags.shift.rawValue)
+/// )
+///
+/// // Mission Control (Control + ↑)
+/// let missionControl = KeyCombo(
+///     keyCodes: [126],  // Up Arrow
+///     modifiers: ModifierFlags.control.rawValue
+/// )
+/// ```
 public struct KeyCombo: Codable, Sendable, Equatable {
+    /// 동시에 누를 키 코드들
     public var keyCodes: [UInt32]
+
+    /// 수정자 플래그 (ModifierFlags의 rawValue)
     public var modifiers: UInt32
 
     public init(keyCodes: [UInt32] = [], modifiers: UInt32 = 0) {

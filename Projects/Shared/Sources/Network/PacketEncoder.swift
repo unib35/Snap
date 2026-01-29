@@ -1,10 +1,45 @@
 import Foundation
 
-/// 패킷 인코더
+// MARK: - PacketEncoder
+
+/// Snap 프로토콜 메시지를 네트워크 패킷으로 인코딩하는 유틸리티.
+///
+/// `PacketEncoder`는 Codable 메시지를 Snap 프로토콜 형식의 바이너리 데이터로 변환합니다.
+/// 인코딩된 패킷은 헤더와 페이로드로 구성됩니다.
+///
+/// ## 패킷 구조
+/// ```
+/// +----------------+------------------+
+/// | Header (5B)    | Payload (N Bytes)|
+/// +----------------+------------------+
+/// | Type (1B)      |                  |
+/// | Length (4B)    | JSON Encoded     |
+/// +----------------+------------------+
+/// ```
+///
+/// ## 사용 예제
+/// ```swift
+/// // 마우스 이동 패킷 생성
+/// let mouseMove = MouseMove(deltaX: 10.5, deltaY: -5.2)
+/// let packet = try PacketEncoder.encode(mouseMove)
+///
+/// // 범용 인코딩 (타입 명시)
+/// let keyEvent = KeyEvent(keyCode: 36, action: .down, modifiers: 0)
+/// let packet = try PacketEncoder.encode(keyEvent, type: .keyEvent)
+/// ```
+///
+/// - Note: 페이로드는 JSON 형식으로 인코딩됩니다.
+/// - SeeAlso: ``PacketDecoder``, ``PacketHeader``, ``MessageType``
 public enum PacketEncoder {
     private static let encoder = JSONEncoder()
 
-    /// 메시지를 패킷 데이터로 인코딩
+    /// 메시지를 패킷 데이터로 인코딩합니다.
+    ///
+    /// - Parameters:
+    ///   - message: 인코딩할 Codable 메시지
+    ///   - type: 메시지 타입 식별자
+    /// - Returns: 헤더와 페이로드가 결합된 패킷 데이터
+    /// - Throws: JSON 인코딩 실패 시 에러
     public static func encode<T: Codable & Sendable>(
         _ message: T,
         type: MessageType
@@ -88,6 +123,16 @@ public enum PacketEncoder {
     /// VoiceText 인코딩
     public static func encode(_ message: VoiceText) throws -> Data {
         try encode(message, type: .voiceText)
+    }
+
+    /// SystemCommand 인코딩
+    public static func encode(_ message: SystemCommand) throws -> Data {
+        try encode(message, type: .systemCommand)
+    }
+
+    /// ShortsCommand 인코딩
+    public static func encode(_ message: ShortsCommand) throws -> Data {
+        try encode(message, type: .shortsCommand)
     }
 
     /// Handshake 인코딩
