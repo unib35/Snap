@@ -4,30 +4,33 @@ import SwiftUI
 public struct KeyboardView: View {
     @Bindable var store: StoreOf<KeyboardFeature>
     @FocusState private var isTextFieldFocused: Bool
+    @Environment(\.layoutMode) private var layoutMode
 
     public init(store: StoreOf<KeyboardFeature>) {
         self.store = store
     }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            // Text Input Area
-            textInputArea
-                .padding()
+        iPadOptimizedContainer {
+            VStack(spacing: 0) {
+                // Text Input Area
+                textInputArea
+                    .padding(layoutMode == .compact ? SnapSpacing.md : SnapSpacing.lg)
 
-            // Modifier Keys
-            modifierKeys
-                .padding(.horizontal)
+                // Modifier Keys
+                modifierKeys
+                    .padding(.horizontal, layoutMode == .compact ? SnapSpacing.md : SnapSpacing.lg)
 
-            Spacer()
+                Spacer()
 
-            // Special Keys
-            specialKeys
-                .padding()
+                // Special Keys
+                specialKeys
+                    .padding(layoutMode == .compact ? SnapSpacing.md : SnapSpacing.lg)
 
-            // Arrow Keys
-            arrowKeys
-                .padding()
+                // Arrow Keys
+                arrowKeys
+                    .padding(layoutMode == .compact ? SnapSpacing.md : SnapSpacing.lg)
+            }
         }
         .background(SnapColors.systemBackground)
     }
@@ -66,7 +69,7 @@ public struct KeyboardView: View {
     // MARK: - Modifier Keys
 
     private var modifierKeys: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: layoutMode == .compact ? 6 : 8) {
             ModifierKeyButton(
                 symbol: "⇧",
                 label: "Shift",
@@ -116,8 +119,8 @@ public struct KeyboardView: View {
     // MARK: - Special Keys
 
     private var specialKeys: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(spacing: layoutMode == .compact ? 6 : 8) {
+            HStack(spacing: layoutMode == .compact ? 6 : 8) {
                 SpecialKeyButton(label: "Esc", icon: "escape") {
                     store.send(.escapePressed)
                 }
@@ -159,12 +162,12 @@ public struct KeyboardView: View {
     // MARK: - Arrow Keys
 
     private var arrowKeys: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: layoutMode == .compact ? 6 : 8) {
             ArrowKeyButton(direction: .up) {
                 store.send(.arrowPressed(.up))
             }
 
-            HStack(spacing: 8) {
+            HStack(spacing: layoutMode == .compact ? 6 : 8) {
                 ArrowKeyButton(direction: .left) {
                     store.send(.arrowPressed(.left))
                 }

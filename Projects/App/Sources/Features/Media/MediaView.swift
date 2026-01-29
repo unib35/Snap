@@ -4,32 +4,39 @@ import SwiftUI
 public struct MediaView: View {
     @Bindable var store: StoreOf<MediaFeature>
     @StateObject private var volumeHandler = VolumeButtonHandler()
+    @Environment(\.layoutMode) private var layoutMode
 
     public init(store: StoreOf<MediaFeature>) {
         self.store = store
     }
 
+    private var contentSpacing: CGFloat {
+        layoutMode == .compact ? 20 : 32
+    }
+
     public var body: some View {
-        VStack(spacing: 32) {
-            Spacer()
+        iPadOptimizedContainer {
+            VStack(spacing: contentSpacing) {
+                Spacer()
 
-            // Now Playing Area (placeholder)
-            nowPlayingArea
+                // Now Playing Area (placeholder)
+                nowPlayingArea
 
-            Spacer()
+                Spacer()
 
-            // Playback Controls
-            playbackControls
+                // Playback Controls
+                playbackControls
 
-            // Volume Controls
-            volumeControls
+                // Volume Controls
+                volumeControls
 
-            // Hardware Volume Toggle
-            hardwareVolumeToggle
+                // Hardware Volume Toggle
+                hardwareVolumeToggle
 
-            Spacer()
+                Spacer()
+            }
+            .padding(layoutMode == .compact ? SnapSpacing.md : SnapSpacing.lg)
         }
-        .padding()
         .background(SnapColors.systemBackground)
         .onAppear {
             if store.isHardwareVolumeControlEnabled {
@@ -60,8 +67,12 @@ public struct MediaView: View {
 
     // MARK: - Now Playing Area
 
+    private var albumArtSize: CGFloat {
+        layoutMode == .compact ? 160 : 200
+    }
+
     private var nowPlayingArea: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: layoutMode == .compact ? 12 : 16) {
             // Album Art
             albumArtView
                 .accessibilityLabel("앨범 아트")
@@ -86,11 +97,12 @@ public struct MediaView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16))
             } else {
                 Image(systemName: appIcon)
-                    .font(.system(size: 60))
+                    .font(.largeTitle)
+                    .imageScale(.large)
                     .foregroundStyle(appIconColor)
             }
         }
-        .frame(width: 200, height: 200)
+        .frame(width: albumArtSize, height: albumArtSize)
         .shadow(color: .black.opacity(0.1), radius: 10, y: 5)
     }
 
@@ -173,11 +185,12 @@ public struct MediaView: View {
     // MARK: - Playback Controls
 
     private var playbackControls: some View {
-        HStack(spacing: 40) {
+        HStack(spacing: layoutMode == .compact ? 32 : 40) {
             // Previous Track
             MediaButton(
                 icon: "backward.fill",
-                size: 28,
+                size: layoutMode == .compact ? 24 : 28,
+                isCompact: layoutMode == .compact,
                 accessibilityLabel: "이전 트랙"
             ) {
                 store.send(.previousTrackTapped)
@@ -186,7 +199,8 @@ public struct MediaView: View {
             // Play/Pause
             MediaButton(
                 icon: store.isPlaying ? "pause.fill" : "play.fill",
-                size: 40,
+                size: layoutMode == .compact ? 34 : 40,
+                isCompact: layoutMode == .compact,
                 isPrimary: true,
                 accessibilityLabel: store.isPlaying ? "일시정지" : "재생"
             ) {
@@ -196,7 +210,8 @@ public struct MediaView: View {
             // Next Track
             MediaButton(
                 icon: "forward.fill",
-                size: 28,
+                size: layoutMode == .compact ? 24 : 28,
+                isCompact: layoutMode == .compact,
                 accessibilityLabel: "다음 트랙"
             ) {
                 store.send(.nextTrackTapped)
@@ -207,8 +222,8 @@ public struct MediaView: View {
     // MARK: - Volume Controls
 
     private var volumeControls: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 16) {
+        VStack(spacing: layoutMode == .compact ? 12 : 16) {
+            HStack(spacing: layoutMode == .compact ? 12 : 16) {
                 // Volume Down
                 Button {
                     store.send(.volumeDownTapped)
@@ -301,6 +316,7 @@ public struct MediaView: View {
 struct MediaButton: View {
     let icon: String
     let size: CGFloat
+    var isCompact: Bool = false
     var isPrimary: Bool = false
     var accessibilityLabel: String = ""
     let action: () -> Void
@@ -322,6 +338,7 @@ struct MediaButton: View {
                 .scaleEffect(isPressed ? 0.9 : 1.0)
         }
         .buttonStyle(.plain)
+        .accessibleControl()
         .accessibilityLabel(accessibilityLabel)
         .pressEvents {
             withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
@@ -335,7 +352,10 @@ struct MediaButton: View {
     }
 
     private var buttonSize: CGFloat {
-        isPrimary ? 80 : 56
+        if isCompact {
+            return isPrimary ? 64 : 48
+        }
+        return isPrimary ? 80 : 56
     }
 
     private var backgroundColor: Color {

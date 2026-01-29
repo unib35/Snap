@@ -5,6 +5,7 @@ import UIKit
 
 public struct TrackpadView: View {
     @Bindable var store: StoreOf<TrackpadFeature>
+    @Environment(\.layoutMode) private var layoutMode
 
     public init(store: StoreOf<TrackpadFeature>) {
         self.store = store
@@ -60,35 +61,39 @@ public struct TrackpadView: View {
         .overlay(
             toggleShape.strokeBorder(SnapColors.border, lineWidth: 0.5)
         )
+        .trackpadAreaConstraint()
     }
 
     // MARK: - Trackpad Content
 
     @ViewBuilder
     private var trackpadContent: some View {
-        VStack(spacing: 0) {
-            // Touch Area
-            TrackpadTouchArea(store: store)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        iPadOptimizedContainer {
+            VStack(spacing: 0) {
+                // Touch Area
+                TrackpadTouchArea(store: store)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .trackpadAreaConstraint()
 
-            // Click Buttons - Inside the touch area at bottom
-            HStack(spacing: 16) {
-                ClickButton(label: "L", isPrimary: true) {
-                    store.send(.leftClickPressed)
-                } onRelease: {
-                    store.send(.leftClickReleased)
-                }
+                // Click Buttons - Inside the touch area at bottom
+                HStack(spacing: layoutMode == .compact ? 12 : 16) {
+                    ClickButton(label: "L", isPrimary: true) {
+                        store.send(.leftClickPressed)
+                    } onRelease: {
+                        store.send(.leftClickReleased)
+                    }
 
-                ClickButton(label: "R", isPrimary: false) {
-                    store.send(.rightClickPressed)
-                } onRelease: {
-                    store.send(.rightClickReleased)
+                    ClickButton(label: "R", isPrimary: false) {
+                        store.send(.rightClickPressed)
+                    } onRelease: {
+                        store.send(.rightClickReleased)
+                    }
                 }
+                .frame(height: layoutMode == .compact ? 56 : 64)
+                .padding(.horizontal)
+                .padding(.top, layoutMode == .compact ? 12 : 16)
+                .padding(.bottom, 8)
             }
-            .frame(height: 64)
-            .padding(.horizontal)
-            .padding(.top, 16)
-            .padding(.bottom, 8)
         }
         .transition(.opacity.combined(with: .scale(scale: 0.98)))
     }
@@ -97,36 +102,38 @@ public struct TrackpadView: View {
 
     @ViewBuilder
     private var laserContent: some View {
-        VStack(spacing: 12) {
-            // Gyro Control Area (constrained height)
-            LaserControlArea(store: store)
-                .frame(maxHeight: 350)
+        iPadOptimizedContainer {
+            VStack(spacing: layoutMode == .compact ? 8 : 12) {
+                // Gyro Control Area (constrained height)
+                LaserControlArea(store: store)
+                    .frame(maxHeight: layoutMode == .compact ? 300 : 350)
 
-            // Click Buttons (fixed height, won't shrink)
-            HStack(spacing: 12) {
-                LaserClickButton(
-                    icon: "cursorarrow.click",
-                    label: "Left Click",
-                    color: .accentColor
-                ) {
-                    store.send(.leftClickPressed)
-                } onRelease: {
-                    store.send(.leftClickReleased)
-                }
+                // Click Buttons (fixed height, won't shrink)
+                HStack(spacing: 12) {
+                    LaserClickButton(
+                        icon: "cursorarrow.click",
+                        label: "Left Click",
+                        color: .accentColor
+                    ) {
+                        store.send(.leftClickPressed)
+                    } onRelease: {
+                        store.send(.leftClickReleased)
+                    }
 
-                LaserClickButton(
-                    icon: "cursorarrow.click",
-                    label: "Right Click",
-                    color: .secondary
-                ) {
-                    store.send(.rightClickPressed)
-                } onRelease: {
-                    store.send(.rightClickReleased)
+                    LaserClickButton(
+                        icon: "cursorarrow.click",
+                        label: "Right Click",
+                        color: .secondary
+                    ) {
+                        store.send(.rightClickPressed)
+                    } onRelease: {
+                        store.send(.rightClickReleased)
+                    }
                 }
+                .frame(height: layoutMode == .compact ? 70 : 80)
+                .padding(.horizontal)
+                .fixedSize(horizontal: false, vertical: true)
             }
-            .frame(height: 80)
-            .padding(.horizontal)
-            .fixedSize(horizontal: false, vertical: true)
         }
         .transition(.opacity.combined(with: .scale(scale: 0.98)))
     }
@@ -135,7 +142,7 @@ public struct TrackpadView: View {
 
     @ViewBuilder
     private var quickActions: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: layoutMode == .compact ? 12 : 16) {
             VoiceTypingButton(
                 isRecording: store.voiceTyping.isRecording,
                 isAuthorized: store.voiceTyping.authorizationStatus == .authorized
@@ -150,6 +157,7 @@ public struct TrackpadView: View {
                 store.send(.missionControlPressed)
             }
         }
+        .trackpadAreaConstraint()
         .onAppear {
             store.send(.voiceTyping(.onAppear))
         }
@@ -214,14 +222,17 @@ struct ModeToggleButton: View {
         Button(action: action) {
             HStack(spacing: SnapSpacing.sm) {
                 Image(systemName: mode == .trackpad ? "hand.point.up.left" : "scope")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.footnote.weight(.semibold))
                     .foregroundStyle(iconColor)
 
                 Text(mode.title)
                     .font(SnapTypography.labelMedium)
                     .fontWeight(.bold)
                     .foregroundStyle(textColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
+            .accessibleControl()
             .frame(maxWidth: .infinity)
             .padding(.vertical, SnapSpacing.md)
             .background {

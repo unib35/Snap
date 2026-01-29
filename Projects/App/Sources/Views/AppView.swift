@@ -111,6 +111,7 @@ public struct AppView: View {
             .toolbarBackground(SnapColors.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
         }
+        .adaptiveLayout()
         .preferredColorScheme(.dark)
         .sheet(
             isPresented: Binding(
@@ -165,6 +166,7 @@ public struct AppView: View {
             store.send(.settings(.onAppear))
         }
         .tint(store.settings.accentColor.color)
+        .reducedAnimations(store.settings.isInPowerSavingMode && store.settings.reducedAnimations)
     }
 
     @ViewBuilder
@@ -207,6 +209,7 @@ struct ConnectionStatusBar: View {
         .padding(.horizontal, SnapSpacing.lg)
         .padding(.vertical, SnapSpacing.sm)
         .background(backgroundColor)
+        .limitAccessibilitySize()
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
     }
@@ -233,7 +236,7 @@ struct ConnectionStatusBar: View {
         switch status {
         case .disconnected:
             Image(systemName: "wifi.slash")
-                .font(.system(size: 14, weight: .medium))
+                .font(.footnote.weight(.medium))
                 .foregroundStyle(SnapColors.statusDisconnected)
         case .discovering, .connecting:
             ProgressView()
@@ -241,11 +244,11 @@ struct ConnectionStatusBar: View {
                 .tint(SnapColors.statusConnecting)
         case .connected:
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 14, weight: .medium))
+                .font(.footnote.weight(.medium))
                 .foregroundStyle(SnapColors.statusConnected)
         case .reconnecting:
             Image(systemName: "arrow.triangle.2.circlepath")
-                .font(.system(size: 14, weight: .medium))
+                .font(.footnote.weight(.medium))
                 .foregroundStyle(SnapColors.statusConnecting)
         }
     }
@@ -254,6 +257,8 @@ struct ConnectionStatusBar: View {
         Text(statusMessage)
             .font(SnapTypography.labelMedium)
             .foregroundStyle(SnapColors.textSecondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
     }
 
     private var statusMessage: String {
