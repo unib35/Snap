@@ -23,13 +23,23 @@ public struct MacroView: View {
                 header
                     .padding(.horizontal)
 
-                // Bento Grid
-                bentoGrid
+                // Groups
+                groupsSection
+                    .padding(.horizontal)
+
+                // Ungrouped Macros
+                ungroupedSection
                     .padding(.horizontal)
             }
             .padding(.vertical)
         }
         .background(SnapColors.systemBackground)
+        .sheet(isPresented: Binding(
+            get: { store.groupEditorState != nil },
+            set: { if !$0 { store.send(.dismissGroupEditor) } }
+        )) {
+            MacroGroupEditorView(store: store)
+        }
     }
 
     // MARK: - Header
@@ -42,6 +52,13 @@ public struct MacroView: View {
             Spacer()
 
             if store.isEditing {
+                Button {
+                    store.send(.addGroupTapped)
+                } label: {
+                    Image(systemName: "folder.badge.plus")
+                        .font(.subheadline.weight(.medium))
+                }
+
                 Button {
                     store.send(.resetToDefaults)
                 } label: {
@@ -60,27 +77,63 @@ public struct MacroView: View {
         }
     }
 
-    // MARK: - Bento Grid
+    // MARK: - Groups Section
 
-    private var bentoGrid: some View {
-        LazyVGrid(columns: columns, spacing: 12) {
-            ForEach(store.macros) { macro in
-                MacroButton(
-                    macro: macro,
-                    isEditing: store.isEditing
-                ) {
-                    store.send(.macroTapped(macro))
-                } onLongPress: {
-                    store.send(.macroLongPressed(macro))
-                } onDelete: {
-                    store.send(.macroDeleted(macro))
-                }
-                .gridCellColumns(macro.size.columnSpan)
+    private var groupsSection: some View {
+        ForEach(Array(store.groups.enumerated()), id: \.element.id) { index, group in
+            MacroGroupSection(
+                group: group,
+                macros: store.macros.filter { $0.groupId == group.id },
+                isEditing: store.isEditing,
+                columns: columns,
+                canMoveUp: index > 0,
+                canMoveDown: index < store.groups.count - 1,
+                onGroupTap: { store.send(.groupToggled(group)) },
+                onGroupEdit: { store.send(.editGroupTapped(group)) },
+                onGroupDelete: { store.send(.deleteGroup(group)) },
+                onMoveUp: {
+                    store.send(.groupMoved(from: IndexSet(integer: index), to: index - 1))
+                },
+                onMoveDown: {
+                    store.send(.groupMoved(from: IndexSet(integer: index), to: index + 2))
+                },
+                onMacroTap: { store.send(.macroTapped($0)) },
+                onMacroLongPress: { store.send(.macroLongPressed($0)) },
+                onMacroDelete: { store.send(.macroDeleted($0)) },
+                onAddMacro: { store.send(.addMacroTapped) }
+            )
+        }
+    }
+
+    // MARK: - Ungrouped Section
+
+    private var ungroupedSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if !store.groups.isEmpty {
+                Text("그룹 없음")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(SnapColors.secondaryLabel)
             }
 
-            // Add Button
-            AddMacroButton {
-                store.send(.addMacroTapped)
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(store.ungroupedMacros) { macro in
+                    MacroButton(
+                        macro: macro,
+                        isEditing: store.isEditing
+                    ) {
+                        store.send(.macroTapped(macro))
+                    } onLongPress: {
+                        store.send(.macroLongPressed(macro))
+                    } onDelete: {
+                        store.send(.macroDeleted(macro))
+                    }
+                    .gridCellColumns(macro.size.columnSpan)
+                }
+
+                // Add Button
+                AddMacroButton {
+                    store.send(.addMacroTapped)
+                }
             }
         }
         .sheet(isPresented: Binding(
@@ -99,6 +152,217 @@ public struct MacroView: View {
             }
         } message: {
             Text("모든 매크로를 기본값으로 초기화하시겠습니까?")
+        }
+    }
+}
+
+// MARK: - Macro Group Section
+
+struct MacroGroupSection: View {
+    let group: MacroGroup
+    let macros: [Macro]
+    let isEditing: Bool
+    let columns: [GridItem]
+    let canMoveUp: Bool
+    let canMoveDown: Bool
+    let onGroupTap: () -> Void
+    let onGroupEdit: () -> Void
+    let onGroupDelete: () -> Void
+    let onMoveUp: () -> Void
+    let onMoveDown: () -> Void
+    let onMacroTap: (Macro) -> Void
+    let onMacroLongPress: (Macro) -> Void
+    let onMacroDelete: (Macro) -> Void
+    let onAddMacro: () -> Void
+
+    @State private var showDeleteAlert = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Group Header
+            groupHeader
+
+            // Group Content
+            if group.isExpanded {
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(macros) { macro in
+                        MacroButton(
+                            macro: macro,
+                            isEditing: isEditing
+                        ) {
+                            onMacroTap(macro)
+                        } onLongPress: {
+                            onMacroLongPress(macro)
+                        } onDelete: {
+                            onMacroDelete(macro)
+                        }
+                        .gridCellColumns(macro.size.columnSpan)
+                    }
+                }
+                .padding(.bottom, 8)
+            }
+        }
+        .padding()
+        .background(SnapColors.secondarySystemBackground.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .alert("그룹 삭제", isPresented: $showDeleteAlert) {
+            Button("취소", role: .cancel) {}
+            Button("삭제", role: .destructive) {
+                onGroupDelete()
+            }
+        } message: {
+            if macros.isEmpty {
+                Text("'\(group.name)' 그룹을 삭제하시겠습니까?")
+            } else {
+                Text("'\(group.name)' 그룹을 삭제하시겠습니까?\n그룹 내 \(macros.count)개의 매크로는 '그룹 없음'으로 이동됩니다.")
+            }
+        }
+    }
+
+    private var groupHeader: some View {
+        HStack {
+            Button(action: onGroupTap) {
+                HStack(spacing: 8) {
+                    Image(systemName: group.icon)
+                        .font(.headline)
+                        .foregroundStyle(SnapColors.neonLime)
+
+                    Text(group.name)
+                        .font(.headline)
+                        .foregroundStyle(SnapColors.label)
+
+                    Text("\(macros.count)")
+                        .font(.caption)
+                        .foregroundStyle(SnapColors.secondaryLabel)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(SnapColors.tertiarySystemBackground)
+                        .clipShape(Capsule())
+
+                    Spacer()
+
+                    Image(systemName: group.isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(SnapColors.secondaryLabel)
+                }
+            }
+            .buttonStyle(.plain)
+
+            if isEditing {
+                // Move buttons
+                HStack(spacing: 4) {
+                    Button(action: onMoveUp) {
+                        Image(systemName: "chevron.up")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(canMoveUp ? SnapColors.neonLime : SnapColors.tertiaryLabel)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!canMoveUp)
+
+                    Button(action: onMoveDown) {
+                        Image(systemName: "chevron.down")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(canMoveDown ? SnapColors.neonLime : SnapColors.tertiaryLabel)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!canMoveDown)
+                }
+                .padding(.horizontal, 4)
+
+                Button(action: onGroupEdit) {
+                    Image(systemName: "pencil")
+                        .font(.caption)
+                        .foregroundStyle(SnapColors.neonLime)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    showDeleteAlert = true
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.caption)
+                        .foregroundStyle(SnapColors.destructive)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+// MARK: - Macro Group Editor View
+
+struct MacroGroupEditorView: View {
+    @Bindable var store: StoreOf<MacroFeature>
+    @Environment(\.dismiss) private var dismiss
+
+    private var group: MacroGroup? {
+        store.groupEditorState?.group
+    }
+
+    private var isNew: Bool {
+        store.groupEditorState?.isNew ?? true
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("그룹 정보") {
+                    TextField("그룹 이름", text: Binding(
+                        get: { group?.name ?? "" },
+                        set: { store.send(.updateGroupName($0)) }
+                    ))
+
+                    HStack {
+                        Text("아이콘")
+                        Spacer()
+                        iconPicker
+                    }
+                }
+            }
+            .navigationTitle(isNew ? "새 그룹" : "그룹 편집")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("취소") {
+                        store.send(.dismissGroupEditor)
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("저장") {
+                        if let group = group {
+                            store.send(.saveGroup(group))
+                        }
+                    }
+                    .disabled(group?.name.isEmpty ?? true)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    private var iconPicker: some View {
+        let icons = [
+            "folder.fill", "star.fill", "heart.fill", "bookmark.fill",
+            "tag.fill", "flag.fill", "bolt.fill", "gear",
+            "command", "keyboard", "display", "desktopcomputer",
+        ]
+
+        return Menu {
+            ForEach(icons, id: \.self) { icon in
+                Button {
+                    store.send(.updateGroupIcon(icon))
+                } label: {
+                    Label(icon, systemImage: icon)
+                }
+            }
+        } label: {
+            Image(systemName: group?.icon ?? "folder.fill")
+                .font(.title3)
+                .foregroundStyle(SnapColors.neonLime)
+                .frame(width: 32, height: 32)
+                .background(SnapColors.tertiarySystemBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
         }
     }
 }
@@ -327,6 +591,15 @@ public struct MacroPadSection: View {
 
                 if store.isEditing {
                     Button {
+                        store.send(.addGroupTapped)
+                    } label: {
+                        Image(systemName: "folder.badge.plus")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+
+                    Button {
                         showResetAlert = true
                     } label: {
                         Text("초기화")
@@ -347,9 +620,41 @@ public struct MacroPadSection: View {
                 .controlSize(.small)
             }
 
-            // Bento Grid
+            // Groups
+            ForEach(Array(store.groups.enumerated()), id: \.element.id) { index, group in
+                MacroGroupSection(
+                    group: group,
+                    macros: store.macros.filter { $0.groupId == group.id },
+                    isEditing: store.isEditing,
+                    columns: columns,
+                    canMoveUp: index > 0,
+                    canMoveDown: index < store.groups.count - 1,
+                    onGroupTap: { store.send(.groupToggled(group)) },
+                    onGroupEdit: { store.send(.editGroupTapped(group)) },
+                    onGroupDelete: { store.send(.deleteGroup(group)) },
+                    onMoveUp: {
+                        store.send(.groupMoved(from: IndexSet(integer: index), to: index - 1))
+                    },
+                    onMoveDown: {
+                        store.send(.groupMoved(from: IndexSet(integer: index), to: index + 2))
+                    },
+                    onMacroTap: { store.send(.macroTapped($0)) },
+                    onMacroLongPress: { store.send(.macroLongPressed($0)) },
+                    onMacroDelete: { store.send(.macroDeleted($0)) },
+                    onAddMacro: { store.send(.addMacroTapped) }
+                )
+            }
+
+            // Ungrouped Macros
+            if !store.groups.isEmpty {
+                Text("그룹 없음")
+                    .font(.caption)
+                    .foregroundStyle(SnapColors.secondaryLabel)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
             LazyVGrid(columns: columns, spacing: 12) {
-                ForEach(store.macros) { macro in
+                ForEach(store.ungroupedMacros) { macro in
                     MacroButton(
                         macro: macro,
                         isEditing: store.isEditing
@@ -377,6 +682,12 @@ public struct MacroPadSection: View {
             set: { if !$0 { store.send(.dismissEditor) } }
         )) {
             MacroEditorView(store: store)
+        }
+        .sheet(isPresented: Binding(
+            get: { store.groupEditorState != nil },
+            set: { if !$0 { store.send(.dismissGroupEditor) } }
+        )) {
+            MacroGroupEditorView(store: store)
         }
         .alert("매크로 초기화", isPresented: $showResetAlert) {
             Button("취소", role: .cancel) {}

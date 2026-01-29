@@ -66,9 +66,11 @@ public struct AppFeature {
         case showSettings
         case hideSettings
         case handleURL(URL)
+        case lowPowerModeChanged(Bool)
     }
 
     @Dependency(\.onboardingClient) var onboardingClient
+    @Dependency(\.batteryClient) var batteryClient
 
     public init() {}
 
@@ -105,9 +107,15 @@ public struct AppFeature {
             switch action {
             case .onAppear:
                 // 온보딩 상태 확인 후 디바이스 검색 시작
+                let client = batteryClient
                 return .merge(
                     .send(.checkOnboardingStatus),
-                    .send(.connection(.startDiscovery))
+                    .send(.connection(.startDiscovery)),
+                    .run { send in
+                        for await isLowPower in client.observeLowPowerMode() {
+                            await send(.lowPowerModeChanged(isLowPower))
+                        }
+                    }
                 )
 
             case .checkOnboardingStatus:
@@ -189,11 +197,24 @@ public struct AppFeature {
             case .productivity:
                 return .none
 
+            case .settings(.save), .settings(.toggleBatteryOptimization), .settings(.toggleAutoDetectLowPowerMode),
+                 .settings(.toggleReducedMotionUpdateRate), .settings(.toggleReducedAnimations), .settings(.systemLowPowerModeChanged):
+                // 배터리 절약 모드 상태를 TrackpadFeature에 전파
+                let isInPowerSavingMode = state.settings.isInPowerSavingMode
+                let reducedMotionUpdateRate = state.settings.reducedMotionUpdateRate
+                return .send(.trackpad(.updatePowerSavingMode(
+                    isInPowerSavingMode: isInPowerSavingMode,
+                    reducedMotionUpdateRate: reducedMotionUpdateRate
+                )))
+
             case .settings:
                 return .none
 
             case .handleURL(let url):
                 return handleDeepLink(url: url, state: &state)
+
+            case .lowPowerModeChanged(let isLowPower):
+                return .send(.settings(.systemLowPowerModeChanged(isLowPower)))
             }
         }
     }

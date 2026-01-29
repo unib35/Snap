@@ -22,6 +22,12 @@ public struct SettingsView: View {
                 // Haptic Section
                 hapticSection
 
+                // Battery Optimization Section
+                batteryOptimizationSection
+
+                // iCloud Sync Section
+                iCloudSyncSection
+
                 // Appearance Section
                 appearanceSection
 
@@ -148,6 +154,73 @@ public struct SettingsView: View {
         }
     }
 
+    // MARK: - Battery Optimization Section
+
+    @ViewBuilder
+    private var batteryOptimizationSection: some View {
+        Section {
+            Toggle(String(localized: "settings.batteryOptimization"), isOn: Binding(
+                get: { store.isBatteryOptimizationEnabled },
+                set: { _ in store.send(.toggleBatteryOptimization) }
+            ))
+
+            Toggle(String(localized: "settings.autoDetectLowPowerMode"), isOn: Binding(
+                get: { store.autoDetectLowPowerMode },
+                set: { _ in store.send(.toggleAutoDetectLowPowerMode) }
+            ))
+
+            if store.isBatteryOptimizationEnabled || store.autoDetectLowPowerMode {
+                Toggle(String(localized: "settings.reducedMotionUpdateRate"), isOn: Binding(
+                    get: { store.reducedMotionUpdateRate },
+                    set: { _ in store.send(.toggleReducedMotionUpdateRate) }
+                ))
+
+                Toggle(String(localized: "settings.reducedAnimations"), isOn: Binding(
+                    get: { store.reducedAnimations },
+                    set: { _ in store.send(.toggleReducedAnimations) }
+                ))
+            }
+
+            if store.isSystemLowPowerModeActive {
+                HStack {
+                    Image(systemName: "battery.25")
+                        .foregroundStyle(.orange)
+                    Text("settings.lowPowerModeActive")
+                        .foregroundStyle(SnapColors.textSecondary)
+                }
+            }
+        } header: {
+            Text("settings.batteryOptimizationHeader")
+        } footer: {
+            Text("settings.batteryOptimizationFooter")
+        }
+    }
+
+    // MARK: - iCloud Sync Section
+
+    @ViewBuilder
+    private var iCloudSyncSection: some View {
+        Section {
+            if store.isiCloudAvailable {
+                Toggle(String(localized: "settings.iCloudSync"), isOn: Binding(
+                    get: { store.iCloudSyncEnabled },
+                    set: { _ in store.send(.toggleiCloudSync) }
+                ))
+            } else {
+                HStack {
+                    Image(systemName: "exclamationmark.icloud")
+                        .foregroundStyle(.secondary)
+                    Text("settings.iCloudUnavailable")
+                        .foregroundStyle(SnapColors.textSecondary)
+                }
+            }
+        } header: {
+            Text("settings.iCloudSyncHeader")
+        } footer: {
+            Text("settings.iCloudSyncFooter")
+        }
+    }
+
     // MARK: - Appearance Section
 
     @ViewBuilder
@@ -212,7 +285,7 @@ private struct ColorButton: View {
                         .frame(width: 44, height: 44)
 
                     Image(systemName: "checkmark")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.callout.weight(.bold))
                         .foregroundStyle(.white)
                 }
             }

@@ -119,3 +119,22 @@ public struct PairingResult: Codable, Sendable, Equatable {
         status == .success
     }
 }
+
+// MARK: - System Command
+
+/// 시스템 명령 (iOS → macOS)
+public struct SystemCommand: Codable, Sendable, Equatable {
+    public enum Command: Int, Codable, Sendable, CaseIterable {
+        case sleep = 0
+        case lock = 1
+        case logout = 2
+        case restart = 3
+        case shutdown = 4
+    }
+
+    public var command: Command
+
+    public init(command: Command) {
+        self.command = command
+    }
+}

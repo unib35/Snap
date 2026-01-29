@@ -50,38 +50,68 @@ public struct ShortsRemoteView: View {
     // MARK: - Control Buttons
 
     private var controlButtons: some View {
-        HStack(spacing: 20) {
-            // Seek Backward
-            ShortsControlButton(
-                icon: "gobackward.5",
-                label: "-5s"
-            ) {
-                store.send(.seekBackward)
+        VStack(spacing: 16) {
+            // Main controls
+            HStack(spacing: 20) {
+                // Seek Backward
+                ShortsControlButton(
+                    icon: "gobackward.5",
+                    label: "-5s"
+                ) {
+                    store.send(.seekBackward)
+                }
+
+                // Play/Pause
+                ShortsControlButton(
+                    icon: store.isPaused ? "play.fill" : "pause.fill",
+                    label: store.isPaused ? "재생" : "일시정지",
+                    isLarge: true
+                ) {
+                    store.send(.togglePlayPause)
+                }
+
+                // Seek Forward
+                ShortsControlButton(
+                    icon: "goforward.5",
+                    label: "+5s"
+                ) {
+                    store.send(.seekForward)
+                }
+
+                // Mute
+                ShortsControlButton(
+                    icon: store.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                    label: store.isMuted ? "음소거 해제" : "음소거"
+                ) {
+                    store.send(.toggleMute)
+                }
             }
 
-            // Play/Pause
-            ShortsControlButton(
-                icon: store.isPaused ? "play.fill" : "pause.fill",
-                label: store.isPaused ? "재생" : "일시정지",
-                isLarge: true
-            ) {
-                store.send(.togglePlayPause)
-            }
+            // Interaction controls
+            HStack(spacing: 20) {
+                // Like
+                ShortsControlButton(
+                    icon: store.isLiked ? "heart.fill" : "heart",
+                    label: store.isLiked ? "취소" : "좋아요"
+                ) {
+                    store.send(.toggleLike)
+                }
 
-            // Seek Forward
-            ShortsControlButton(
-                icon: "goforward.5",
-                label: "+5s"
-            ) {
-                store.send(.seekForward)
-            }
+                // Comment
+                ShortsControlButton(
+                    icon: "bubble.right",
+                    label: "댓글"
+                ) {
+                    store.send(.openComment)
+                }
 
-            // Mute
-            ShortsControlButton(
-                icon: store.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                label: store.isMuted ? "음소거 해제" : "음소거"
-            ) {
-                store.send(.toggleMute)
+                // Share
+                ShortsControlButton(
+                    icon: "arrowshape.turn.up.right",
+                    label: "공유"
+                ) {
+                    store.send(.openShare)
+                }
             }
         }
     }
@@ -763,6 +793,24 @@ public struct ShortsRemoteFullScreenView: View {
                 accessibilityText: store.isLiked ? "좋아요 취소" : "좋아요"
             ) {
                 store.send(.toggleLike)
+            }
+
+            // Comment Button
+            SideActionButton(
+                icon: "bubble.right",
+                label: "댓글",
+                accessibilityText: "댓글 열기"
+            ) {
+                store.send(.openComment)
+            }
+
+            // Share Button
+            SideActionButton(
+                icon: "arrowshape.turn.up.right",
+                label: "공유",
+                accessibilityText: "공유하기"
+            ) {
+                store.send(.openShare)
             }
 
             // Mute Button

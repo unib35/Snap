@@ -24,7 +24,13 @@ public final class MotionManager: @unchecked Sendable {
     private var referenceAttitude: CMAttitude?
     private var sensitivity: Float = 15.0
 
-    private let updateInterval: TimeInterval = 1.0 / 60.0 // 60Hz
+    private var updateInterval: TimeInterval = 1.0 / 60.0 // 60Hz (기본값)
+
+    /// 저전력 모드 업데이트 주기 (30Hz)
+    public static let lowPowerUpdateInterval: TimeInterval = 1.0 / 30.0
+
+    /// 일반 모드 업데이트 주기 (60Hz)
+    public static let normalUpdateInterval: TimeInterval = 1.0 / 60.0
 
     // MARK: - Initialization
 
@@ -95,6 +101,21 @@ public final class MotionManager: @unchecked Sendable {
         motionManager.isDeviceMotionAvailable
     }
 
+    /// 업데이트 주기 설정 (배터리 절약 모드용)
+    public func setUpdateInterval(_ interval: TimeInterval) {
+        updateInterval = interval
+        // 이미 업데이트 중이면 새 주기 적용
+        if motionManager.isDeviceMotionActive {
+            motionManager.deviceMotionUpdateInterval = interval
+        }
+    }
+
+    /// 저전력 모드 활성화/비활성화
+    public func setLowPowerMode(_ enabled: Bool) {
+        let interval = enabled ? Self.lowPowerUpdateInterval : Self.normalUpdateInterval
+        setUpdateInterval(interval)
+    }
+
     // MARK: - Private Methods
 
     private func processMotion(_ motion: CMDeviceMotion) -> GyroData {
@@ -135,6 +156,7 @@ public struct MotionClient: Sendable {
     public var stopUpdates: @Sendable () -> Void
     public var calibrate: @Sendable () -> Void
     public var setSensitivity: @Sendable (Float) -> Void
+    public var setLowPowerMode: @Sendable (Bool) -> Void
 }
 
 extension MotionClient: DependencyKey {
@@ -150,7 +172,8 @@ extension MotionClient: DependencyKey {
             startUpdates: { manager.startUpdates() },
             stopUpdates: { manager.stopUpdates() },
             calibrate: { manager.calibrate() },
-            setSensitivity: { manager.setSensitivity($0) }
+            setSensitivity: { manager.setSensitivity($0) },
+            setLowPowerMode: { manager.setLowPowerMode($0) }
         )
         #endif
     }
@@ -165,7 +188,7 @@ extension MotionClient: DependencyKey {
                 AsyncStream { continuation in
                     mockState.isRunning = true
 
-                    // Task로 60Hz 루프 실행
+                    // Task로 루프 실행 (저전력 모드 반영)
                     Task { @MainActor in
                         while mockState.isRunning {
                             // 시뮬레이터에서는 작은 랜덤 움직임 생성
@@ -184,7 +207,9 @@ extension MotionClient: DependencyKey {
                             )
                             continuation.yield(.update(gyroData))
 
-                            try? await Task.sleep(nanoseconds: 16_666_667) // ~60Hz
+                            // 저전력 모드에 따른 업데이트 주기
+                            let sleepNanos: UInt64 = mockState.isLowPowerMode ? 33_333_333 : 16_666_667
+                            try? await Task.sleep(nanoseconds: sleepNanos)
                         }
                     }
 
@@ -195,7 +220,8 @@ extension MotionClient: DependencyKey {
             },
             stopUpdates: { mockState.isRunning = false },
             calibrate: {},
-            setSensitivity: { mockState.sensitivity = $0 }
+            setSensitivity: { mockState.sensitivity = $0 },
+            setLowPowerMode: { mockState.isLowPowerMode = $0 }
         )
     }
 
@@ -205,7 +231,8 @@ extension MotionClient: DependencyKey {
             startUpdates: { .finished },
             stopUpdates: {},
             calibrate: {},
-            setSensitivity: { _ in }
+            setSensitivity: { _ in },
+            setLowPowerMode: { _ in }
         )
     }
 }
@@ -214,6 +241,7 @@ extension MotionClient: DependencyKey {
 private final class MockMotionState: @unchecked Sendable {
     var sensitivity: Float = 15.0
     var isRunning: Bool = false
+    var isLowPowerMode: Bool = false
 }
 
 public extension DependencyValues {

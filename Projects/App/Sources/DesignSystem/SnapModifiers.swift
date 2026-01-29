@@ -1,5 +1,48 @@
 import SwiftUI
 
+// MARK: - Power Saving Mode Environment
+
+/// 배터리 절약 모드에서 애니메이션 비활성화 환경 키
+private struct ReducedAnimationsKey: EnvironmentKey {
+    static let defaultValue: Bool = false
+}
+
+public extension EnvironmentValues {
+    /// 배터리 절약 모드에서 애니메이션을 줄일지 여부
+    var reducedAnimations: Bool {
+        get { self[ReducedAnimationsKey.self] }
+        set { self[ReducedAnimationsKey.self] = newValue }
+    }
+}
+
+public extension View {
+    /// 배터리 절약 모드 애니메이션 설정 적용
+    func reducedAnimations(_ reduced: Bool) -> some View {
+        environment(\.reducedAnimations, reduced)
+    }
+}
+
+/// 배터리 절약 모드에서 애니메이션을 조건부로 적용하는 모디파이어
+public struct PowerSavingAnimationModifier: ViewModifier {
+    @Environment(\.reducedAnimations) private var reducedAnimations
+    let animation: Animation?
+
+    public func body(content: Content) -> some View {
+        if reducedAnimations {
+            content
+        } else {
+            content.animation(animation, value: UUID())
+        }
+    }
+}
+
+public extension View {
+    /// 배터리 절약 모드에서는 애니메이션 없이, 그 외에는 지정된 애니메이션 적용
+    func powerSavingAnimation(_ animation: Animation? = .default) -> some View {
+        modifier(PowerSavingAnimationModifier(animation: animation))
+    }
+}
+
 // MARK: - Connection Blur Modifier
 
 /// 연결 끊김 시 블러 효과

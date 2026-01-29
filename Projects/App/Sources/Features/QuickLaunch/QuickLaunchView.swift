@@ -17,11 +17,16 @@ public struct QuickLaunchView: View {
 
     public var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
+            VStack(spacing: 20) {
                 header
                     .padding(.horizontal)
 
-                itemsGrid
+                // User items section
+                itemsSection
+                    .padding(.horizontal)
+
+                // System commands section
+                systemCommandsSection
                     .padding(.horizontal)
             }
             .padding(.vertical)
@@ -32,6 +37,23 @@ public struct QuickLaunchView: View {
             set: { if !$0 { store.send(.dismissEditor) } }
         )) {
             QuickLaunchEditorView(store: store)
+        }
+        .alert(
+            "확인",
+            isPresented: Binding(
+                get: { store.confirmationItem != nil },
+                set: { if !$0 { store.send(.dismissConfirmation) } }
+            ),
+            presenting: store.confirmationItem
+        ) { _ in
+            Button("실행", role: .destructive) {
+                store.send(.confirmSystemCommand)
+            }
+            Button("취소", role: .cancel) {
+                store.send(.dismissConfirmation)
+            }
+        } message: { item in
+            Text("\(item.name) 명령을 실행하시겠습니까?")
         }
     }
 
@@ -63,24 +85,56 @@ public struct QuickLaunchView: View {
         }
     }
 
-    // MARK: - Items Grid
+    // MARK: - Items Section
 
-    private var itemsGrid: some View {
-        LazyVGrid(columns: columns, spacing: 12) {
-            ForEach(store.items) { item in
-                QuickLaunchButton(
-                    item: item,
-                    isEditing: store.isEditing
-                ) {
-                    store.send(.itemTapped(item))
-                } onDelete: {
-                    store.send(.itemDeleted(item))
+    private var itemsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("바로가기")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(SnapColors.secondaryLabel)
+
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(store.items) { item in
+                    QuickLaunchButton(
+                        item: item,
+                        isEditing: store.isEditing
+                    ) {
+                        store.send(.itemTapped(item))
+                    } onDelete: {
+                        store.send(.itemDeleted(item))
+                    }
+                }
+                .onMove { source, destination in
+                    store.send(.itemMoved(from: source, to: destination))
+                }
+
+                // Add Button
+                AddQuickLaunchButton {
+                    store.send(.addItemTapped)
                 }
             }
+        }
+    }
 
-            // Add Button
-            AddQuickLaunchButton {
-                store.send(.addItemTapped)
+    // MARK: - System Commands Section
+
+    private var systemCommandsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("시스템 명령")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(SnapColors.secondaryLabel)
+
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(QuickLaunchFeature.QuickLaunchItem.systemCommands) { item in
+                    QuickLaunchButton(
+                        item: item,
+                        isEditing: false
+                    ) {
+                        store.send(.itemTapped(item))
+                    } onDelete: {
+                        // System commands cannot be deleted
+                    }
+                }
             }
         }
     }
@@ -432,21 +486,45 @@ public struct QuickLaunchSection: View {
                 .controlSize(.small)
             }
 
-            // Items Grid
-            LazyVGrid(columns: columns, spacing: 12) {
-                ForEach(store.items) { item in
-                    QuickLaunchButton(
-                        item: item,
-                        isEditing: store.isEditing
-                    ) {
-                        store.send(.itemTapped(item))
-                    } onDelete: {
-                        store.send(.itemDeleted(item))
+            // User Items Grid
+            VStack(alignment: .leading, spacing: 8) {
+                Text("바로가기")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(SnapColors.secondaryLabel)
+
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(store.items) { item in
+                        QuickLaunchButton(
+                            item: item,
+                            isEditing: store.isEditing
+                        ) {
+                            store.send(.itemTapped(item))
+                        } onDelete: {
+                            store.send(.itemDeleted(item))
+                        }
+                    }
+
+                    AddQuickLaunchButton {
+                        store.send(.addItemTapped)
                     }
                 }
+            }
 
-                AddQuickLaunchButton {
-                    store.send(.addItemTapped)
+            // System Commands Grid
+            VStack(alignment: .leading, spacing: 8) {
+                Text("시스템 명령")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(SnapColors.secondaryLabel)
+
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(QuickLaunchFeature.QuickLaunchItem.systemCommands) { item in
+                        QuickLaunchButton(
+                            item: item,
+                            isEditing: false
+                        ) {
+                            store.send(.itemTapped(item))
+                        } onDelete: {}
+                    }
                 }
             }
         }
@@ -458,6 +536,23 @@ public struct QuickLaunchSection: View {
             set: { if !$0 { store.send(.dismissEditor) } }
         )) {
             QuickLaunchEditorView(store: store)
+        }
+        .alert(
+            "확인",
+            isPresented: Binding(
+                get: { store.confirmationItem != nil },
+                set: { if !$0 { store.send(.dismissConfirmation) } }
+            ),
+            presenting: store.confirmationItem
+        ) { _ in
+            Button("실행", role: .destructive) {
+                store.send(.confirmSystemCommand)
+            }
+            Button("취소", role: .cancel) {
+                store.send(.dismissConfirmation)
+            }
+        } message: { item in
+            Text("\(item.name) 명령을 실행하시겠습니까?")
         }
     }
 }

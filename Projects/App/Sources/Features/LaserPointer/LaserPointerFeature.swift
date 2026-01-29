@@ -67,6 +67,9 @@ public struct LaserPointerFeature {
         public var calibrationStep: Int = 0
         @Presents public var alert: AlertState<Action.Alert>?
 
+        // Power Saving Mode
+        public var isInPowerSavingMode: Bool = false
+
         public var sensitivityPreset: SensitivityPreset {
             SensitivityPreset.from(sensitivity: sensitivity)
         }
@@ -87,6 +90,7 @@ public struct LaserPointerFeature {
         case calibrationStepCompleted
         case motionEvent(MotionEvent)
         case alert(PresentationAction<Alert>)
+        case updatePowerSavingMode(Bool)
 
         @CasePathable
         public enum Alert: Equatable, Sendable {
@@ -201,6 +205,11 @@ public struct LaserPointerFeature {
                 return .none
 
             case .alert:
+                return .none
+
+            case .updatePowerSavingMode(let isInPowerSavingMode):
+                state.isInPowerSavingMode = isInPowerSavingMode
+                motionClient.setLowPowerMode(isInPowerSavingMode)
                 return .none
             }
         }

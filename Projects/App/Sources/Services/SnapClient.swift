@@ -198,6 +198,22 @@ public final class SnapClient: @unchecked Sendable {
         tcpConnection?.send(openURL, type: .openURL)
     }
 
+    /// 시스템 명령 전송 (TCP)
+    public func sendSystemCommand(command: SystemCommand.Command) {
+        guard isConnected else { return }
+
+        let systemCommand = SystemCommand(command: command)
+        tcpConnection?.send(systemCommand, type: .systemCommand)
+    }
+
+    /// 숏폼 리모컨 명령 전송 (TCP)
+    public func sendShortsCommand(platform: ShortsCommand.Platform, action: ShortsCommand.Action) {
+        guard isConnected else { return }
+
+        let shortsCommand = ShortsCommand(platform: platform, action: action)
+        tcpConnection?.send(shortsCommand, type: .shortsCommand)
+    }
+
     /// 페어링 응답 전송 (TCP)
     public func sendPairingResponse(pinCode: String) {
         let response = PairingResponse(

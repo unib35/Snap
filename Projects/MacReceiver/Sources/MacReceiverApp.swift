@@ -529,6 +529,14 @@ final class ServerManager: ObservableObject {
                 logPacket("OpenURL: Invalid URL - \(openURL.url)")
             }
 
+        case .systemCommand(let command, _):
+            SystemController.shared.execute(command: command.command)
+            logPacket("SystemCommand: \(command.command)")
+
+        case .shortsCommand(let command, _):
+            ShortsController.shared.execute(command: command)
+            logPacket("ShortsCommand: \(command.platform) - \(command.action)")
+
         default:
             break
         }

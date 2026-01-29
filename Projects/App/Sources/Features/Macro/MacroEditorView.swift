@@ -17,6 +17,9 @@ struct MacroEditorView: View {
                     // Name Section
                     nameSection(macro: editorState.macro)
 
+                    // Group Section
+                    groupSection(macro: editorState.macro)
+
                     // Icon Section
                     iconSection(macro: editorState.macro)
 
@@ -81,6 +84,28 @@ struct MacroEditorView: View {
             ))
         } header: {
             Text("이름")
+        }
+    }
+
+    // MARK: - Group Section
+
+    @ViewBuilder
+    private func groupSection(macro: Macro) -> some View {
+        Section {
+            Picker("그룹", selection: Binding(
+                get: { macro.groupId },
+                set: { store.send(.updateMacroGroupId($0)) }
+            )) {
+                Text("그룹 없음")
+                    .tag(nil as UUID?)
+
+                ForEach(store.groups) { group in
+                    Label(group.name, systemImage: group.icon)
+                        .tag(group.id as UUID?)
+                }
+            }
+        } header: {
+            Text("그룹")
         }
     }
 

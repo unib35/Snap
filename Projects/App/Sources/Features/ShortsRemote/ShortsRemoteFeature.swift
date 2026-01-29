@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import Foundation
+import Shared
 import SwiftUI
 
 @Reducer
@@ -24,6 +25,15 @@ public struct ShortsRemoteFeature {
             case .youtube: return .red
             case .instagram: return .pink
             case .tiktok: return .primary
+            }
+        }
+
+        /// ShortsCommand.Platform으로 변환
+        var commandPlatform: ShortsCommand.Platform {
+            switch self {
+            case .youtube: return .youtube
+            case .instagram: return .instagram
+            case .tiktok: return .tiktok
             }
         }
     }
@@ -67,6 +77,8 @@ public struct ShortsRemoteFeature {
 
         // Interaction
         case toggleLike
+        case openComment
+        case openShare
 
         // Auto Scroll
         case toggleAutoScroll
@@ -85,20 +97,6 @@ public struct ShortsRemoteFeature {
 
     private enum CancelID {
         case autoScroll
-    }
-
-    // MARK: - Key Codes
-
-    private enum KeyCode {
-        static let upArrow: UInt32 = 126
-        static let downArrow: UInt32 = 125
-        static let leftArrow: UInt32 = 123
-        static let rightArrow: UInt32 = 124
-        static let space: UInt32 = 49
-        static let mKey: UInt32 = 46
-        static let lKey: UInt32 = 37  // YouTube like
-        static let kKey: UInt32 = 40  // YouTube prev
-        static let jKey: UInt32 = 38  // YouTube next
     }
 
     // MARK: - Body
@@ -123,46 +121,60 @@ public struct ShortsRemoteFeature {
 
             case .nextVideo:
                 state.isLiked = false  // Reset like state for new video
-                // All platforms use down arrow for next video in fullscreen/shorts mode
+                let platform = state.selectedPlatform.commandPlatform
                 return .run { [connectionClient] _ in
-                    await connectionClient.sendKeyEvent(KeyCode.downArrow, .press, 0)
+                    await connectionClient.sendShortsCommand(platform, .nextVideo)
                 }
 
             case .previousVideo:
-                // All platforms use up arrow for previous video
+                let platform = state.selectedPlatform.commandPlatform
                 return .run { [connectionClient] _ in
-                    await connectionClient.sendKeyEvent(KeyCode.upArrow, .press, 0)
+                    await connectionClient.sendShortsCommand(platform, .previousVideo)
                 }
 
             case .togglePlayPause:
                 state.isPaused.toggle()
+                let platform = state.selectedPlatform.commandPlatform
                 return .run { [connectionClient] _ in
-                    // Space to toggle play/pause
-                    await connectionClient.sendKeyEvent(KeyCode.space, .press, 0)
+                    await connectionClient.sendShortsCommand(platform, .playPause)
                 }
 
             case .toggleMute:
                 state.isMuted.toggle()
+                let platform = state.selectedPlatform.commandPlatform
                 return .run { [connectionClient] _ in
-                    // M key to toggle mute
-                    await connectionClient.sendKeyEvent(KeyCode.mKey, .press, 0)
+                    await connectionClient.sendShortsCommand(platform, .mute)
                 }
 
             case .seekForward:
+                let platform = state.selectedPlatform.commandPlatform
                 return .run { [connectionClient] _ in
-                    await connectionClient.sendKeyEvent(KeyCode.rightArrow, .press, 0)
+                    await connectionClient.sendShortsCommand(platform, .seekForward)
                 }
 
             case .seekBackward:
+                let platform = state.selectedPlatform.commandPlatform
                 return .run { [connectionClient] _ in
-                    await connectionClient.sendKeyEvent(KeyCode.leftArrow, .press, 0)
+                    await connectionClient.sendShortsCommand(platform, .seekBackward)
                 }
 
             case .toggleLike:
                 state.isLiked.toggle()
+                let platform = state.selectedPlatform.commandPlatform
                 return .run { [connectionClient] _ in
-                    // L key to like on YouTube
-                    await connectionClient.sendKeyEvent(KeyCode.lKey, .press, 0)
+                    await connectionClient.sendShortsCommand(platform, .like)
+                }
+
+            case .openComment:
+                let platform = state.selectedPlatform.commandPlatform
+                return .run { [connectionClient] _ in
+                    await connectionClient.sendShortsCommand(platform, .comment)
+                }
+
+            case .openShare:
+                let platform = state.selectedPlatform.commandPlatform
+                return .run { [connectionClient] _ in
+                    await connectionClient.sendShortsCommand(platform, .share)
                 }
 
             case .toggleAutoScroll:

@@ -98,6 +98,37 @@ public struct SiriCommand: Codable, Sendable, Equatable {
     }
 }
 
+// MARK: - ShortsCommand
+
+/// 숏폼 리모컨 명령
+public struct ShortsCommand: Codable, Sendable, Equatable {
+    public enum Platform: Int, Codable, Sendable, CaseIterable {
+        case youtube = 0
+        case instagram = 1
+        case tiktok = 2
+    }
+
+    public enum Action: Int, Codable, Sendable, CaseIterable {
+        case nextVideo = 0
+        case previousVideo = 1
+        case playPause = 2
+        case mute = 3
+        case like = 4
+        case comment = 5
+        case share = 6
+        case seekForward = 7
+        case seekBackward = 8
+    }
+
+    public var platform: Platform
+    public var action: Action
+
+    public init(platform: Platform = .youtube, action: Action = .nextVideo) {
+        self.platform = platform
+        self.action = action
+    }
+}
+
 // MARK: - NowPlayingInfo
 
 /// 현재 재생 중인 미디어 정보 (macOS → iOS)

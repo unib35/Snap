@@ -35,6 +35,10 @@ public enum MessageType: UInt8, Sendable {
     case appFocus = 0x52
     /// URL 열기
     case openURL = 0x53
+    /// 시스템 명령 (잠자기, 화면 잠금 등)
+    case systemCommand = 0x54
+    /// 숏폼 리모컨 명령
+    case shortsCommand = 0x55
     /// 발표 제어
     case presentation = 0x60
     /// 음성 텍스트

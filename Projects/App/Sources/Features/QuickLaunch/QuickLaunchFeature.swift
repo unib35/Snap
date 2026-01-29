@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import Foundation
+import Shared
 import SwiftUI
 
 @Reducer
@@ -13,10 +14,14 @@ public struct QuickLaunchFeature {
         public var color: QuickLaunchColor
         public var type: ItemType
         public var url: String
+        // App-specific properties
+        public var bundleID: String?
+        public var pid: UInt32?
 
         public enum ItemType: String, Codable, Sendable {
             case url
             case app
+            case system
         }
 
         public init(
@@ -25,7 +30,9 @@ public struct QuickLaunchFeature {
             icon: String,
             color: QuickLaunchColor,
             type: ItemType,
-            url: String
+            url: String,
+            bundleID: String? = nil,
+            pid: UInt32? = nil
         ) {
             self.id = id
             self.name = name
@@ -33,9 +40,11 @@ public struct QuickLaunchFeature {
             self.color = color
             self.type = type
             self.url = url
+            self.bundleID = bundleID
+            self.pid = pid
         }
 
-        // Default presets
+        // Default URL presets
         public static let defaults: [QuickLaunchItem] = [
             QuickLaunchItem(
                 name: "Netflix",
@@ -80,6 +89,69 @@ public struct QuickLaunchFeature {
                 url: "https://twitter.com"
             )
         ]
+
+        // System command presets
+        public static let systemCommands: [QuickLaunchItem] = [
+            QuickLaunchItem(
+                name: "잠자기",
+                icon: "moon.fill",
+                color: .purple,
+                type: .system,
+                url: "system://sleep"
+            ),
+            QuickLaunchItem(
+                name: "화면 잠금",
+                icon: "lock.fill",
+                color: .blue,
+                type: .system,
+                url: "system://lock"
+            ),
+            QuickLaunchItem(
+                name: "로그아웃",
+                icon: "rectangle.portrait.and.arrow.right",
+                color: .orange,
+                type: .system,
+                url: "system://logout"
+            ),
+            QuickLaunchItem(
+                name: "재시작",
+                icon: "arrow.clockwise.circle.fill",
+                color: .yellow,
+                type: .system,
+                url: "system://restart"
+            ),
+            QuickLaunchItem(
+                name: "시스템 종료",
+                icon: "power",
+                color: .red,
+                type: .system,
+                url: "system://shutdown"
+            )
+        ]
+
+        /// URL에서 시스템 명령 파싱
+        public var systemCommand: SystemCommand.Command? {
+            guard type == .system else { return nil }
+            switch url {
+            case "system://sleep": return .sleep
+            case "system://lock": return .lock
+            case "system://logout": return .logout
+            case "system://restart": return .restart
+            case "system://shutdown": return .shutdown
+            default: return nil
+            }
+        }
+
+        /// 위험한 시스템 명령 여부 (확인 필요)
+        public var isDangerousCommand: Bool {
+            guard let command = systemCommand else { return false }
+            switch command {
+            case .logout, .restart, .shutdown:
+                return true
+            case .sleep, .lock:
+                return false
+            }
+        }
     }
 
     public enum QuickLaunchColor: String, Codable, CaseIterable, Sendable {
@@ -107,6 +179,7 @@ public struct QuickLaunchFeature {
         public var items: [QuickLaunchItem] = []
         public var isEditing: Bool = false
         public var editorState: EditorState?
+        public var confirmationItem: QuickLaunchItem?
 
         public init() {
             self.items = Self.loadItems()
@@ -160,6 +233,7 @@ public struct QuickLaunchFeature {
         // Item actions
         case itemTapped(QuickLaunchItem)
         case itemDeleted(QuickLaunchItem)
+        case itemMoved(from: IndexSet, to: Int)
 
         // Edit mode
         case editModeToggled
@@ -176,6 +250,11 @@ public struct QuickLaunchFeature {
         case updateItemColor(QuickLaunchColor)
         case updateItemType(QuickLaunchItem.ItemType)
         case updateItemURL(String)
+
+        // System command confirmation
+        case showConfirmation(QuickLaunchItem)
+        case confirmSystemCommand
+        case dismissConfirmation
 
         // Reset
         case resetToDefaults
@@ -197,12 +276,38 @@ public struct QuickLaunchFeature {
                     return .send(.editItemTapped(item))
                 }
 
-                return .run { [connectionClient] _ in
-                    await connectionClient.sendOpenURL(item.url)
+                switch item.type {
+                case .url:
+                    return .run { [connectionClient] _ in
+                        await connectionClient.sendOpenURL(item.url)
+                    }
+
+                case .app:
+                    guard let bundleID = item.bundleID, let pid = item.pid else {
+                        return .none
+                    }
+                    return .run { [connectionClient] _ in
+                        await connectionClient.sendAppFocus(bundleID, pid)
+                    }
+
+                case .system:
+                    // 위험한 명령은 확인 필요
+                    if item.isDangerousCommand {
+                        return .send(.showConfirmation(item))
+                    }
+                    guard let command = item.systemCommand else { return .none }
+                    return .run { [connectionClient] _ in
+                        await connectionClient.sendSystemCommand(command)
+                    }
                 }
 
             case .itemDeleted(let item):
                 state.items.removeAll { $0.id == item.id }
+                state.saveItems()
+                return .none
+
+            case .itemMoved(let source, let destination):
+                state.items.move(fromOffsets: source, toOffset: destination)
                 state.saveItems()
                 return .none
 
@@ -250,6 +355,25 @@ public struct QuickLaunchFeature {
 
             case .updateItemURL(let url):
                 state.editorState?.item.url = url
+                return .none
+
+            case .showConfirmation(let item):
+                state.confirmationItem = item
+                return .none
+
+            case .confirmSystemCommand:
+                guard let item = state.confirmationItem,
+                      let command = item.systemCommand else {
+                    state.confirmationItem = nil
+                    return .none
+                }
+                state.confirmationItem = nil
+                return .run { [connectionClient] _ in
+                    await connectionClient.sendSystemCommand(command)
+                }
+
+            case .dismissConfirmation:
+                state.confirmationItem = nil
                 return .none
 
             case .resetToDefaults:

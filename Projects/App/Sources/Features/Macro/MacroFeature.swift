@@ -9,24 +9,43 @@ public struct MacroFeature {
     @ObservableState
     public struct State: Equatable {
         public var macros: [Macro] = []
+        public var groups: [MacroGroup] = []
         public var isEditing: Bool = false
         public var editorState: MacroEditorState?
+        public var groupEditorState: MacroGroupEditorState?
 
         public init() {
             self.macros = Self.loadMacros()
+            self.groups = Self.loadGroups()
+        }
+
+        // MARK: - Computed Properties
+
+        /// 그룹에 속하지 않은 매크로
+        public var ungroupedMacros: [Macro] {
+            macros.filter { $0.groupId == nil }
         }
 
         // MARK: - Persistence
 
         private static let macrosKey = "snap.macros"
+        private static let groupsKey = "snap.macro.groups"
         private static let persistence: PersistenceManager = UserDefaultsPersistence.shared
 
         static func loadMacros() -> [Macro] {
             persistence.load(forKey: macrosKey, default: Macro.defaults)
         }
 
+        static func loadGroups() -> [MacroGroup] {
+            persistence.load(forKey: groupsKey, default: [])
+        }
+
         mutating func saveMacros() {
             Self.persistence.save(macros, forKey: Self.macrosKey)
+        }
+
+        mutating func saveGroups() {
+            Self.persistence.save(groups, forKey: Self.groupsKey)
         }
     }
 
@@ -53,6 +72,23 @@ public struct MacroFeature {
         }
     }
 
+    // MARK: - Group Editor State
+
+    public struct MacroGroupEditorState: Equatable {
+        public var group: MacroGroup
+        public var isNew: Bool
+
+        public init(group: MacroGroup? = nil) {
+            if let group = group {
+                self.group = group
+                self.isNew = false
+            } else {
+                self.group = MacroGroup(name: "", icon: "folder.fill")
+                self.isNew = true
+            }
+        }
+    }
+
     // MARK: - Action
 
     public enum Action: Equatable, Sendable {
@@ -74,10 +110,25 @@ public struct MacroFeature {
         case updateMacroColor(MacroColor)
         case updateMacroSize(MacroSize)
         case updateMacroKeyCombo(KeyCombo)
+        case updateMacroGroupId(UUID?)
 
         // Reset
         case resetToDefaults
         case confirmResetToDefaults
+
+        // Group actions
+        case groupToggled(MacroGroup)
+        case addGroupTapped
+        case editGroupTapped(MacroGroup)
+        case dismissGroupEditor
+        case saveGroup(MacroGroup)
+        case deleteGroup(MacroGroup)
+        case groupMoved(from: IndexSet, to: Int)
+        case moveMacroToGroup(macro: Macro, groupId: UUID?)
+
+        // Group editor field updates
+        case updateGroupName(String)
+        case updateGroupIcon(String)
     }
 
     @Dependency(\.connectionClient) var connectionClient
@@ -160,13 +211,80 @@ public struct MacroFeature {
                 state.editorState?.macro.keyCombo = keyCombo
                 return .none
 
+            case .updateMacroGroupId(let groupId):
+                state.editorState?.macro.groupId = groupId
+                return .none
+
             case .resetToDefaults:
                 // This action is just for showing confirmation
                 return .none
 
             case .confirmResetToDefaults:
                 state.macros = Macro.defaults
+                state.groups = []
                 state.saveMacros()
+                state.saveGroups()
+                return .none
+
+            // MARK: - Group Actions
+
+            case .groupToggled(let group):
+                if let index = state.groups.firstIndex(where: { $0.id == group.id }) {
+                    state.groups[index].isExpanded.toggle()
+                    state.saveGroups()
+                }
+                return .none
+
+            case .addGroupTapped:
+                state.groupEditorState = MacroGroupEditorState()
+                return .none
+
+            case .editGroupTapped(let group):
+                state.groupEditorState = MacroGroupEditorState(group: group)
+                return .none
+
+            case .dismissGroupEditor:
+                state.groupEditorState = nil
+                return .none
+
+            case .saveGroup(let group):
+                if let index = state.groups.firstIndex(where: { $0.id == group.id }) {
+                    state.groups[index] = group
+                } else {
+                    state.groups.append(group)
+                }
+                state.groupEditorState = nil
+                state.saveGroups()
+                return .none
+
+            case .deleteGroup(let group):
+                // 그룹 내 매크로들의 groupId를 nil로 설정 (그룹 해제)
+                for index in state.macros.indices where state.macros[index].groupId == group.id {
+                    state.macros[index].groupId = nil
+                }
+                state.groups.removeAll { $0.id == group.id }
+                state.saveMacros()
+                state.saveGroups()
+                return .none
+
+            case .groupMoved(let from, let to):
+                state.groups.move(fromOffsets: from, toOffset: to)
+                state.saveGroups()
+                return .none
+
+            case .moveMacroToGroup(let macro, let groupId):
+                if let index = state.macros.firstIndex(where: { $0.id == macro.id }) {
+                    state.macros[index].groupId = groupId
+                    state.saveMacros()
+                }
+                return .none
+
+            case .updateGroupName(let name):
+                state.groupEditorState?.group.name = name
+                return .none
+
+            case .updateGroupIcon(let icon):
+                state.groupEditorState?.group.icon = icon
                 return .none
             }
         }

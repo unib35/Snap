@@ -37,6 +37,8 @@ public struct SnapSecondaryButton: View {
                 }
                 Text(title)
                     .font(SnapTypography.labelLarge)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             .foregroundStyle(accentColor)
             .frame(maxWidth: .infinity)
