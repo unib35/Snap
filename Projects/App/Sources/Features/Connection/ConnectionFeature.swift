@@ -35,6 +35,7 @@ public struct ConnectionFeature: Sendable {
 
         // Connection
         case connect(Device)
+        case forgetAndPair(Device)
         case disconnect
         case connectionEvent(ConnectionEvent)
 
@@ -62,6 +63,7 @@ public struct ConnectionFeature: Sendable {
         // Pairing
         case pairingPinCodeChanged(String)
         case submitPairingPin
+        case pairingCodeScanned(String)
         case cancelPairing
 
         // Settings
@@ -140,8 +142,8 @@ public struct ConnectionFeature: Sendable {
                     )
                     state.discoveredDevices.updateOrAppend(device)
 
-                case .deviceLost(let name):
-                    state.discoveredDevices.removeAll { $0.name == name }
+                case .deviceLost(let deviceID):
+                    state.discoveredDevices.remove(id: deviceID)
 
                 case .error:
                     state.lastError = .connection(.discoveryFailed)
@@ -149,6 +151,23 @@ public struct ConnectionFeature: Sendable {
                 return .none
 
             // MARK: - Connection
+
+            case .forgetAndPair(let device):
+                state.status = .disconnected
+                state.connectedDevice = nil
+                state.lastConnectedDevice = nil
+                state.reconnectAttempt = 0
+                return .concatenate(
+                    .merge(.cancel(id: CancelID.connection), .cancel(id: CancelID.reconnect)),
+                    .run { send in
+                        do {
+                            try await connectionClient.forgetDevice(device.id)
+                            await send(.connect(device))
+                        } catch {
+                            await send(.connectionEvent(.error(error.localizedDescription)))
+                        }
+                    }
+                )
 
             case .connect(let device):
                 state.status = .connecting(device)
@@ -160,14 +179,14 @@ public struct ConnectionFeature: Sendable {
                     .cancel(id: CancelID.reconnect),
                     .run { send in
                         do {
-                            for try await event in try await connectionClient.connect(device.host, device.port) {
+                            for try await event in try await connectionClient.connect(device.host, device.port, device.id) {
                                 await send(.connectionEvent(event))
                             }
                         } catch {
                             await send(.connectionEvent(.error(error.localizedDescription)))
                         }
                     }
-                    .cancellable(id: CancelID.connection)
+                    .cancellable(id: CancelID.connection, cancelInFlight: true)
                 )
 
             case .disconnect:
@@ -288,7 +307,7 @@ public struct ConnectionFeature: Sendable {
                     try await clock.sleep(for: delay)
                     await send(.reconnectDelayCompleted)
                 }
-                .cancellable(id: CancelID.reconnect)
+                .cancellable(id: CancelID.reconnect, cancelInFlight: true)
 
             case .cancelReconnect:
                 state.status = .disconnected
@@ -305,14 +324,14 @@ public struct ConnectionFeature: Sendable {
 
                 return .run { send in
                     do {
-                        for try await event in try await connectionClient.connect(device.host, device.port) {
+                        for try await event in try await connectionClient.connect(device.host, device.port, device.id) {
                             await send(.connectionEvent(event))
                         }
                     } catch {
                         await send(.connectionEvent(.error(error.localizedDescription)))
                     }
                 }
-                .cancellable(id: CancelID.connection)
+                .cancellable(id: CancelID.connection, cancelInFlight: true)
 
             // MARK: - Network Monitoring
 
@@ -322,7 +341,7 @@ public struct ConnectionFeature: Sendable {
                         await send(.networkStatusChanged(event))
                     }
                 }
-                .cancellable(id: CancelID.networkMonitor)
+                .cancellable(id: CancelID.networkMonitor, cancelInFlight: true)
 
             case .stopNetworkMonitoring:
                 networkMonitorClient.stopMonitoring()
@@ -379,6 +398,10 @@ public struct ConnectionFeature: Sendable {
 
             // MARK: - Pairing
 
+            case .pairingCodeScanned(let code):
+                guard state.isPairingRequired else { return .none }
+                return .run { _ in await connectionClient.sendPairingResponse(code) }
+
             case .pairingPinCodeChanged(let pin):
                 let filtered = String(pin.filter { $0.isNumber }.prefix(4))
                 state.pairingPinCode = filtered
@@ -394,9 +417,15 @@ public struct ConnectionFeature: Sendable {
             case .cancelPairing:
                 state.isPairingRequired = false
                 state.pairingPinCode = ""
-                return .run { _ in
-                    await connectionClient.disconnect()
-                }
+                state.status = .disconnected
+                state.connectedDevice = nil
+                state.lastConnectedDevice = nil
+                state.reconnectAttempt = 0
+                return .merge(
+                    .cancel(id: CancelID.connection),
+                    .cancel(id: CancelID.reconnect),
+                    .run { _ in await connectionClient.disconnect() }
+                )
 
             // MARK: - Settings
 

@@ -71,11 +71,6 @@ struct TrustedDevicesManagerTests {
         return TrustedDevicesManager(persistence: persistence)
     }
 
-    /// Waits for async barrier operations to complete
-    private func waitForBarrier() {
-        // Give time for async barrier operations
-        Thread.sleep(forTimeInterval: 0.1)
-    }
 
     @Test("Initially empty")
     func initiallyEmpty() {
@@ -90,7 +85,6 @@ struct TrustedDevicesManagerTests {
         let device = TrustedDevice(deviceID: "device-1", deviceName: "iPhone 1")
 
         manager.addTrustedDevice(device)
-        waitForBarrier()
 
         #expect(manager.trustedDevices.count == 1)
         #expect(manager.trustedDevices.first?.deviceID == "device-1")
@@ -102,7 +96,6 @@ struct TrustedDevicesManagerTests {
         let manager = createTestManager()
 
         manager.addTrustedDevice(deviceID: "device-2", deviceName: "iPad Pro")
-        waitForBarrier()
 
         #expect(manager.trustedDevices.count == 1)
         #expect(manager.trustedDevices.first?.deviceID == "device-2")
@@ -116,7 +109,6 @@ struct TrustedDevicesManagerTests {
         manager.addTrustedDevice(deviceID: "device-1", deviceName: "Device 1")
         manager.addTrustedDevice(deviceID: "device-2", deviceName: "Device 2")
         manager.addTrustedDevice(deviceID: "device-3", deviceName: "Device 3")
-        waitForBarrier()
 
         #expect(manager.trustedDevices.count == 3)
     }
@@ -126,9 +118,7 @@ struct TrustedDevicesManagerTests {
         let manager = createTestManager()
 
         manager.addTrustedDevice(deviceID: "device-1", deviceName: "Old Name")
-        waitForBarrier()
         manager.addTrustedDevice(deviceID: "device-1", deviceName: "New Name")
-        waitForBarrier()
 
         #expect(manager.trustedDevices.count == 1)
         #expect(manager.trustedDevices.first?.deviceName == "New Name")
@@ -140,10 +130,8 @@ struct TrustedDevicesManagerTests {
 
         manager.addTrustedDevice(deviceID: "device-1", deviceName: "Device 1")
         manager.addTrustedDevice(deviceID: "device-2", deviceName: "Device 2")
-        waitForBarrier()
 
         manager.removeTrustedDevice(deviceID: "device-1")
-        waitForBarrier()
 
         #expect(manager.trustedDevices.count == 1)
         #expect(manager.trustedDevices.first?.deviceID == "device-2")
@@ -154,10 +142,8 @@ struct TrustedDevicesManagerTests {
         let manager = createTestManager()
 
         manager.addTrustedDevice(deviceID: "device-1", deviceName: "Device 1")
-        waitForBarrier()
 
         manager.removeTrustedDevice(deviceID: "non-existent")
-        waitForBarrier()
 
         #expect(manager.trustedDevices.count == 1)
     }
@@ -169,10 +155,8 @@ struct TrustedDevicesManagerTests {
         manager.addTrustedDevice(deviceID: "device-1", deviceName: "Device 1")
         manager.addTrustedDevice(deviceID: "device-2", deviceName: "Device 2")
         manager.addTrustedDevice(deviceID: "device-3", deviceName: "Device 3")
-        waitForBarrier()
 
         manager.removeAllTrustedDevices()
-        waitForBarrier()
 
         #expect(manager.trustedDevices.isEmpty)
     }
@@ -182,7 +166,6 @@ struct TrustedDevicesManagerTests {
         let manager = createTestManager()
 
         manager.addTrustedDevice(deviceID: "trusted-device", deviceName: "Trusted")
-        waitForBarrier()
 
         #expect(manager.isTrusted(deviceID: "trusted-device") == true)
     }
@@ -192,7 +175,6 @@ struct TrustedDevicesManagerTests {
         let manager = createTestManager()
 
         manager.addTrustedDevice(deviceID: "trusted-device", deviceName: "Trusted")
-        waitForBarrier()
 
         #expect(manager.isTrusted(deviceID: "untrusted-device") == false)
     }
@@ -209,7 +191,6 @@ struct TrustedDevicesManagerTests {
         let manager = createTestManager()
 
         manager.addTrustedDevice(deviceID: "device-1", deviceName: "My iPhone")
-        waitForBarrier()
 
         #expect(manager.deviceName(for: "device-1") == "My iPhone")
     }
@@ -219,7 +200,6 @@ struct TrustedDevicesManagerTests {
         let manager = createTestManager()
 
         manager.addTrustedDevice(deviceID: "device-1", deviceName: "Device 1")
-        waitForBarrier()
 
         #expect(manager.deviceName(for: "unknown-device") == nil)
     }
@@ -234,7 +214,6 @@ struct TrustedDevicesManagerTests {
         // First manager instance
         let manager1 = TrustedDevicesManager(persistence: persistence)
         manager1.addTrustedDevice(deviceID: "persistent-device", deviceName: "Persistent")
-        waitForBarrier()
 
         // Second manager instance with same persistence
         let manager2 = TrustedDevicesManager(persistence: persistence)
@@ -260,8 +239,6 @@ struct TrustedDevicesManagerTests {
             }
         }
 
-        // Wait for all barrier operations to complete
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
 
         #expect(manager.trustedDevices.count == iterations)
     }
@@ -274,7 +251,6 @@ struct TrustedDevicesManagerTests {
         for i in 0..<10 {
             manager.addTrustedDevice(deviceID: "device-\(i)", deviceName: "Device \(i)")
         }
-        waitForBarrier()
 
         // Concurrent reads should not crash
         await withTaskGroup(of: Bool.self) { group in
@@ -302,7 +278,6 @@ struct TrustedDevicesManagerTests {
         }
 
         // Wait for barrier operations
-        try? await Task.sleep(nanoseconds: 500_000_000)
 
         // Then perform concurrent reads (should not crash)
         await withTaskGroup(of: Bool.self) { group in

@@ -16,7 +16,7 @@ public struct TrustedDevice: Codable, Sendable, Equatable, Identifiable {
 
 /// 신뢰된 디바이스 관리자
 ///
-/// - Note: `@unchecked Sendable` - 내부 DispatchQueue(`queue`)를 통해 barrier를 사용한 reader-writer 패턴으로 스레드 안전함
+/// - Note: `@unchecked Sendable` - 동기 잠금으로 읽기와 갱신 전체를 직렬화함
 public final class TrustedDevicesManager: @unchecked Sendable {
     // MARK: - Singleton
 
@@ -26,7 +26,7 @@ public final class TrustedDevicesManager: @unchecked Sendable {
 
     private let persistence: PersistenceManager
     private let trustedDevicesKey = "com.snap.trustedDevices"
-    private let queue = DispatchQueue(label: "com.snap.trustedDevices", attributes: .concurrent)
+    private let lock = NSRecursiveLock()
 
     // MARK: - Initialization
 
@@ -38,22 +38,21 @@ public final class TrustedDevicesManager: @unchecked Sendable {
 
     /// 신뢰된 디바이스 목록 조회
     public var trustedDevices: [TrustedDevice] {
-        queue.sync {
+        lock.withLock {
             loadTrustedDevices()
         }
     }
 
     /// 디바이스가 신뢰되었는지 확인
     public func isTrusted(deviceID: String) -> Bool {
-        queue.sync {
+        lock.withLock {
             loadTrustedDevices().contains { $0.deviceID == deviceID }
         }
     }
 
     /// 신뢰된 디바이스 추가
     public func addTrustedDevice(_ device: TrustedDevice) {
-        queue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
+        lock.withLock {
             var devices = self.loadTrustedDevices()
 
             // 이미 존재하면 업데이트
@@ -75,8 +74,7 @@ public final class TrustedDevicesManager: @unchecked Sendable {
 
     /// 신뢰된 디바이스 제거
     public func removeTrustedDevice(deviceID: String) {
-        queue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
+        lock.withLock {
             var devices = self.loadTrustedDevices()
             devices.removeAll { $0.deviceID == deviceID }
             self.saveTrustedDevices(devices)
@@ -85,14 +83,14 @@ public final class TrustedDevicesManager: @unchecked Sendable {
 
     /// 모든 신뢰된 디바이스 제거
     public func removeAllTrustedDevices() {
-        queue.async(flags: .barrier) { [weak self] in
-            self?.saveTrustedDevices([])
+        lock.withLock {
+            saveTrustedDevices([])
         }
     }
 
     /// 디바이스 이름으로 조회
     public func deviceName(for deviceID: String) -> String? {
-        queue.sync {
+        lock.withLock {
             loadTrustedDevices().first { $0.deviceID == deviceID }?.deviceName
         }
     }
