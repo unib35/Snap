@@ -21,7 +21,10 @@ public enum NetworkConstants {
     public static let packetMagic: UInt16 = 0x534E
 
     /// 프로토콜 버전
-    public static let protocolVersion: UInt8 = 0x01
+    public static let protocolVersion: UInt8 = 0x03
+
+    /// App lists contain icons, so TCP frames may exceed a UDP datagram.
+    public static let maxTCPPayloadSize: Int = 4 * 1024 * 1024
 
     /// TCP Heartbeat 간격 (초)
     public static let tcpHeartbeatInterval: TimeInterval = 5.0

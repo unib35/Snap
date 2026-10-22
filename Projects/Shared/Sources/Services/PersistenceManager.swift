@@ -30,7 +30,7 @@ public final class UserDefaultsPersistence: PersistenceManager, @unchecked Senda
     private let userDefaults: UserDefaults
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
-    private let queue = DispatchQueue(label: "com.snap.persistence", attributes: .concurrent)
+    private let lock = NSRecursiveLock()
 
     // MARK: - Initialization
 
@@ -43,8 +43,7 @@ public final class UserDefaultsPersistence: PersistenceManager, @unchecked Senda
     // MARK: - PersistenceManager
 
     public func save<T: Codable>(_ value: T, forKey key: String) {
-        queue.async(flags: .barrier) { [weak self] in
-            guard let self else { return }
+        lock.withLock {
             do {
                 let data = try self.encoder.encode(value)
                 self.userDefaults.set(data, forKey: key)
@@ -56,7 +55,7 @@ public final class UserDefaultsPersistence: PersistenceManager, @unchecked Senda
     }
 
     public func load<T: Codable>(forKey key: String) -> T? {
-        queue.sync {
+        lock.withLock {
             guard let data = userDefaults.data(forKey: key) else {
                 return nil
             }
@@ -71,13 +70,13 @@ public final class UserDefaultsPersistence: PersistenceManager, @unchecked Senda
     }
 
     public func remove(forKey key: String) {
-        queue.async(flags: .barrier) { [weak self] in
-            self?.userDefaults.removeObject(forKey: key)
+        lock.withLock {
+            self.userDefaults.removeObject(forKey: key)
         }
     }
 
     public func exists(forKey key: String) -> Bool {
-        queue.sync {
+        lock.withLock {
             userDefaults.object(forKey: key) != nil
         }
     }
@@ -114,7 +113,7 @@ public final class iCloudPersistence: PersistenceManager, @unchecked Sendable {
     private let store: NSUbiquitousKeyValueStore
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
-    private let queue = DispatchQueue(label: "com.snap.iCloudPersistence", attributes: .concurrent)
+    private let lock = NSRecursiveLock()
 
     /// iCloud 사용 가능 여부
     public var isAvailable: Bool {
@@ -148,8 +147,7 @@ public final class iCloudPersistence: PersistenceManager, @unchecked Sendable {
     // MARK: - PersistenceManager
 
     public func save<T: Codable>(_ value: T, forKey key: String) {
-        queue.async(flags: .barrier) { [weak self] in
-            guard let self else { return }
+        lock.withLock {
             do {
                 let data = try self.encoder.encode(value)
                 self.store.set(data, forKey: key)
@@ -161,7 +159,7 @@ public final class iCloudPersistence: PersistenceManager, @unchecked Sendable {
     }
 
     public func load<T: Codable>(forKey key: String) -> T? {
-        queue.sync {
+        lock.withLock {
             guard let data = store.data(forKey: key) else {
                 return nil
             }
@@ -175,14 +173,14 @@ public final class iCloudPersistence: PersistenceManager, @unchecked Sendable {
     }
 
     public func remove(forKey key: String) {
-        queue.async(flags: .barrier) { [weak self] in
-            self?.store.removeObject(forKey: key)
-            self?.store.synchronize()
+        lock.withLock {
+            self.store.removeObject(forKey: key)
+            self.store.synchronize()
         }
     }
 
     public func exists(forKey key: String) -> Bool {
-        queue.sync {
+        lock.withLock {
             store.object(forKey: key) != nil
         }
     }
@@ -236,13 +234,12 @@ public final class MockPersistence: PersistenceManager, @unchecked Sendable {
     private var storage: [String: Data] = [:]
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
-    private let queue = DispatchQueue(label: "com.snap.mockPersistence", attributes: .concurrent)
+    private let lock = NSRecursiveLock()
 
     public init() {}
 
     public func save<T: Codable>(_ value: T, forKey key: String) {
-        queue.async(flags: .barrier) { [weak self] in
-            guard let self else { return }
+        lock.withLock {
             if let data = try? self.encoder.encode(value) {
                 self.storage[key] = data
             }
@@ -250,28 +247,28 @@ public final class MockPersistence: PersistenceManager, @unchecked Sendable {
     }
 
     public func load<T: Codable>(forKey key: String) -> T? {
-        queue.sync {
+        lock.withLock {
             guard let data = storage[key] else { return nil }
             return try? decoder.decode(T.self, from: data)
         }
     }
 
     public func remove(forKey key: String) {
-        queue.async(flags: .barrier) { [weak self] in
-            self?.storage.removeValue(forKey: key)
+        _ = lock.withLock {
+            self.storage.removeValue(forKey: key)
         }
     }
 
     public func exists(forKey key: String) -> Bool {
-        queue.sync {
+        lock.withLock {
             storage[key] != nil
         }
     }
 
     /// 모든 데이터 삭제 (테스트용)
     public func clear() {
-        queue.async(flags: .barrier) { [weak self] in
-            self?.storage.removeAll()
+        lock.withLock {
+            self.storage.removeAll()
         }
     }
 }

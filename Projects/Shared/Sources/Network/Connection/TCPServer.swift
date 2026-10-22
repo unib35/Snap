@@ -126,7 +126,6 @@ public final class TCPServer: @unchecked Sendable {
 
     /// 서버 중지
     public func stop() {
-        guard isListening else { return }
         listener?.cancel()
         listener = nil
         isListening = false
@@ -162,7 +161,7 @@ public final class TCPServer: @unchecked Sendable {
 
     private func handleNewConnection(_ nwConnection: NWConnection) {
         let connection = TCPConnection(connection: nwConnection, isSecure: useTLS)
-        connection.connect()
         delegate?.tcpServer(self, didAccept: connection)
+        connection.connect()
     }
 }

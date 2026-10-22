@@ -8,17 +8,25 @@ public struct Handshake: Codable, Sendable, Equatable {
     public var deviceID: String
     public var protocolVersion: UInt32
     public var appVersion: String
+    /// Per-connection UDP signing key, sent only in the accepted server handshake.
+    public var udpSessionKey: Data?
+    /// Bearer credential, sent exclusively over the pinned TLS connection.
+    public var authenticationToken: Data?
 
     public init(
         deviceName: String = "",
         deviceID: String = "",
         protocolVersion: UInt32 = UInt32(NetworkConstants.protocolVersion),
-        appVersion: String = ""
+        appVersion: String = "",
+        udpSessionKey: Data? = nil,
+        authenticationToken: Data? = nil
     ) {
         self.deviceName = deviceName
         self.deviceID = deviceID
         self.protocolVersion = protocolVersion
         self.appVersion = appVersion
+        self.udpSessionKey = udpSessionKey
+        self.authenticationToken = authenticationToken
     }
 }
 
@@ -78,10 +86,12 @@ public struct Disconnect: Codable, Sendable, Equatable {
 public struct PairingChallenge: Codable, Sendable, Equatable {
     public var deviceName: String
     public var deviceID: String
+    public var nonce: Data?
 
-    public init(deviceName: String = "", deviceID: String = "") {
+    public init(deviceName: String = "", deviceID: String = "", nonce: Data? = nil) {
         self.deviceName = deviceName
         self.deviceID = deviceID
+        self.nonce = nonce
     }
 }
 
@@ -90,11 +100,13 @@ public struct PairingResponse: Codable, Sendable, Equatable {
     public var pinCode: String
     public var deviceName: String
     public var deviceID: String
+    public var nonce: Data?
 
-    public init(pinCode: String = "", deviceName: String = "", deviceID: String = "") {
+    public init(pinCode: String = "", deviceName: String = "", deviceID: String = "", nonce: Data? = nil) {
         self.pinCode = pinCode
         self.deviceName = deviceName
         self.deviceID = deviceID
+        self.nonce = nonce
     }
 }
 

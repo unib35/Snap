@@ -241,7 +241,13 @@ public struct TrackpadFeature {
 
             case .touchEnded:
                 state.isTouching = false
-                return .none
+                let deltaX = state.accumulatedDeltaX
+                let deltaY = state.accumulatedDeltaY
+                state.accumulatedDeltaX = 0
+                state.accumulatedDeltaY = 0
+                state.throttleCounter = 0
+                guard deltaX != 0 || deltaY != 0 else { return .none }
+                return .run { _ in await client.sendMouseMove(deltaX, deltaY) }
 
             case .tapped:
                 guard state.isTapToClick else { return .none }

@@ -22,7 +22,16 @@ public final class TCPConnection: @unchecked Sendable {
     private let connection: NWConnection
     private let queue: DispatchQueue
 
-    public private(set) var state: ConnectionState = .disconnected
+    private let lock = NSRecursiveLock()
+    private var storedState: ConnectionState = .disconnected
+    private var hasFinished = false
+    private var receiveBuffer = Data()
+
+    public var state: ConnectionState {
+        lock.lock()
+        defer { lock.unlock() }
+        return storedState
+    }
     public let isSecure: Bool
 
     /// 연결 타임아웃 (초)
@@ -77,14 +86,17 @@ public final class TCPConnection: @unchecked Sendable {
 
     deinit {
         cancelTimeoutTimer()
+        connection.cancel()
     }
 
     // MARK: - Public Methods
 
     /// 연결 시작
     public func connect() {
-        guard state == .disconnected else { return }
-        state = .connecting
+        lock.lock()
+        defer { lock.unlock() }
+        guard state == .disconnected, !hasFinished else { return }
+        storedState = .connecting
 
         // 타임아웃 타이머 시작
         startTimeoutTimer()
@@ -94,13 +106,17 @@ public final class TCPConnection: @unchecked Sendable {
 
     /// 연결 종료
     public func disconnect() {
+        lock.lock()
+        defer { lock.unlock() }
         guard state == .connected || state == .connecting else { return }
-        state = .disconnecting
+        finish(error: nil)
+    }
 
-        // 타임아웃 타이머 취소
-        cancelTimeoutTimer()
-
-        connection.cancel()
+    /// Cancels even a not-yet-started accepted connection.
+    public func cancel() {
+        lock.lock()
+        defer { lock.unlock() }
+        finish(error: nil)
     }
 
     // MARK: - Timeout
@@ -109,11 +125,11 @@ public final class TCPConnection: @unchecked Sendable {
         cancelTimeoutTimer()
 
         let workItem = DispatchWorkItem { [weak self] in
-            guard let self, self.state == .connecting else { return }
-            logger.warning("Connection timeout after \(self.connectionTimeout) seconds")
-            self.state = .disconnected
-            self.connection.cancel()
-            self.delegate?.tcpConnectionDidDisconnect(self, error: ConnectionTimeoutError())
+            guard let self else { return }
+            self.lock.lock()
+            defer { self.lock.unlock() }
+            guard self.state == .connecting else { return }
+            self.finish(error: ConnectionTimeoutError())
         }
 
         timeoutWorkItem = workItem
@@ -159,6 +175,9 @@ public final class TCPConnection: @unchecked Sendable {
     }
 
     private func handleStateChange(_ newState: NWConnection.State) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !hasFinished else { return }
         let previousState = state
 
         switch newState {
@@ -170,31 +189,30 @@ public final class TCPConnection: @unchecked Sendable {
 
         case .ready:
             cancelTimeoutTimer()
-            state = .connected
+            storedState = .connected
             NetworkLogger.logConnectionStateChange(
                 from: previousState.description,
                 to: "connected"
             )
+            lock.unlock()
             delegate?.tcpConnectionDidConnect(self)
-            startReceiving()
+            lock.lock()
+            if !hasFinished { startReceiving() }
 
         case .waiting(let error):
-            logger.warning("Connection waiting: \(error.localizedDescription)")
+            // Network.framework reports certificate rejection as .waiting.
+            // Retrying cannot repair trust; surface the TLS error immediately.
+            if case .tls = error {
+                finish(error: error)
+            } else {
+                logger.warning("Connection waiting: \(error.localizedDescription)")
+            }
 
         case .failed(let error):
-            cancelTimeoutTimer()
-            state = .disconnected
-            NetworkLogger.logConnectionError(error, context: "connection failed")
-            delegate?.tcpConnectionDidDisconnect(self, error: error)
+            finish(error: error)
 
         case .cancelled:
-            cancelTimeoutTimer()
-            state = .disconnected
-            NetworkLogger.logConnectionStateChange(
-                from: previousState.description,
-                to: "disconnected"
-            )
-            delegate?.tcpConnectionDidDisconnect(self, error: nil)
+            finish(error: nil)
 
         @unknown default:
             logger.warning("Unknown connection state")
@@ -202,93 +220,61 @@ public final class TCPConnection: @unchecked Sendable {
     }
 
     private func startReceiving() {
-        receiveHeader()
-    }
-
-    private func receiveHeader() {
-        // 먼저 16바이트 헤더를 읽음
-        connection.receive(
-            minimumIncompleteLength: NetworkConstants.packetHeaderSize,
-            maximumLength: NetworkConstants.packetHeaderSize
-        ) { [weak self] content, _, isComplete, error in
+        connection.receive(minimumIncompleteLength: 1, maximumLength: NetworkConstants.maxPacketSize) { [weak self] content, _, isComplete, error in
             guard let self else { return }
+            self.lock.lock()
+            defer { self.lock.unlock() }
+            guard !self.hasFinished else { return }
 
+            // A final callback can contain data as well as EOF.
+            if let content {
+                self.receiveBuffer.append(content)
+                self.drainPackets()
+            }
+            guard !self.hasFinished else { return }
             if let error {
-                self.handleReceiveError(error)
-                return
+                self.finish(error: error)
+            } else if isComplete {
+                self.finish(error: self.receiveBuffer.isEmpty ? nil : PacketDecodingError.payloadTooShort)
+            } else if self.state == .connected {
+                self.startReceiving()
             }
-
-            if isComplete {
-                self.state = .disconnected
-                self.delegate?.tcpConnectionDidDisconnect(self, error: nil)
-                return
-            }
-
-            guard let headerData = content,
-                  let header = PacketHeader(data: headerData) else {
-                self.receiveHeader()
-                return
-            }
-
-            // 페이로드 읽기
-            self.receivePayload(header: header, headerData: headerData)
         }
     }
 
-    private func receivePayload(header: PacketHeader, headerData: Data) {
-        let payloadLength = Int(header.payloadLength)
-
-        guard payloadLength > 0 else {
-            // 빈 페이로드인 경우
-            processPacket(headerData)
-            receiveHeader()
-            return
-        }
-
-        connection.receive(
-            minimumIncompleteLength: payloadLength,
-            maximumLength: payloadLength
-        ) { [weak self] content, _, isComplete, error in
-            guard let self else { return }
-
-            if let error {
-                self.handleReceiveError(error)
+    private func drainPackets() {
+        while !hasFinished && receiveBuffer.count >= NetworkConstants.packetHeaderSize {
+            guard let header = PacketHeader(data: receiveBuffer),
+                  header.isExactVersionMatch,
+                  header.payloadLength <= NetworkConstants.maxTCPPayloadSize else {
+                finish(error: PacketDecodingError.invalidHeader)
                 return
             }
-
-            if isComplete {
-                self.state = .disconnected
-                self.delegate?.tcpConnectionDidDisconnect(self, error: nil)
-                return
+            let length = NetworkConstants.packetHeaderSize + Int(header.payloadLength)
+            guard receiveBuffer.count >= length else { return }
+            let data = Data(receiveBuffer.prefix(length))
+            receiveBuffer = Data(receiveBuffer.dropFirst(length))
+            do {
+                let packet = try PacketDecoder.decode(data)
+                lock.unlock()
+                delegate?.tcpConnection(self, didReceive: packet)
+                lock.lock()
+            } catch {
+                finish(error: error)
             }
-
-            guard let payloadData = content else {
-                self.receiveHeader()
-                return
-            }
-
-            var fullPacket = headerData
-            fullPacket.append(payloadData)
-
-            self.processPacket(fullPacket)
-            self.receiveHeader()
         }
     }
 
-    private func processPacket(_ data: Data) {
-        do {
-            let packet = try PacketDecoder.decode(data)
-            delegate?.tcpConnection(self, didReceive: packet)
-        } catch {
-            logger.error("Packet decode error: \(error.localizedDescription)")
+    private func finish(error: Error?) {
+        guard !hasFinished else { return }
+        hasFinished = true
+        cancelTimeoutTimer()
+        storedState = .disconnected
+        receiveBuffer.removeAll()
+        connection.cancel()
+        // Deliver outside the connection lock to avoid lock inversion with owners.
+        queue.async { [self] in
+            delegate?.tcpConnectionDidDisconnect(self, error: error)
         }
-    }
-
-    private func handleReceiveError(_ error: NWError) {
-        if case .posix(let code) = error, code == .ECANCELED {
-            // 정상 종료
-            return
-        }
-        logger.error("Receive error: \(error.localizedDescription)")
     }
 }

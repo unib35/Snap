@@ -68,7 +68,7 @@ public struct ConnectionClient: Sendable {
     ///   - port: TCP 연결 포트 번호
     /// - Returns: 연결 상태 이벤트를 방출하는 `AsyncStream`
     /// - Throws: 연결 실패 시 에러
-    public var connect: @Sendable (String, UInt16) async throws -> AsyncStream<ConnectionEvent>
+    public var connect: @Sendable (String, UInt16, String) async throws -> AsyncStream<ConnectionEvent>
 
     /// 현재 연결을 해제합니다.
     public var disconnect: @Sendable () async -> Void
@@ -201,6 +201,7 @@ public struct ConnectionClient: Sendable {
     ///
     /// - Parameter pinCode: 사용자가 입력한 4자리 PIN 코드
     public var sendPairingResponse: @Sendable (String) async -> Void
+    public var forgetDevice: @Sendable (String) async throws -> Void = { _ in }
 }
 
 // MARK: - Discovery Events
@@ -312,7 +313,7 @@ extension ConnectionClient: DependencyKey {
         return ConnectionClient(
             startDiscovery: { await actor.startDiscovery() },
             stopDiscovery: { await actor.stopDiscovery() },
-            connect: { host, port in try await actor.connect(host: host, port: port) },
+            connect: { host, port, serverID in try await actor.connect(host: host, port: port, serverID: serverID) },
             disconnect: { await actor.disconnect() },
             sendMouseMove: { dx, dy in await actor.sendMouseMove(deltaX: dx, deltaY: dy) },
             sendMouseClick: { button, action in await actor.sendMouseClick(button: button, action: action) },
@@ -330,7 +331,8 @@ extension ConnectionClient: DependencyKey {
             sendOpenURL: { url in await actor.sendOpenURL(url: url) },
             sendSystemCommand: { command in await actor.sendSystemCommand(command: command) },
             sendShortsCommand: { platform, action in await actor.sendShortsCommand(platform: platform, action: action) },
-            sendPairingResponse: { pin in await actor.sendPairingResponse(pinCode: pin) }
+            sendPairingResponse: { code in await actor.sendPairingResponse(pinCode: code) },
+            forgetDevice: { id in try await actor.forgetDevice(serverID: id) }
         )
     }
 
@@ -338,7 +340,7 @@ extension ConnectionClient: DependencyKey {
         ConnectionClient(
             startDiscovery: { .finished },
             stopDiscovery: {},
-            connect: { _, _ in .finished },
+            connect: { _, _, _ in .finished },
             disconnect: {},
             sendMouseMove: { _, _ in },
             sendMouseClick: { _, _ in },
@@ -372,6 +374,7 @@ public extension DependencyValues {
 
 private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
     private var client: SnapClient?
+    private var connectionID: UUID?
     private var browser: BonjourBrowser?
 
     private var discoveryContinuation: AsyncStream<DiscoveryEvent>.Continuation?
@@ -381,47 +384,57 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
 
     private var packetBatcher: PacketBatcher?
 
-    private func setupBatcher() {
+    private func setupBatcher(for id: UUID) {
         Task { @MainActor in
             let batcher = PacketBatcher()
             batcher.start(
                 onMouseMoveFlush: { [weak self] dx, dy in
                     guard let self else { return }
                     Task {
-                        await self.flushMouseMove(deltaX: dx, deltaY: dy)
+                        await self.flushMouseMove(deltaX: dx, deltaY: dy, sessionID: id)
                     }
                 },
                 onScrollFlush: { [weak self] dx, dy in
                     guard let self else { return }
                     Task {
-                        await self.flushScroll(deltaX: dx, deltaY: dy)
+                        await self.flushScroll(deltaX: dx, deltaY: dy, sessionID: id)
                     }
                 }
             )
-            await self.setBatcher(batcher)
+            await self.installBatcher(batcher, sessionID: id)
         }
     }
 
-    private func setBatcher(_ batcher: PacketBatcher) {
-        self.packetBatcher = batcher
+    private func installBatcher(_ batcher: PacketBatcher, sessionID: UUID) {
+        guard connectionID == sessionID else {
+            stopBatcher(batcher)
+            return
+        }
+        let previousBatcher = packetBatcher
+        packetBatcher = batcher
+        stopBatcher(previousBatcher)
     }
 
     private func stopBatcher() {
+        let batcher = packetBatcher
+        packetBatcher = nil
+        stopBatcher(batcher)
+    }
+
+    private func stopBatcher(_ batcher: PacketBatcher?) {
+        guard let batcher else { return }
         Task { @MainActor in
-            await self.packetBatcher?.stop()
-            await self.clearBatcher()
+            batcher.stop()
         }
     }
 
-    private func clearBatcher() {
-        self.packetBatcher = nil
-    }
-
-    private func flushMouseMove(deltaX: Float, deltaY: Float) {
+    private func flushMouseMove(deltaX: Float, deltaY: Float, sessionID: UUID) {
+        guard connectionID == sessionID else { return }
         client?.sendMouseMove(deltaX: deltaX, deltaY: deltaY)
     }
 
-    private func flushScroll(deltaX: Float, deltaY: Float) {
+    private func flushScroll(deltaX: Float, deltaY: Float, sessionID: UUID) {
+        guard connectionID == sessionID else { return }
         client?.sendScroll(deltaX: deltaX, deltaY: deltaY, isInertia: false)
     }
 
@@ -452,26 +465,34 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
 
     // MARK: - Connection
 
-    func connect(host: String, port: UInt16) throws -> AsyncStream<ConnectionEvent> {
-        // 배칭 시작
-        setupBatcher()
+    func connect(host: String, port: UInt16, serverID: String) throws -> AsyncStream<ConnectionEvent> {
+        disconnect()
+        let id = UUID()
+        connectionID = id
+        setupBatcher(for: id)
 
         return AsyncStream { continuation in
             self.connectionContinuation = continuation
 
             self.client = SnapClient()
             self.client?.delegate = self
-            self.client?.connect(to: host, port: port)
+            self.client?.connect(to: host, port: port, serverID: serverID)
 
             continuation.onTermination = { [weak self] _ in
                 Task { [weak self] in
-                    await self?.disconnect()
+                    await self?.disconnect(sessionID: id)
                 }
             }
         }
     }
 
+    private func disconnect(sessionID: UUID) {
+        guard connectionID == sessionID else { return }
+        disconnect()
+    }
+
     func disconnect() {
+        connectionID = nil
         // 배칭 중지
         stopBatcher()
 
@@ -559,29 +580,38 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
         client?.sendShortsCommand(platform: platform, action: action)
     }
 
+    func forgetDevice(serverID: String) throws {
+        disconnect()
+        try KeychainPairingCredentialStore.shared.remove(for: "client:" + serverID)
+    }
+
     func sendPairingResponse(pinCode: String) {
-        client?.sendPairingResponse(pinCode: pinCode)
+        client?.sendPairingCode(pinCode)
     }
 
     // MARK: - SnapClientDelegate
 
     nonisolated func clientDidConnect(_ client: SnapClient) {
         Task {
-            await self.handleConnect(serverName: client.serverDeviceName ?? "Mac")
+            await self.handleConnect(serverName: client.serverDeviceName ?? "Mac", source: client)
         }
     }
 
-    private func handleConnect(serverName: String) {
+    private func handleConnect(serverName: String, source: SnapClient) {
+        guard source === client else { return }
         connectionContinuation?.yield(.connected(serverName: serverName))
     }
 
     nonisolated func clientDidDisconnect(_ client: SnapClient, error: Error?) {
         Task {
-            await self.handleDisconnect(error: error)
+            await self.handleDisconnect(error: error, source: client)
         }
     }
 
-    private func handleDisconnect(error: Error?) {
+    private func handleDisconnect(error: Error?, source: SnapClient) {
+        guard source === client else { return }
+        connectionID = nil
+        stopBatcher()
         connectionContinuation?.yield(.disconnected(error: error?.localizedDescription))
         connectionContinuation?.finish()
         connectionContinuation = nil
@@ -590,11 +620,12 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
 
     nonisolated func client(_ client: SnapClient, didReceive packet: DecodedPacket) {
         Task {
-            await self.handlePacket(packet)
+            await self.handlePacket(packet, source: client)
         }
     }
 
-    private func handlePacket(_ packet: DecodedPacket) {
+    private func handlePacket(_ packet: DecodedPacket, source: SnapClient) {
+        guard source === client else { return }
         switch packet {
         case .appListResponse(let response, _):
             connectionContinuation?.yield(.packet(.appList(response.apps)))
@@ -609,31 +640,34 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
 
     nonisolated func client(_ client: SnapClient, didFailWithError error: Error) {
         Task {
-            await self.handleError(error)
+            await self.handleError(error, source: client)
         }
     }
 
-    private func handleError(_ error: Error) {
+    private func handleError(_ error: Error, source: SnapClient) {
+        guard source === client else { return }
         connectionContinuation?.yield(.error(error.localizedDescription))
     }
 
     nonisolated func client(_ client: SnapClient, didReceivePairingChallenge challenge: PairingChallenge) {
         Task {
-            await self.handlePairingChallenge(challenge)
+            await self.handlePairingChallenge(challenge, source: client)
         }
     }
 
-    private func handlePairingChallenge(_ challenge: PairingChallenge) {
+    private func handlePairingChallenge(_ challenge: PairingChallenge, source: SnapClient) {
+        guard source === client else { return }
         connectionContinuation?.yield(.pairingRequired(serverName: challenge.deviceName))
     }
 
     nonisolated func client(_ client: SnapClient, didReceivePairingResult result: PairingResult) {
         Task {
-            await self.handlePairingResult(result)
+            await self.handlePairingResult(result, source: client)
         }
     }
 
-    private func handlePairingResult(_ result: PairingResult) {
+    private func handlePairingResult(_ result: PairingResult, source: SnapClient) {
+        guard source === client else { return }
         connectionContinuation?.yield(.pairingResult(success: result.isSuccess, message: result.message))
     }
 
@@ -658,12 +692,13 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
 
     nonisolated func bonjourBrowser(_ browser: BonjourBrowser, didRemove service: DiscoveredService) {
         Task {
-            await self.handleServiceLost(service.name)
+            await self.handleServiceLost(service)
         }
     }
 
-    private func handleServiceLost(_ serviceName: String) {
-        discoveryContinuation?.yield(.deviceLost(serviceName))
+    private func handleServiceLost(_ service: DiscoveredService) {
+        let deviceID = service.txtRecord["deviceID"] ?? service.name
+        discoveryContinuation?.yield(.deviceLost(deviceID))
     }
 
     nonisolated func bonjourBrowser(_ browser: BonjourBrowser, didFailWithError error: Error) {

@@ -418,3 +418,27 @@ struct QuickActionTests {
         #expect(sentKeyCombo.value?.1 == 0x02) // Control modifier
     }
 }
+
+extension TouchEventTests {
+    @Test("저전력 모드에서 터치 종료 시 남은 이동을 전송한다")
+    func touchEndedFlushesRemainingMovement() async {
+        let sent = LockIsolated<[Float]>([])
+        var initial = TrackpadFeature.State()
+        initial.isTouching = true
+        initial.isInPowerSavingMode = true
+        initial.accumulatedDeltaX = 3
+        initial.accumulatedDeltaY = -2
+        initial.throttleCounter = 2
+        let store = await TestStore(initialState: initial) { TrackpadFeature() } withDependencies: {
+            $0.connectionClient.sendMouseMove = { x, y in sent.setValue([x, y]) }
+        }
+        await store.send(.touchEnded) {
+            $0.isTouching = false
+            $0.accumulatedDeltaX = 0
+            $0.accumulatedDeltaY = 0
+            $0.throttleCounter = 0
+        }
+        await store.finish()
+        #expect(sent.value == [3, -2])
+    }
+}

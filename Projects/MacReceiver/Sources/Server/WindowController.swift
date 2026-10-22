@@ -24,7 +24,13 @@ public final class WindowController {
         let screenFrame = screen.visibleFrame
 
         let targetFrame = calculateFrame(for: position, in: screenFrame)
-        setWindowFrame(window, to: targetFrame)
+        guard let primaryScreen = NSScreen.screens.first else { return }
+        setWindowFrame(window, to: Self.accessibilityFrame(from: targetFrame, primaryScreenHeight: primaryScreen.frame.height))
+    }
+
+    /// Convert AppKit's bottom-left coordinates to Accessibility's top-left coordinates.
+    static func accessibilityFrame(from frame: CGRect, primaryScreenHeight: CGFloat) -> CGRect {
+        CGRect(x: frame.minX, y: primaryScreenHeight - frame.maxY, width: frame.width, height: frame.height)
     }
 
     // MARK: - Private Methods

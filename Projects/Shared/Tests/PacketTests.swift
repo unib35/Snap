@@ -77,7 +77,7 @@ struct PacketHeaderTests {
     func decodePacketWithVersionMismatch() throws {
         // Create packet with different version
         var data = PacketHeader(type: .handshake, payloadLength: 0).toData()
-        data[2] = 0x02  // Different version
+        data[2] = 0xFF  // Different version
 
         // Update payload length to match actual payload
         let payload = try JSONEncoder().encode(Handshake(deviceName: "Test", deviceID: "123", protocolVersion: 2))
@@ -89,7 +89,7 @@ struct PacketHeaderTests {
         // Decode should succeed despite version mismatch
         let decoded = try PacketDecoder.decode(data)
         #expect(decoded.header.hasVersionMismatch == true)
-        #expect(decoded.header.version == 0x02)
+        #expect(decoded.header.version == 0xFF)
     }
 }
 
@@ -322,7 +322,8 @@ struct MessageTypeTests {
     @Test("UDP message types are identified correctly")
     func udpMessageTypes() {
         #expect(MessageType.mouseMove.isUDP == true)
-        #expect(MessageType.mouseClick.isUDP == true)
+        #expect(MessageType.mouseClick.isUDP == false)
+        #expect(MessageType.mouseClick.isTCP == true)
         #expect(MessageType.scroll.isUDP == true)
         #expect(MessageType.gyroData.isUDP == true)
         #expect(MessageType.pinch.isUDP == true)
