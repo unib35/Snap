@@ -105,18 +105,3 @@ public final class TrustedDevicesManager: @unchecked Sendable {
         persistence.save(devices, forKey: trustedDevicesKey)
     }
 }
-
-// MARK: - PIN Code Generator
-
-public enum PINCodeGenerator {
-    /// 4자리 랜덤 PIN 코드 생성
-    public static func generate() -> String {
-        let pin = Int.random(in: 0...9999)
-        return String(format: "%04d", pin)
-    }
-
-    /// PIN 코드 유효성 검사
-    public static func isValid(_ pin: String) -> Bool {
-        pin.count == 4 && pin.allSatisfy { $0.isNumber }
-    }
-}
