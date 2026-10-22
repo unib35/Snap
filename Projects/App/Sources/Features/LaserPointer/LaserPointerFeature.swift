@@ -62,7 +62,7 @@ public struct LaserPointerFeature {
         public var isActive: Bool = false
         public var isCalibrated: Bool = false
         public var sensitivity: Float = 15.0
-        public var activationMode: ActivationMode = .hold
+        @ObservationStateIgnored @Sharing.Shared(.appStorage("snapLaserActivationMode")) public var activationMode: ActivationMode = .hold
         public var showCalibrationGuide: Bool = false
         public var calibrationStep: Int = 0
         @Presents public var alert: AlertState<Action.Alert>?
@@ -83,6 +83,7 @@ public struct LaserPointerFeature {
         case stopPointing
         case calibrate
         case setSensitivity(Float)
+        case sensitivitySliderChanged(Float)
         case setSensitivityPreset(SensitivityPreset)
         case setActivationMode(ActivationMode)
         case showCalibrationGuide
@@ -91,10 +92,17 @@ public struct LaserPointerFeature {
         case motionEvent(MotionEvent)
         case alert(PresentationAction<Alert>)
         case updatePowerSavingMode(Bool)
+        case delegate(Delegate)
 
         @CasePathable
         public enum Alert: Equatable, Sendable {
             case dismiss
+        }
+
+        @CasePathable
+        public enum Delegate: Equatable, Sendable {
+            /// 사용자가 레이저 화면에서 감도를 바꿈. 설정의 레이저 감도로 저장한다.
+            case sensitivityChanged(Float)
         }
     }
 
@@ -102,6 +110,13 @@ public struct LaserPointerFeature {
     @Dependency(\.motionClient) var motionClient
 
     public init() {}
+
+    /// 설정의 레이저 감도 배율(0.5~2.0)에 보통 감도(15)를 곱한 범위.
+    public static let sensitivityRange: ClosedRange<Float> = 7.5...30
+
+    static func settingsMultiplier(for sensitivity: Float) -> Double {
+        Double(sensitivity / SensitivityPreset.medium.value)
+    }
 
     private enum CancelID {
         case motion
@@ -180,8 +195,17 @@ public struct LaserPointerFeature {
                 motionClient.setSensitivity(value)
                 return .none
 
+            case .sensitivitySliderChanged(let value):
+                let clamped = min(max(value, Self.sensitivityRange.lowerBound), Self.sensitivityRange.upperBound)
+                state.sensitivity = clamped
+                motionClient.setSensitivity(clamped)
+                return .send(.delegate(.sensitivityChanged(clamped)))
+
+            case .delegate:
+                return .none
+
             case .setActivationMode(let mode):
-                state.activationMode = mode
+                state.$activationMode.withLock { $0 = mode }
                 // 모드 변경 시 활성화 상태 초기화
                 if state.isActive {
                     return .send(.stopPointing)

@@ -43,7 +43,7 @@ public struct ShortsRemoteFeature {
     @ObservableState
     public struct State: Equatable {
         public var isActive: Bool = false
-        public var selectedPlatform: Platform = .youtube
+        @ObservationStateIgnored @Sharing.Shared(.appStorage("snapShortsPlatform")) public var selectedPlatform: Platform = .youtube
         public var isMuted: Bool = false
         public var isPaused: Bool = false
         /// 좋아요를 보낸 직후에만 잠시 켜진다. Mac의 실제 좋아요 상태는 알 수 없어 유지하지 않는다.
@@ -51,7 +51,7 @@ public struct ShortsRemoteFeature {
 
         // Auto scroll
         public var isAutoScrollEnabled: Bool = false
-        public var autoScrollInterval: Int = 10  // seconds
+        @ObservationStateIgnored @Sharing.Shared(.appStorage("snapShortsAutoScrollInterval")) public var autoScrollInterval: Int = 10  // seconds
 
         public init() {}
     }
@@ -121,7 +121,7 @@ public struct ShortsRemoteFeature {
                 return .none
 
             case .platformSelected(let platform):
-                state.selectedPlatform = platform
+                state.$selectedPlatform.withLock { $0 = platform }
                 return .none
 
             case .nextVideo:
@@ -206,7 +206,7 @@ public struct ShortsRemoteFeature {
                 }
 
             case .setAutoScrollInterval(let interval):
-                state.autoScrollInterval = max(3, min(60, interval))
+                state.$autoScrollInterval.withLock { $0 = max(3, min(60, interval)) }
                 return .none
 
             case .autoScrollTick:

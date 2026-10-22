@@ -469,9 +469,9 @@ struct LaserControlArea: View {
                 Slider(
                     value: Binding(
                         get: { Double(store.laserPointer.sensitivity) },
-                        set: { store.send(.laserPointer(.setSensitivity(Float($0)))) }
+                        set: { store.send(.laserPointer(.sensitivitySliderChanged(Float($0)))) }
                     ),
-                    in: 1...50
+                    in: Double(LaserPointerFeature.sensitivityRange.lowerBound)...Double(LaserPointerFeature.sensitivityRange.upperBound)
                 )
                 .accessibilityLabel("포인터 감도")
                 .accessibilityValue("\(Int(store.laserPointer.sensitivity))")

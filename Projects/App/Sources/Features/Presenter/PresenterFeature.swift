@@ -24,25 +24,25 @@ public struct PresenterFeature {
     @ObservableState
     public struct State: Equatable {
         public var isPresenting: Bool = false
-        public var timerMode: TimerMode = .countUp
+        @Shared(.appStorage("snapPresenterTimerMode")) public var timerMode: TimerMode = .countUp
         public var elapsedSeconds: Int = 0
-        public var targetMinutes: Int = 5
+        @Shared(.appStorage("snapPresenterTargetMinutes")) public var targetMinutes: Int = 5
         public var isTimerRunning: Bool = false
         public var slideNumber: Int = 1
         public var isScreenBlank: Bool = false
 
         // Alert settings
-        public var alertType: AlertType = .vibration
-        public var fiveMinuteAlert: Bool = true
-        public var oneMinuteAlert: Bool = true
-        public var overtimeAlert: Bool = true
+        @Shared(.appStorage("snapPresenterAlertType")) public var alertType: AlertType = .vibration
+        @Shared(.appStorage("snapPresenterFiveMinuteAlert")) public var fiveMinuteAlert: Bool = true
+        @Shared(.appStorage("snapPresenterOneMinuteAlert")) public var oneMinuteAlert: Bool = true
+        @Shared(.appStorage("snapPresenterOvertimeAlert")) public var overtimeAlert: Bool = true
 
         // Tracking which alerts have been triggered
         public var triggeredAlerts: Set<Int> = []
 
         // Auto slide
-        public var isAutoSlideEnabled: Bool = false
-        public var autoSlideInterval: Int = 30  // seconds
+        @Shared(.appStorage("snapPresenterIsAutoSlideEnabled")) public var isAutoSlideEnabled: Bool = false
+        @Shared(.appStorage("snapPresenterAutoSlideInterval")) public var autoSlideInterval: Int = 30  // seconds
 
         public init() {}
 
@@ -209,11 +209,11 @@ public struct PresenterFeature {
                 return .none
 
             case .setTimerMode(let mode):
-                state.timerMode = mode
+                state.$timerMode.withLock { $0 = mode }
                 return .none
 
             case .setTargetMinutes(let minutes):
-                state.targetMinutes = max(1, min(120, minutes))
+                state.$targetMinutes.withLock { $0 = max(1, min(120, minutes)) }
                 return .none
 
             case .startPresentation:
@@ -238,19 +238,19 @@ public struct PresenterFeature {
 
             // Alert Settings
             case .setAlertType(let alertType):
-                state.alertType = alertType
+                state.$alertType.withLock { $0 = alertType }
                 return .none
 
             case .toggleFiveMinuteAlert:
-                state.fiveMinuteAlert.toggle()
+                state.$fiveMinuteAlert.withLock { $0.toggle() }
                 return .none
 
             case .toggleOneMinuteAlert:
-                state.oneMinuteAlert.toggle()
+                state.$oneMinuteAlert.withLock { $0.toggle() }
                 return .none
 
             case .toggleOvertimeAlert:
-                state.overtimeAlert.toggle()
+                state.$overtimeAlert.withLock { $0.toggle() }
                 return .none
 
             case .triggerAlert:
@@ -258,11 +258,11 @@ public struct PresenterFeature {
                 return .none
 
             case .toggleAutoSlide:
-                state.isAutoSlideEnabled.toggle()
+                state.$isAutoSlideEnabled.withLock { $0.toggle() }
                 return .none
 
             case .setAutoSlideInterval(let interval):
-                state.autoSlideInterval = max(5, min(120, interval))
+                state.$autoSlideInterval.withLock { $0 = max(5, min(120, interval)) }
                 return .none
             }
         }
