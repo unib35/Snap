@@ -11,7 +11,7 @@ public struct TrackpadView: View {
         self.store = store
     }
 
-    @Namespace private var modeNamespace
+    @State private var isGestureHelpPresented = false
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -39,28 +39,12 @@ public struct TrackpadView: View {
     // MARK: - Mode Toggle
 
     private var modeToggle: some View {
-        let toggleShape = RoundedRectangle(cornerRadius: SnapCornerRadius.md)
-
-        return HStack(spacing: SnapSpacing.sm) {
+        Picker("입력 방식", selection: $store.mode.sending(\.modeChanged)) {
             ForEach(TrackpadFeature.InputMode.allCases, id: \.self) { mode in
-                ModeToggleButton(
-                    mode: mode,
-                    isSelected: store.mode == mode,
-                    namespace: modeNamespace
-                ) {
-                    Task { @MainActor in
-                        HapticManager.shared.modeSwitch()
-                    }
-                    store.send(.modeChanged(mode), animation: .spring(response: 0.3, dampingFraction: 0.7))
-                }
+                Text(mode.title).tag(mode)
             }
         }
-        .padding(SnapSpacing.sm)
-        .background(SnapColors.backgroundElevated)
-        .clipShape(toggleShape)
-        .overlay(
-            toggleShape.strokeBorder(SnapColors.border, lineWidth: 0.5)
-        )
+        .pickerStyle(.segmented)
         .trackpadAreaConstraint()
     }
 
@@ -75,24 +59,9 @@ public struct TrackpadView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .trackpadAreaConstraint()
 
-                // Click Buttons - Inside the touch area at bottom
-                HStack(spacing: layoutMode == .compact ? 12 : 16) {
-                    ClickButton(label: "L", isPrimary: true) {
-                        store.send(.leftClickPressed)
-                    } onRelease: {
-                        store.send(.leftClickReleased)
-                    }
-
-                    ClickButton(label: "R", isPrimary: false) {
-                        store.send(.rightClickPressed)
-                    } onRelease: {
-                        store.send(.rightClickReleased)
-                    }
-                }
-                .frame(height: layoutMode == .compact ? 56 : 64)
-                .padding(.horizontal)
-                .padding(.top, layoutMode == .compact ? 12 : 16)
-                .padding(.bottom, 8)
+                clickButtons
+                    .padding(.top, layoutMode == .compact ? 12 : 16)
+                    .padding(.bottom, 8)
             }
         }
         .transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -103,200 +72,88 @@ public struct TrackpadView: View {
     @ViewBuilder
     private var laserContent: some View {
         iPadOptimizedContainer {
-            VStack(spacing: layoutMode == .compact ? 8 : 12) {
-                // Gyro Control Area (constrained height)
-                LaserControlArea(store: store)
-                    .frame(maxHeight: layoutMode == .compact ? 300 : 350)
-
-                // Click Buttons (fixed height, won't shrink)
-                HStack(spacing: 12) {
-                    LaserClickButton(
-                        icon: "cursorarrow.click",
-                        label: "Left Click",
-                        color: .accentColor
-                    ) {
-                        store.send(.leftClickPressed)
-                    } onRelease: {
-                        store.send(.leftClickReleased)
-                    }
-
-                    LaserClickButton(
-                        icon: "cursorarrow.click",
-                        label: "Right Click",
-                        color: .secondary
-                    ) {
-                        store.send(.rightClickPressed)
-                    } onRelease: {
-                        store.send(.rightClickReleased)
-                    }
+            VStack(spacing: layoutMode == .compact ? 12 : 16) {
+                // Scroll independently while keeping click buttons accessible
+                ScrollView {
+                    LaserControlArea(store: store)
                 }
-                .frame(height: layoutMode == .compact ? 70 : 80)
-                .padding(.horizontal)
-                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxHeight: .infinity)
+
+                clickButtons
+                    .padding(.bottom, 8)
             }
         }
         .transition(.opacity.combined(with: .scale(scale: 0.98)))
     }
 
+    private var clickButtons: some View {
+        HStack(spacing: layoutMode == .compact ? 12 : 16) {
+            ClickButton(label: "왼쪽 클릭") {
+                store.send(.leftClickPressed)
+            } onRelease: {
+                store.send(.leftClickReleased)
+            }
+            ClickButton(label: "오른쪽 클릭") {
+                store.send(.rightClickPressed)
+            } onRelease: {
+                store.send(.rightClickReleased)
+            }
+        }
+        .frame(height: layoutMode == .compact ? 56 : 64)
+        .padding(.horizontal)
+    }
+
     // MARK: - Quick Actions
 
-    @ViewBuilder
     private var quickActions: some View {
-        HStack(spacing: layoutMode == .compact ? 12 : 16) {
-            VoiceTypingButton(
-                isRecording: store.voiceTyping.isRecording,
-                isAuthorized: store.voiceTyping.authorizationStatus == .authorized
-            ) {
-                store.send(.voiceTyping(.toggleRecording))
+        HStack {
+            Button { store.send(.missionControlPressed) } label: {
+                Label("열린 창 보기", systemImage: "rectangle.3.group")
+                    .frame(minHeight: 44)
             }
-
-            QuickActionButton(
-                icon: "square.grid.2x2",
-                label: "Mission Ctrl"
-            ) {
-                store.send(.missionControlPressed)
+            Spacer()
+            Button { isGestureHelpPresented = true } label: {
+                Label("사용법", systemImage: "questionmark.circle")
+                    .frame(minHeight: 44)
             }
         }
+        .font(.subheadline.weight(.medium))
         .trackpadAreaConstraint()
-        .onAppear {
-            store.send(.voiceTyping(.onAppear))
-        }
-    }
-}
-
-// MARK: - Voice Typing Button
-
-struct VoiceTypingButton: View {
-    let isRecording: Bool
-    let isAuthorized: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button {
-            Task { @MainActor in
-                HapticManager.shared.buttonTap()
-            }
-            action()
-        } label: {
-            VStack(spacing: SnapSpacing.sm) {
-                Image(systemName: isRecording ? "stop.fill" : "mic.fill")
-                    .font(.title2)
-                    .foregroundStyle(isRecording ? SnapColors.recording : Color.accentColor)
-                    .symbolEffect(.variableColor.iterative, isActive: isRecording)
-
-                Text(isRecording ? "중지" : "음성입력")
-                    .font(SnapTypography.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(SnapColors.textTertiary)
-                    .textCase(.uppercase)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, SnapSpacing.lg)
-            .background(isRecording ? SnapColors.recording.opacity(0.15) : SnapColors.backgroundElevated)
-            .clipShape(RoundedRectangle(cornerRadius: SnapCornerRadius.lg))
-            .overlay(
-                RoundedRectangle(cornerRadius: SnapCornerRadius.lg)
-                    .strokeBorder(isRecording ? SnapColors.recording.opacity(0.5) : Color.clear, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .pressEffect()
-        .disabled(!isAuthorized)
-        .opacity(isAuthorized ? 1 : 0.5)
-        .accessibilityLabel(isRecording ? "음성 입력 중지" : "음성 입력 시작")
-        .accessibilityHint(isRecording ? "탭하여 음성 입력을 중지합니다" : "탭하여 음성으로 텍스트를 입력합니다")
-    }
-}
-
-// MARK: - Mode Toggle Button
-
-struct ModeToggleButton: View {
-    let mode: TrackpadFeature.InputMode
-    let isSelected: Bool
-    let namespace: Namespace.ID
-    let action: () -> Void
-
-    @State private var isPressed = false
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: SnapSpacing.sm) {
-                Image(systemName: mode == .trackpad ? "hand.point.up.left" : "scope")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(iconColor)
-
-                Text(mode.title)
-                    .font(SnapTypography.labelMedium)
-                    .fontWeight(.bold)
-                    .foregroundStyle(textColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            .accessibleControl()
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, SnapSpacing.md)
-            .background {
-                if isSelected {
-                    RoundedRectangle(cornerRadius: SnapCornerRadius.sm)
-                        .fill(background)
-                        .matchedGeometryEffect(id: "modeSelection", in: namespace)
+        .sheet(isPresented: $isGestureHelpPresented) {
+            NavigationStack {
+                List {
+                    if store.mode == .laser {
+                        Section("기기를 움직여 조작") {
+                            Text("누르는 동안: 제어 버튼을 누른 채 기기를 움직이고, 손을 떼면 멈춥니다.")
+                            Text("켜기/끄기: 제어 버튼을 탭하여 시작하고, 다시 탭하여 멈춥니다.")
+                        }
+                        Section("클릭과 감도") {
+                            Text("왼쪽 클릭과 오른쪽 클릭 버튼은 트랙패드와 동일하게 동작합니다.")
+                            Text("포인터가 너무 빠르면 감도를 낮추세요.")
+                        }
+                    } else {
+                        Section("트랙패드") {
+                            Label("한 손가락으로 움직여 포인터 이동", systemImage: "hand.draw")
+                            Label("한 번 탭하여 클릭 · 두 번 탭하여 더블 클릭", systemImage: "hand.tap")
+                            Label("두 손가락으로 움직여 스크롤", systemImage: "hand.draw.fill")
+                            Label("두 손가락으로 탭하여 오른쪽 클릭", systemImage: "hand.tap.fill")
+                            Label("두 손가락을 벌리거나 모아 확대·축소", systemImage: "arrow.up.left.and.arrow.down.right")
+                        }
+                        Section("드래그") {
+                            Text("왼쪽 클릭 버튼을 누른 채 다른 손가락으로 터치 영역을 움직이세요.")
+                        }
+                    }
+                }
+                .navigationTitle(store.mode == .laser ? "레이저 사용법" : "트랙패드 사용법")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("완료") { isGestureHelpPresented = false }
+                    }
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: SnapCornerRadius.sm))
-            .overlay(
-                RoundedRectangle(cornerRadius: SnapCornerRadius.sm)
-                    .strokeBorder(borderColor, lineWidth: isSelected ? 1 : 0)
-            )
-            .scaleEffect(isPressed ? 0.95 : 1.0)
-            .shadow(color: shadowColor, radius: isSelected ? 8 : 0)
+            .presentationDetents([.medium, .large])
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(mode.title) 모드")
-        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
-        .pressEvents {
-            withAnimation(.easeInOut(duration: 0.1)) {
-                isPressed = true
-            }
-        } onRelease: {
-            withAnimation(.easeInOut(duration: 0.1)) {
-                isPressed = false
-            }
-        }
-    }
-
-    private var iconColor: Color {
-        if mode == .laser && isSelected {
-            return SnapColors.laserPointer
-        }
-        return isSelected ? SnapColors.textPrimary : SnapColors.textTertiary
-    }
-
-    private var textColor: Color {
-        isSelected ? SnapColors.textPrimary : SnapColors.textTertiary
-    }
-
-    private var background: Color {
-        if mode == .laser {
-            return SnapColors.laserPointer.opacity(0.15)
-        }
-        return SnapColors.backgroundTertiary
-    }
-
-    private var borderColor: Color {
-        if isSelected {
-            if mode == .laser {
-                return SnapColors.laserPointer.opacity(0.3)
-            }
-            return SnapColors.border
-        }
-        return .clear
-    }
-
-    private var shadowColor: Color {
-        if mode == .laser && isSelected {
-            return SnapColors.laserPointer.opacity(0.3)
-        }
-        return .clear
     }
 }
 
@@ -304,7 +161,6 @@ struct ModeToggleButton: View {
 
 struct TrackpadTouchArea: View {
     let store: StoreOf<TrackpadFeature>
-    @State private var pingAnimation = false
 
     var body: some View {
         ZStack {
@@ -316,22 +172,19 @@ struct TrackpadTouchArea: View {
                         .strokeBorder(SnapColors.border, lineWidth: 0.5)
                 )
 
-            // Ping Animation (always animating in center)
-            Circle()
-                .stroke(SnapColors.textDisabled, lineWidth: 1)
-                .frame(width: 120, height: 120)
-                .scaleEffect(pingAnimation ? 1.5 : 1.0)
-                .opacity(pingAnimation ? 0 : 0.3)
-                .animation(
-                    .easeOut(duration: 2.0).repeatForever(autoreverses: false),
-                    value: pingAnimation
-                )
-
-            // Watermark
-            Text("TRACKPAD")
-                .font(.largeTitle.weight(.black))
-                .foregroundStyle(SnapColors.textDisabled.opacity(0.5))
-                .tracking(10)
+            VStack(spacing: 10) {
+                Image(systemName: "hand.draw")
+                    .font(.title2)
+                Text("손가락으로 움직여 조작")
+                    .font(.subheadline)
+                Text("탭하여 클릭 · 두 손가락으로 스크롤")
+                    .font(.caption)
+            }
+            .foregroundStyle(SnapColors.textSecondary)
+            .multilineTextAlignment(.center)
+            .padding()
+            .opacity(store.isTouching ? 0 : 1)
+            .accessibilityHidden(true)
 
             // Touch indicator - follows finger
             if store.isTouching {
@@ -364,9 +217,6 @@ struct TrackpadTouchArea: View {
         .padding(.horizontal)
         .accessibilityLabel("트랙패드 터치 영역")
         .accessibilityHint("드래그하여 마우스를 이동하고, 탭하여 클릭합니다")
-        .onAppear {
-            pingAnimation = true
-        }
     }
 }
 
@@ -548,148 +398,96 @@ struct LaserControlArea: View {
         let isActive = store.laserPointer.isActive
         let activationMode = store.laserPointer.activationMode
 
-        ZStack {
-            // Background
-            RoundedRectangle(cornerRadius: 24)
-                .fill(SnapColors.secondarySystemBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .strokeBorder(SnapColors.separator, lineWidth: 1)
-                )
+        VStack(spacing: 20) {
+            Picker("레이저 작동 방식", selection: Binding(
+                get: { store.laserPointer.activationMode },
+                set: { store.send(.laserPointer(.setActivationMode($0))) }
+            )) {
+                ForEach(LaserPointerFeature.ActivationMode.allCases, id: \.self) { mode in
+                    Text(mode.displayName).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(activationMode == .hold
+                 ? "아래 버튼을 누른 채 기기를 움직이세요."
+                 : "아래 버튼으로 켠 뒤 기기를 움직이세요. 다시 탭하면 멈춥니다.")
+                .font(.subheadline)
+                .foregroundStyle(SnapColors.textSecondary)
+                .multilineTextAlignment(.center)
 
             VStack(spacing: 12) {
-                // Mode Selector
-                HStack(spacing: 0) {
-                    ForEach(LaserPointerFeature.ActivationMode.allCases, id: \.self) { mode in
-                        Button {
-                            store.send(.laserPointer(.setActivationMode(mode)))
-                        } label: {
-                            Text(mode.rawValue)
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(activationMode == mode ? .white : .secondary)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 6)
-                                .background(activationMode == mode ? SnapColors.laserPointer : Color.clear)
-                                .clipShape(Capsule())
-                        }
-                    }
-                }
-                .padding(3)
-                .background(SnapColors.tertiarySystemBackground)
-                .clipShape(Capsule())
-                .padding(.horizontal)
-
-                // Laser Button (fixed frame to prevent layout shift)
-                ZStack {
-                    // Outer glow (pulsing when active) - contained within fixed frame
-                    Circle()
-                        .fill(SnapColors.laserPointer.opacity(isActive ? 0.2 : 0))
-                        .frame(width: 220, height: 220)
-                        .blur(radius: 40)
-                        .scaleEffect(isActive ? 1.1 : 1.0)
-                        .animation(
-                            isActive
-                                ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true)
-                                : .default,
-                            value: isActive
-                        )
-
-                    // Button shadow glow
-                    Circle()
-                        .fill(SnapColors.laserPointer.opacity(isActive ? 0.5 : 0))
-                        .frame(width: 180, height: 180)
-                        .blur(radius: 30)
-
-                    // Main button
-                    Circle()
-                        .fill(isActive ? SnapColors.laserPointer : SnapColors.tertiarySystemBackground)
-                        .frame(width: 160, height: 160)
-                        .overlay(
-                            Circle()
-                                .strokeBorder(
-                                    isActive ? SnapColors.laserPointer.opacity(0.6) : SnapColors.separator,
-                                    lineWidth: 2
-                                )
-                        )
-                        .scaleEffect(isActive ? 0.95 : 1.0)
-
-                    VStack(spacing: 8) {
-                        Image(systemName: "scope")
-                            .font(.system(size: 44, weight: .medium))
-                            .foregroundStyle(isActive ? .white : SnapColors.laserPointer)
-                            .symbolEffect(.pulse, isActive: isActive)
-
-                        Text(buttonLabel(isActive: isActive, mode: activationMode))
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(isActive ? .white : SnapColors.secondaryLabel)
-                            .tracking(1)
-                    }
-                }
-                .frame(width: 220, height: 220) // Fixed frame prevents layout shift
-                .animation(.spring(response: 0.25, dampingFraction: 0.6), value: isActive)
-                .gesture(
-                    activationMode == .hold
-                        ? AnyGesture(
-                            DragGesture(minimumDistance: 0)
-                                .onChanged { _ in
-                                    if !store.laserPointer.isActive {
-                                        store.send(.laserPointer(.startPointing))
-                                    }
-                                }
-                                .onEnded { _ in
-                                    store.send(.laserPointer(.stopPointing))
-                                }
-                                .map { _ in () }
-                          )
-                        : AnyGesture(
-                            TapGesture()
-                                .onEnded {
-                                    store.send(.laserPointer(.toggleActive))
-                                }
-                                .map { _ in () }
-                          )
-                )
-                .accessibilityLabel("레이저 포인터 버튼")
-                .accessibilityHint(activationMode == .hold ? "길게 누르고 있으면 활성화됩니다" : "탭하여 켜고 끕니다")
-
-                // Sensitivity (compact)
-                HStack(spacing: 8) {
-                    Image(systemName: "tortoise")
-                        .foregroundStyle(SnapColors.textSecondary)
-                        .font(.caption2)
-
-                    Slider(
-                        value: Binding(
-                            get: { Double(store.laserPointer.sensitivity) },
-                            set: { store.send(.laserPointer(.setSensitivity(Float($0)))) }
-                        ),
-                        in: 1...50
-                    )
-                    .tint(SnapColors.laserPointer)
-
-                    Image(systemName: "hare")
-                        .foregroundStyle(SnapColors.textSecondary)
-                        .font(.caption2)
-
-                    Text("\(Int(store.laserPointer.sensitivity))")
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(SnapColors.textSecondary)
-                        .frame(width: 24)
-                }
-                .padding(.horizontal)
+                Image(systemName: "scope")
+                    .font(.largeTitle)
+                Text(buttonLabel(isActive: isActive, mode: activationMode))
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal)
+            .foregroundStyle(isActive ? SnapColors.laserPointer : SnapColors.textPrimary)
+            .padding(24)
+            .frame(maxWidth: .infinity, minHeight: 120)
+            .background(isActive ? SnapColors.laserPointer.opacity(0.12) : SnapColors.backgroundTertiary)
+            .clipShape(RoundedRectangle(cornerRadius: SnapCornerRadius.lg))
+            .contentShape(RoundedRectangle(cornerRadius: SnapCornerRadius.lg))
+            .gesture(
+                activationMode == .hold
+                    ? AnyGesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { _ in
+                                if !store.laserPointer.isActive {
+                                    store.send(.laserPointer(.startPointing))
+                                }
+                            }
+                            .onEnded { _ in
+                                store.send(.laserPointer(.stopPointing))
+                            }
+                            .map { _ in () }
+                      )
+                    : AnyGesture(
+                        TapGesture()
+                            .onEnded {
+                                store.send(.laserPointer(.toggleActive))
+                            }
+                            .map { _ in () }
+                      )
+            )
+            .accessibilityLabel("레이저 포인터")
+            .accessibilityValue(isActive ? "이동 중" : "대기 중")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { store.send(.laserPointer(.toggleActive)) }
+            .accessibilityHint("이중 탭하여 포인터 이동을 켜거나 끕니다")
+
+            VStack(spacing: 8) {
+                HStack {
+                    Text("포인터 감도")
+                    Spacer()
+                    Text("\(Int(store.laserPointer.sensitivity))")
+                        .monospacedDigit()
+                        .foregroundStyle(SnapColors.textSecondary)
+                }
+                .font(.subheadline)
+                Slider(
+                    value: Binding(
+                        get: { Double(store.laserPointer.sensitivity) },
+                        set: { store.send(.laserPointer(.setSensitivity(Float($0)))) }
+                    ),
+                    in: 1...50
+                )
+                .accessibilityLabel("포인터 감도")
+                .accessibilityValue("\(Int(store.laserPointer.sensitivity))")
+            }
         }
+        .padding(20)
+        .cardStyle(cornerRadius: SnapCornerRadius.xxl)
         .padding(.horizontal)
         .alert($store.scope(state: \.laserPointer.alert, action: \.laserPointer.alert))
     }
 
     private func buttonLabel(isActive: Bool, mode: LaserPointerFeature.ActivationMode) -> String {
         if isActive {
-            return "GYRO ACTIVE"
+            return mode == .hold ? "손을 떼면 멈춤" : "탭하여 멈추기"
         }
-        return mode == .hold ? "HOLD TO MOVE" : "TAP TO START"
+        return mode == .hold ? "누른 채 움직이기" : "탭하여 시작"
     }
 }
 
@@ -697,7 +495,6 @@ struct LaserControlArea: View {
 
 struct ClickButton: View {
     let label: String
-    let isPrimary: Bool
     let onPress: () -> Void
     let onRelease: () -> Void
 
@@ -706,7 +503,7 @@ struct ClickButton: View {
     var body: some View {
         Text(label)
             .font(SnapTypography.headlineSmall)
-            .foregroundStyle(isPrimary ? SnapColors.textPrimary : SnapColors.textSecondary)
+            .foregroundStyle(SnapColors.textPrimary)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: SnapCornerRadius.lg)
@@ -734,108 +531,10 @@ struct ClickButton: View {
                         onRelease()
                     }
             )
-            .accessibilityLabel(isPrimary ? "왼쪽 클릭" : "오른쪽 클릭")
+            .accessibilityLabel(label)
             .accessibilityHint("길게 눌러 클릭을 유지할 수 있습니다")
-    }
-}
-
-// MARK: - Laser Click Button
-
-struct LaserClickButton: View {
-    let icon: String
-    let label: String
-    let color: Color
-    let onPress: () -> Void
-    let onRelease: () -> Void
-
-    @State private var isPressed = false
-
-    var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(isPressed ? SnapColors.label : color)
-
-            Text(label)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(SnapColors.secondaryLabel)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(isPressed ? SnapColors.tertiarySystemFill : SnapColors.secondarySystemBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .strokeBorder(SnapColors.separator, lineWidth: 1)
-                )
-        )
-        .scaleEffect(isPressed ? 0.95 : 1.0)
-        .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
-        .gesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    if !isPressed {
-                        isPressed = true
-                        onPress()
-                    }
-                }
-                .onEnded { _ in
-                    isPressed = false
-                    onRelease()
-                }
-        )
-        .accessibilityLabel(label)
-    }
-}
-
-// MARK: - Quick Action Button
-
-struct QuickActionButton: View {
-    let icon: String
-    let label: String
-    let action: () -> Void
-
-    @State private var isPressed = false
-
-    var body: some View {
-        Button {
-            Task { @MainActor in
-                HapticManager.shared.buttonTap()
-            }
-            action()
-        } label: {
-            VStack(spacing: SnapSpacing.sm) {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundStyle(Color.accentColor)
-
-                Text(label)
-                    .font(SnapTypography.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(SnapColors.textTertiary)
-                    .textCase(.uppercase)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, SnapSpacing.lg)
-            .background(SnapColors.backgroundElevated)
-            .clipShape(RoundedRectangle(cornerRadius: SnapCornerRadius.lg))
-            .overlay(
-                RoundedRectangle(cornerRadius: SnapCornerRadius.lg)
-                    .strokeBorder(SnapColors.border, lineWidth: 0.5)
-            )
-            .scaleEffect(isPressed ? 0.95 : 1.0)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
-        .pressEvents {
-            withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
-                isPressed = true
-            }
-        } onRelease: {
-            withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
-                isPressed = false
-            }
-        }
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { onPress(); onRelease() }
     }
 }
 

@@ -45,8 +45,7 @@ public struct PresenterSection: View {
             }
         }
         .padding()
-        .background(SnapColors.secondarySystemBackground.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .cardStyle()
         .onChange(of: store.isOvertime) { _, isOvertime in
             if isOvertime {
                 startOvertimeFlashing()
@@ -570,7 +569,7 @@ public struct PresenterFullScreenView: View {
         GeometryReader { geometry in
             ZStack {
                 // Background
-                Color.black.ignoresSafeArea()
+                SnapColors.focusBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     // Top Bar
@@ -605,6 +604,7 @@ public struct PresenterFullScreenView: View {
             }
         }
         .statusBarHidden()
+        .environment(\.colorScheme, .dark)
         .onAppear {
             startAutoSlideTimerIfNeeded()
         }

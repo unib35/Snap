@@ -203,8 +203,7 @@ struct MacroGroupSection: View {
             }
         }
         .padding()
-        .background(SnapColors.secondarySystemBackground.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .cardStyle()
         .alert("그룹 삭제", isPresented: $showDeleteAlert) {
             Button("취소", role: .cancel) {}
             Button("삭제", role: .destructive) {
@@ -225,7 +224,7 @@ struct MacroGroupSection: View {
                 HStack(spacing: 8) {
                     Image(systemName: group.icon)
                         .font(.headline)
-                        .foregroundStyle(SnapColors.neonLime)
+                        .foregroundStyle(SnapColors.accent)
 
                     Text(group.name)
                         .font(.headline)
@@ -254,7 +253,7 @@ struct MacroGroupSection: View {
                     Button(action: onMoveUp) {
                         Image(systemName: "chevron.up")
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(canMoveUp ? SnapColors.neonLime : SnapColors.tertiaryLabel)
+                            .foregroundStyle(canMoveUp ? SnapColors.accent : SnapColors.tertiaryLabel)
                     }
                     .buttonStyle(.plain)
                     .disabled(!canMoveUp)
@@ -262,7 +261,7 @@ struct MacroGroupSection: View {
                     Button(action: onMoveDown) {
                         Image(systemName: "chevron.down")
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(canMoveDown ? SnapColors.neonLime : SnapColors.tertiaryLabel)
+                            .foregroundStyle(canMoveDown ? SnapColors.accent : SnapColors.tertiaryLabel)
                     }
                     .buttonStyle(.plain)
                     .disabled(!canMoveDown)
@@ -272,7 +271,7 @@ struct MacroGroupSection: View {
                 Button(action: onGroupEdit) {
                     Image(systemName: "pencil")
                         .font(.caption)
-                        .foregroundStyle(SnapColors.neonLime)
+                        .foregroundStyle(SnapColors.accent)
                 }
                 .buttonStyle(.plain)
 
@@ -359,7 +358,7 @@ struct MacroGroupEditorView: View {
         } label: {
             Image(systemName: group?.icon ?? "folder.fill")
                 .font(.title3)
-                .foregroundStyle(SnapColors.neonLime)
+                .foregroundStyle(SnapColors.accent)
                 .frame(width: 32, height: 32)
                 .background(SnapColors.tertiarySystemBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -484,25 +483,24 @@ struct MacroButton: View {
         VStack(spacing: 8) {
             Image(systemName: macro.icon)
                 .font(.system(size: macro.size == .large ? 32 : 24))
-                .foregroundStyle(.white)
+                .foregroundStyle(macro.color.color)
 
             Text(macro.name)
                 .font(macro.size == .small ? .caption2 : .caption)
                 .fontWeight(.medium)
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(SnapColors.textPrimary)
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
         .frame(height: macro.size.height)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(macro.color.gradient)
+                .fill(SnapColors.backgroundTertiary)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                .strokeBorder(SnapColors.border, lineWidth: 0.5)
         )
-        .shadow(color: macro.color.color.opacity(0.3), radius: 8, y: 4)
     }
 
     private var deleteButton: some View {
@@ -675,8 +673,7 @@ public struct MacroPadSection: View {
             }
         }
         .padding()
-        .background(SnapColors.secondarySystemBackground.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .cardStyle()
         .sheet(isPresented: Binding(
             get: { store.editorState != nil },
             set: { if !$0 { store.send(.dismissEditor) } }

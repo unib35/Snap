@@ -35,25 +35,25 @@ import SwiftUI
 public enum SnapTypography {
     // MARK: - Display (대형 제목)
 
-    /// 대형 제목 (largeTitle 기반, Bold, Rounded)
-    public static let displayLarge = Font.system(.largeTitle, design: .rounded, weight: .bold)
+    /// 대형 제목 (largeTitle 기반, Bold, System)
+    public static let displayLarge = Font.system(.largeTitle, design: .default, weight: .bold)
 
-    /// 중형 제목 (title 기반, Bold, Rounded)
-    public static let displayMedium = Font.system(.title, design: .rounded, weight: .bold)
+    /// 중형 제목 (title 기반, Bold, System)
+    public static let displayMedium = Font.system(.title, design: .default, weight: .bold)
 
-    /// 소형 제목 (title2 기반, Semibold, Rounded)
-    public static let displaySmall = Font.system(.title2, design: .rounded, weight: .semibold)
+    /// 소형 제목 (title2 기반, Semibold, System)
+    public static let displaySmall = Font.system(.title2, design: .default, weight: .semibold)
 
     // MARK: - Headlines
 
-    /// 헤드라인 대 (title3 기반, Semibold, Rounded)
-    public static let headlineLarge = Font.system(.title3, design: .rounded, weight: .semibold)
+    /// 헤드라인 대 (title3 기반, Semibold, System)
+    public static let headlineLarge = Font.system(.title3, design: .default, weight: .semibold)
 
-    /// 헤드라인 중 (headline 기반, Semibold, Rounded)
-    public static let headlineMedium = Font.system(.headline, design: .rounded, weight: .semibold)
+    /// 헤드라인 중 (headline 기반, Semibold, System)
+    public static let headlineMedium = Font.system(.headline, design: .default, weight: .semibold)
 
-    /// 헤드라인 소 (subheadline 기반, Semibold, Rounded)
-    public static let headlineSmall = Font.system(.subheadline, design: .rounded, weight: .semibold)
+    /// 헤드라인 소 (subheadline 기반, Semibold, System)
+    public static let headlineSmall = Font.system(.subheadline, design: .default, weight: .semibold)
 
     // MARK: - Body
 

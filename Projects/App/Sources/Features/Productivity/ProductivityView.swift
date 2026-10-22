@@ -1,4 +1,3 @@
-import AppIntents
 import ComposableArchitecture
 import Shared
 import SwiftUI
@@ -11,35 +10,40 @@ public struct ProductivityView: View {
     }
 
     public var body: some View {
-        ScrollView {
-            VStack(spacing: SnapSpacing.lg) {
-                // Quick Launch Section
-                quickLaunchSection
-
-                // Shorts Remote Section
-                shortsRemoteSection
-
-                // Presenter Section
-                presenterSection
-
-                // Macro Pad Section
-                macroSection
-
-                // Voice Typing Section
-                voiceTypingSection
-
-                // Siri Section
-                siriSection
-
-                // Window Snap Section
-                windowSnapSection
-
-                // App Switcher Section
-                appSwitcherSection
+        List {
+            Section("Mac 작업") {
+                toolLink("창 정렬", subtitle: "현재 창을 화면의 원하는 위치로", icon: "rectangle.split.2x1") {
+                    windowSnapSection
+                }
+                toolLink("앱 전환", subtitle: "실행 중인 앱으로 바로 이동", icon: "macwindow.on.rectangle") {
+                    appSwitcherSection
+                }
+                toolLink("빠른 실행", subtitle: "자주 쓰는 앱과 웹사이트 열기", icon: "bolt") {
+                    quickLaunchSection
+                }
+                toolLink("매크로", subtitle: "여러 작업을 한 번에 실행", icon: "square.stack") {
+                    macroSection
+                }
             }
-            .padding(SnapSpacing.lg)
+            Section("발표와 콘텐츠") {
+                toolLink("프레젠테이션", subtitle: "슬라이드 이동과 발표 타이머", icon: "rectangle.on.rectangle") {
+                    presenterSection
+                }
+                toolLink("숏폼 리모컨", subtitle: "짧은 영상 넘기기와 재생 제어", icon: "play.rectangle") {
+                    shortsRemoteSection
+                }
+            }
+            Section("음성") {
+                toolLink("음성 입력", subtitle: "말한 내용을 Mac에 입력", icon: "mic") {
+                    voiceTypingSection
+                }
+                toolLink("Mac의 Siri", subtitle: "Mac에서 Siri 호출", icon: "waveform") {
+                    siriSection
+                }
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
         .background(SnapColors.background)
         // Presenter Full Screen
         .fullScreenCover(isPresented: presenterBinding) {
@@ -53,6 +57,39 @@ public struct ProductivityView: View {
                 store: store.scope(state: \.shortsRemote, action: \.shortsRemote)
             )
         }
+    }
+
+    private func toolLink<Destination: View>(
+        _ title: String,
+        subtitle: String,
+        icon: String,
+        @ViewBuilder destination: () -> Destination
+    ) -> some View {
+        NavigationLink {
+            ScrollView {
+                destination()
+                    .frame(maxWidth: 680)
+                    .padding(SnapSpacing.lg)
+                    .frame(maxWidth: .infinity)
+            }
+            .background(SnapColors.background)
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 28)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).font(.body.weight(.medium)).foregroundStyle(SnapColors.textPrimary)
+                    Text(subtitle).font(.caption).foregroundStyle(SnapColors.textSecondary)
+                }
+                .padding(.vertical, 5)
+            }
+        }
+        .listRowBackground(SnapColors.backgroundElevated)
     }
 
     // MARK: - Full Screen Bindings
@@ -119,7 +156,7 @@ public struct ProductivityView: View {
 
     @ViewBuilder
     private var voiceTypingSection: some View {
-        VoiceTypingSection(
+        VoiceTypingView(
             store: store.scope(state: \.voiceTyping, action: \.voiceTyping)
         )
         .padding(SnapSpacing.lg)
@@ -128,54 +165,15 @@ public struct ProductivityView: View {
 
     // MARK: - Siri Section
 
-    @ViewBuilder
     private var siriSection: some View {
-        VStack(spacing: SnapSpacing.lg) {
-            Text("Siri")
-                .font(SnapTypography.headlineSmall)
-                .foregroundStyle(SnapColors.textPrimary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            HStack(spacing: SnapSpacing.lg) {
-                // Siri Button (Mac Siri 제어)
-                SiriButton(isActive: store.isSiriActive) {
-                    Task { @MainActor in
-                        HapticManager.shared.mediumImpact()
-                    }
-                    store.send(.siriTapped)
-                }
-
-                // Dictation Button
-                Button {
-                    Task { @MainActor in
-                        HapticManager.shared.buttonTap()
-                    }
-                    store.send(.dictationTapped(""))
-                } label: {
-                    VStack(spacing: SnapSpacing.sm) {
-                        Image(systemName: "keyboard")
-                            .font(.system(size: 24, weight: .medium))
-                            .foregroundStyle(Color.accentColor)
-                        Text("받아쓰기")
-                            .font(SnapTypography.labelSmall)
-                            .foregroundStyle(SnapColors.textSecondary)
-                    }
-                    .frame(width: 80, height: 80)
-                    .background(SnapColors.backgroundTertiary)
-                    .clipShape(RoundedRectangle(cornerRadius: SnapCornerRadius.lg))
-                }
-                .buttonStyle(.plain)
-                .pressEffect()
-                .accessibilityLabel("Mac 받아쓰기 시작")
-
-                Spacer()
+        VStack(alignment: .leading, spacing: SnapSpacing.lg) {
+            Text("Mac에 설정된 Siri를 호출합니다. Mac의 마이크를 향해 말하세요.")
+                .font(.subheadline)
+                .foregroundStyle(SnapColors.textSecondary)
+            Button { store.send(.siriTapped) } label: {
+                Label("Siri 호출", systemImage: "waveform")
             }
-
-            // Siri Shortcuts Tips
-            VStack(spacing: SnapSpacing.sm) {
-                SiriTipView(intent: ConnectToMacIntent())
-                SiriTipView(intent: RunMacroIntent())
-            }
+            .buttonStyle(SnapActionButtonStyle())
         }
         .padding(SnapSpacing.lg)
         .cardStyle()
@@ -187,7 +185,7 @@ public struct ProductivityView: View {
     private var windowSnapSection: some View {
         VStack(spacing: SnapSpacing.lg) {
             Text("윈도우 스냅")
-                .font(SnapTypography.headlineSmall)
+                .font(SnapTypography.headlineMedium)
                 .foregroundStyle(SnapColors.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -234,7 +232,7 @@ public struct ProductivityView: View {
         VStack(spacing: SnapSpacing.lg) {
             HStack {
                 Text("앱 스위처")
-                    .font(SnapTypography.headlineSmall)
+                    .font(SnapTypography.headlineMedium)
                     .foregroundStyle(SnapColors.textPrimary)
 
                 Spacer()
@@ -441,75 +439,6 @@ struct AppDragPreview: View {
         .background(SnapColors.backgroundElevated)
         .clipShape(RoundedRectangle(cornerRadius: SnapCornerRadius.md))
         .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
-    }
-}
-
-// MARK: - Siri Button
-
-struct SiriButton: View {
-    let isActive: Bool
-    let action: () -> Void
-
-    @State private var isPulsing = false
-
-    var body: some View {
-        Button(action: action) {
-            ZStack {
-                // Glow effect when active
-                if isActive {
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [
-                                    Color.purple.opacity(0.4),
-                                    Color.pink.opacity(0.2),
-                                    Color.clear
-                                ],
-                                center: .center,
-                                startRadius: 30,
-                                endRadius: 60
-                            )
-                        )
-                        .frame(width: 120, height: 120)
-                        .scaleEffect(isPulsing ? 1.2 : 1.0)
-                }
-
-                // Main button
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: isActive
-                                ? [Color.purple, Color.pink, Color.orange]
-                                : [Color(.systemGray4), Color(.systemGray5)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 80, height: 80)
-                    .shadow(
-                        color: isActive ? Color.purple.opacity(0.5) : Color.clear,
-                        radius: 10
-                    )
-
-                // Icon
-                Image(systemName: "waveform.circle.fill")
-                    .font(.system(size: 36))
-                    .foregroundStyle(.white)
-                    .symbolEffect(.variableColor.iterative, isActive: isActive)
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(isActive ? "Siri 활성화됨" : "Siri 시작")
-        .accessibilityHint("탭하여 Mac의 Siri를 제어합니다")
-        .onChange(of: isActive) { _, newValue in
-            if newValue {
-                withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
-                    isPulsing = true
-                }
-            } else {
-                isPulsing = false
-            }
-        }
     }
 }
 

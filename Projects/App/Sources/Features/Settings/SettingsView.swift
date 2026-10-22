@@ -184,7 +184,7 @@ public struct SettingsView: View {
             if store.isSystemLowPowerModeActive {
                 HStack {
                     Image(systemName: "battery.25")
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(SnapColors.warning)
                     Text("settings.lowPowerModeActive")
                         .foregroundStyle(SnapColors.textSecondary)
                 }

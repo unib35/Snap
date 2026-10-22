@@ -184,24 +184,23 @@ struct MacroPreviewButton: View {
         VStack(spacing: 8) {
             Image(systemName: macro.icon)
                 .font(.system(size: macro.size == .large ? 32 : 24))
-                .foregroundStyle(.white)
+                .foregroundStyle(macro.color.color)
 
             Text(macro.name.isEmpty ? "매크로" : macro.name)
                 .font(macro.size == .small ? .caption2 : .caption)
                 .fontWeight(.medium)
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(SnapColors.textPrimary)
                 .lineLimit(1)
         }
         .frame(width: previewWidth, height: macro.size.height)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(macro.color.gradient)
+                .fill(SnapColors.backgroundTertiary)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                .strokeBorder(SnapColors.border, lineWidth: 0.5)
         )
-        .shadow(color: macro.color.color.opacity(0.3), radius: 8, y: 4)
     }
 
     private var previewWidth: CGFloat {

@@ -312,6 +312,12 @@ public struct SettingsFeature: Sendable {
 
         // Reset
         case resetToDefaults
+        case delegate(Delegate)
+
+        public enum Delegate: Equatable, Sendable {
+            case inputBehaviorChanged
+            case powerSavingBehaviorChanged
+        }
     }
 
     @Dependency(\.settingsClient) var settingsClient
@@ -322,9 +328,14 @@ public struct SettingsFeature: Sendable {
         Reduce { state, action in
             switch action {
             case .onAppear:
+                let systemLowPowerMode = state.isSystemLowPowerModeActive
                 state = settingsClient.load()
+                state.isSystemLowPowerModeActive = systemLowPowerMode
                 state.isiCloudAvailable = settingsClient.isiCloudAvailable()
-                return .none
+                return .merge(
+                    .send(.delegate(.inputBehaviorChanged)),
+                    .send(.delegate(.powerSavingBehaviorChanged))
+                )
 
             case .save:
                 let currentState = state
@@ -340,23 +351,38 @@ public struct SettingsFeature: Sendable {
 
             case .setTrackpadSensitivity(let value):
                 state.trackpadSensitivity = value
-                return .send(.save)
+                return .merge(
+                    .send(.save),
+                    .send(.delegate(.inputBehaviorChanged))
+                )
 
             case .setScrollSensitivity(let value):
                 state.scrollSensitivity = value
-                return .send(.save)
+                return .merge(
+                    .send(.save),
+                    .send(.delegate(.inputBehaviorChanged))
+                )
 
             case .setLaserSensitivity(let value):
                 state.laserSensitivity = value
-                return .send(.save)
+                return .merge(
+                    .send(.save),
+                    .send(.delegate(.inputBehaviorChanged))
+                )
 
             case .toggleNaturalScrolling:
                 state.isNaturalScrolling.toggle()
-                return .send(.save)
+                return .merge(
+                    .send(.save),
+                    .send(.delegate(.inputBehaviorChanged))
+                )
 
             case .toggleTapToClick:
                 state.isTapToClick.toggle()
-                return .send(.save)
+                return .merge(
+                    .send(.save),
+                    .send(.delegate(.inputBehaviorChanged))
+                )
 
             case .setHapticIntensity(let intensity):
                 state.hapticIntensity = intensity
@@ -369,23 +395,35 @@ public struct SettingsFeature: Sendable {
             // Battery Optimization
             case .toggleBatteryOptimization:
                 state.isBatteryOptimizationEnabled.toggle()
-                return .send(.save)
+                return .merge(
+                    .send(.save),
+                    .send(.delegate(.powerSavingBehaviorChanged))
+                )
 
             case .toggleAutoDetectLowPowerMode:
                 state.autoDetectLowPowerMode.toggle()
-                return .send(.save)
+                return .merge(
+                    .send(.save),
+                    .send(.delegate(.powerSavingBehaviorChanged))
+                )
 
             case .toggleReducedMotionUpdateRate:
                 state.reducedMotionUpdateRate.toggle()
-                return .send(.save)
+                return .merge(
+                    .send(.save),
+                    .send(.delegate(.powerSavingBehaviorChanged))
+                )
 
             case .toggleReducedAnimations:
                 state.reducedAnimations.toggle()
-                return .send(.save)
+                return .merge(
+                    .send(.save),
+                    .send(.delegate(.powerSavingBehaviorChanged))
+                )
 
             case .systemLowPowerModeChanged(let isLowPower):
                 state.isSystemLowPowerModeActive = isLowPower
-                return .none
+                return .send(.delegate(.powerSavingBehaviorChanged))
 
             // iCloud Sync
             case .toggleiCloudSync:
@@ -422,9 +460,13 @@ public struct SettingsFeature: Sendable {
                 state.reducedAnimations = iCloudSettings.reducedAnimations
                 // 로컬에도 저장
                 let updatedState = state
-                return .run { _ in
-                    client.save(updatedState)
-                }
+                return .merge(
+                    .run { _ in
+                        client.save(updatedState)
+                    },
+                    .send(.delegate(.inputBehaviorChanged)),
+                    .send(.delegate(.powerSavingBehaviorChanged))
+                )
 
             case .syncToiCloud:
                 let codableSettings = CodableSettings(from: state)
@@ -435,10 +477,19 @@ public struct SettingsFeature: Sendable {
 
             case .resetToDefaults:
                 let wasICloudEnabled = state.iCloudSyncEnabled
+                let systemLowPowerMode = state.isSystemLowPowerModeActive
                 state = State()
+                state.isSystemLowPowerModeActive = systemLowPowerMode
                 state.iCloudSyncEnabled = wasICloudEnabled
                 state.isiCloudAvailable = settingsClient.isiCloudAvailable()
-                return .send(.save)
+                return .merge(
+                    .send(.save),
+                    .send(.delegate(.inputBehaviorChanged)),
+                    .send(.delegate(.powerSavingBehaviorChanged))
+                )
+
+            case .delegate:
+                return .none
             }
         }
     }

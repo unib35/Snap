@@ -36,7 +36,6 @@ public struct OnboardingView: View {
                 bottomControls
             }
         }
-        .preferredColorScheme(.dark)
         .onAppear {
             store.send(.onAppear)
         }
@@ -82,7 +81,7 @@ public struct OnboardingView: View {
             HStack(spacing: SnapSpacing.sm) {
                 ForEach(OnboardingPage.allCases, id: \.self) { page in
                     Circle()
-                        .fill(page == store.currentPage ? SnapColors.neonLime : SnapColors.textDisabled)
+                        .fill(page == store.currentPage ? SnapColors.accent : SnapColors.textDisabled)
                         .frame(width: 8, height: 8)
                         .scaleEffect(page == store.currentPage ? 1.2 : 1.0)
                         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: store.currentPage)
@@ -137,13 +136,8 @@ public struct OnboardingView: View {
                                 .font(.system(size: 14, weight: .semibold))
                         }
                     }
-                    .foregroundStyle(SnapColors.background)
-                    .frame(height: 50)
-                    .frame(maxWidth: .infinity)
-                    .background(SnapColors.neonLime)
-                    .clipShape(RoundedRectangle(cornerRadius: SnapCornerRadius.md))
                 }
-                .pressEffect()
+                .buttonStyle(SnapActionButtonStyle())
             }
             .padding(.horizontal, SnapSpacing.xl)
             .padding(.bottom, SnapSpacing.xxl)
@@ -200,22 +194,7 @@ struct OnboardingPageView: View {
         }
     }
 
-    private var iconColor: Color {
-        switch page {
-        case .welcome:
-            return SnapColors.neonLime
-        case .features:
-            return SnapColors.cyberBlue
-        case .macReceiver:
-            return SnapColors.neonPink
-        case .connection:
-            return SnapColors.cyberBlue
-        case .permissions:
-            return SnapColors.neonOrange
-        case .completion:
-            return SnapColors.neonLime
-        }
-    }
+    private var iconColor: Color { SnapColors.accent }
 
     @ViewBuilder
     private var pageContent: some View {
@@ -252,21 +231,21 @@ struct OnboardingPageView: View {
         VStack(spacing: SnapSpacing.md) {
             featureCard(
                 icon: "hand.tap.fill",
-                color: SnapColors.neonLime,
+                color: SnapColors.accent,
                 title: "트랙패드",
                 description: "멀티터치 제스처로 Mac 커서를 자유롭게 제어"
             )
 
             featureCard(
                 icon: "keyboard.fill",
-                color: SnapColors.cyberBlue,
+                color: SnapColors.accent,
                 title: "키보드",
                 description: "텍스트 입력과 시스템 단축키 사용"
             )
 
             featureCard(
                 icon: "play.circle.fill",
-                color: SnapColors.neonPink,
+                color: SnapColors.accent,
                 title: "미디어 컨트롤",
                 description: "음악 재생, 볼륨 조절을 한 곳에서"
             )
@@ -285,7 +264,7 @@ struct OnboardingPageView: View {
 
             HStack(spacing: SnapSpacing.sm) {
                 Image(systemName: "info.circle.fill")
-                    .foregroundStyle(SnapColors.cyberBlue)
+                    .foregroundStyle(SnapColors.accent)
 
                 Text("Mac과 iPhone이 같은 Wi-Fi에 연결되어 있어야 합니다")
                     .font(SnapTypography.bodySmall)
@@ -316,7 +295,7 @@ struct OnboardingPageView: View {
             VStack(spacing: SnapSpacing.sm) {
                 Image(systemName: "iphone")
                     .font(.system(size: 40))
-                    .foregroundStyle(SnapColors.cyberBlue)
+                    .foregroundStyle(SnapColors.accent)
                 Text("iPhone")
                     .font(SnapTypography.labelSmall)
                     .foregroundStyle(SnapColors.textSecondary)
@@ -325,7 +304,7 @@ struct OnboardingPageView: View {
             VStack(spacing: SnapSpacing.xs) {
                 Image(systemName: "arrow.left.arrow.right")
                     .font(.system(size: 20))
-                    .foregroundStyle(SnapColors.neonLime)
+                    .foregroundStyle(SnapColors.accent)
                 Text("Wi-Fi")
                     .font(SnapTypography.caption)
                     .foregroundStyle(SnapColors.textTertiary)
@@ -334,7 +313,7 @@ struct OnboardingPageView: View {
             VStack(spacing: SnapSpacing.sm) {
                 Image(systemName: "desktopcomputer")
                     .font(.system(size: 40))
-                    .foregroundStyle(SnapColors.cyberBlue)
+                    .foregroundStyle(SnapColors.accent)
                 Text("Mac")
                     .font(SnapTypography.labelSmall)
                     .foregroundStyle(SnapColors.textSecondary)
@@ -394,7 +373,7 @@ struct OnboardingPageView: View {
         HStack(spacing: SnapSpacing.lg) {
             Image(systemName: icon)
                 .font(.system(size: 24))
-                .foregroundStyle(SnapColors.neonLime)
+                .foregroundStyle(SnapColors.accent)
                 .frame(width: 40)
 
             VStack(alignment: .leading, spacing: SnapSpacing.xxs) {
@@ -450,12 +429,12 @@ struct OnboardingPageView: View {
         HStack(spacing: SnapSpacing.md) {
             ZStack {
                 Circle()
-                    .fill(SnapColors.neonPink.opacity(0.15))
+                    .fill(SnapColors.accent.opacity(0.15))
                     .frame(width: 32, height: 32)
 
                 Text("\(number)")
                     .font(SnapTypography.labelLarge)
-                    .foregroundStyle(SnapColors.neonPink)
+                    .foregroundStyle(SnapColors.accent)
             }
 
             Text(text)
@@ -471,7 +450,7 @@ struct OnboardingPageView: View {
         HStack(spacing: SnapSpacing.md) {
             Image(systemName: icon)
                 .font(.system(size: 18))
-                .foregroundStyle(SnapColors.cyberBlue)
+                .foregroundStyle(SnapColors.accent)
                 .frame(width: 24)
 
             Text(text)
@@ -487,12 +466,12 @@ struct OnboardingPageView: View {
         HStack(spacing: SnapSpacing.lg) {
             ZStack {
                 Circle()
-                    .fill(SnapColors.neonOrange.opacity(0.15))
+                    .fill(SnapColors.warning.opacity(0.15))
                     .frame(width: 48, height: 48)
 
                 Image(systemName: icon)
                     .font(.system(size: 22))
-                    .foregroundStyle(SnapColors.neonOrange)
+                    .foregroundStyle(SnapColors.warning)
             }
 
             VStack(alignment: .leading, spacing: SnapSpacing.xxs) {
@@ -527,7 +506,7 @@ struct OnboardingPageView: View {
         HStack(spacing: SnapSpacing.md) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 18))
-                .foregroundStyle(SnapColors.neonLime)
+                .foregroundStyle(SnapColors.accent)
 
             Text(text)
                 .font(SnapTypography.bodySmall)

@@ -72,7 +72,7 @@ public struct QuickLaunchView: View {
                 } label: {
                     Text("초기화")
                         .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(SnapColors.destructive)
                 }
             }
 
@@ -199,25 +199,24 @@ struct QuickLaunchButton: View {
         VStack(spacing: 8) {
             Image(systemName: item.icon)
                 .font(.system(size: 24))
-                .foregroundStyle(.white)
+                .foregroundStyle(item.color.color)
 
             Text(item.name)
                 .font(.caption2)
                 .fontWeight(.medium)
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(SnapColors.textPrimary)
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 80)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(item.color.color.gradient)
+                .fill(SnapColors.backgroundTertiary)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                .strokeBorder(SnapColors.border, lineWidth: 0.5)
         )
-        .shadow(color: item.color.color.opacity(0.3), radius: 8, y: 4)
     }
 
     private var deleteButton: some View {
@@ -458,7 +457,7 @@ public struct QuickLaunchSection: View {
             // Header
             HStack {
                 Image(systemName: "link")
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(SnapColors.accent)
                 Text("퀵 런치")
                     .font(.headline)
 
@@ -473,7 +472,7 @@ public struct QuickLaunchSection: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-                    .tint(.red)
+                    .tint(SnapColors.destructive)
                 }
 
                 Button {
@@ -529,8 +528,7 @@ public struct QuickLaunchSection: View {
             }
         }
         .padding()
-        .background(SnapColors.secondarySystemBackground.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .cardStyle()
         .sheet(isPresented: Binding(
             get: { store.editorState != nil },
             set: { if !$0 { store.send(.dismissEditor) } }
