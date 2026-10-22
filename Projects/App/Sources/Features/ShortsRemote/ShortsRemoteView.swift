@@ -91,10 +91,10 @@ public struct ShortsRemoteView: View {
             HStack(spacing: 20) {
                 // Like
                 ShortsControlButton(
-                    icon: store.isLiked ? "heart.fill" : "heart",
-                    label: store.isLiked ? "취소" : "좋아요"
+                    icon: store.isShowingLikeConfirmation ? "heart.fill" : "heart",
+                    label: "좋아요"
                 ) {
-                    store.send(.toggleLike)
+                    store.send(.likeTapped)
                 }
 
                 // Comment
@@ -786,13 +786,13 @@ public struct ShortsRemoteFullScreenView: View {
 
             // Like Button
             SideActionButton(
-                icon: store.isLiked ? "heart.fill" : "heart",
+                icon: store.isShowingLikeConfirmation ? "heart.fill" : "heart",
                 label: "좋아요",
-                isActive: store.isLiked,
+                isActive: store.isShowingLikeConfirmation,
                 activeColor: .red,
-                accessibilityText: store.isLiked ? "좋아요 취소" : "좋아요"
+                accessibilityText: "좋아요"
             ) {
-                store.send(.toggleLike)
+                store.send(.likeTapped)
             }
 
             // Comment Button
