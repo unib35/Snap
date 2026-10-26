@@ -1,4 +1,6 @@
 import ComposableArchitecture
+import Foundation
+import Shared
 import Testing
 @testable import App
 
@@ -35,6 +37,8 @@ struct DiscoveryTests {
             $0.status = .discovering
             $0.discoveredDevices.removeAll()
         }
+        await store.receive(\.loadSavedDevices)
+        await store.receive(\.savedDevicesLoaded, [])
     }
 
     @Test("이미 연결 중이면 Discovery 시작 무시")
@@ -190,6 +194,8 @@ struct ConnectionTests {
             $0.isPairingRequired = false
             $0.reconnectAttempt = 0
         }
+        await store.receive(\.loadSavedDevices)
+        await store.receive(\.savedDevicesLoaded, [])
     }
 
     @Test("수동 연결 해제 시 상태 초기화")
@@ -612,5 +618,111 @@ struct QRPairingTests {
         }
         await store.send(.pairingCodeScanned("snap-pair:test"))
         #expect(!received.value)
+    }
+}
+
+// MARK: - Saved Mac Tests
+
+@Suite("저장된 Mac 목록 테스트")
+struct SavedDevicesTests {
+    private let savedMac = TrustedDevice(
+        deviceID: "test-device-id",
+        deviceName: "Test Mac",
+        pairedAt: Date(timeIntervalSince1970: 1_800_000_000)
+    )
+    private let otherMac = TrustedDevice(
+        deviceID: "other-mac",
+        deviceName: "Other Mac",
+        pairedAt: Date(timeIntervalSince1970: 1_800_000_100)
+    )
+
+    @Test("저장된 Mac 목록을 불러옴")
+    func loadSavedDevices() async {
+        let store = await TestStore(initialState: ConnectionFeature.State()) {
+            ConnectionFeature()
+        } withDependencies: { [savedMac, otherMac] in
+            $0.connectionClient.savedDevices = { [savedMac, otherMac] }
+        }
+
+        await store.send(.loadSavedDevices)
+        await store.receive(\.savedDevicesLoaded) {
+            $0.savedDevices = [savedMac, otherMac]
+        }
+    }
+
+    @Test("연결되지 않은 Mac을 지우면 지금 연결은 유지")
+    func forgetOtherMacKeepsConnection() async {
+        var state = ConnectionFeature.State()
+        state.status = .connected(testDevice)
+        state.connectedDevice = testDevice
+        state.lastConnectedDevice = testDevice
+        state.savedDevices = [savedMac, otherMac]
+        let forgotten = LockIsolated<[String]>([])
+
+        let store = await TestStore(initialState: state) {
+            ConnectionFeature()
+        } withDependencies: { [savedMac] in
+            $0.connectionClient.forgetDevice = { id in forgotten.withValue { $0.append(id) } }
+            $0.connectionClient.savedDevices = { [savedMac] }
+        }
+
+        await store.send(.forgetSavedDevice(id: "other-mac")) {
+            $0.savedDevices = [savedMac]
+        }
+        await store.receive(\.loadSavedDevices)
+        await store.receive(\.savedDevicesLoaded)
+        #expect(forgotten.value == ["other-mac"])
+    }
+
+    @Test("연결된 Mac을 지우면 연결을 끊고 자동 재연결하지 않음")
+    func forgetConnectedMacDisconnects() async {
+        var state = ConnectionFeature.State()
+        state.status = .connected(testDevice)
+        state.connectedDevice = testDevice
+        state.lastConnectedDevice = testDevice
+        state.savedDevices = [savedMac]
+
+        let store = await TestStore(initialState: state) {
+            ConnectionFeature()
+        } withDependencies: {
+            $0.connectionClient.forgetDevice = { _ in }
+            $0.connectionClient.savedDevices = { [] }
+        }
+
+        await store.send(.forgetSavedDevice(id: testDevice.id)) {
+            $0.savedDevices = []
+            $0.status = .disconnected
+            $0.connectedDevice = nil
+            $0.lastConnectedDevice = nil
+        }
+        await store.receive(\.loadSavedDevices)
+        await store.receive(\.savedDevicesLoaded)
+    }
+
+    @Test("삭제에 실패하면 오류를 보여주고 목록을 다시 불러옴")
+    func forgetFailureShowsError() async {
+        struct KeychainFailure: Error, LocalizedError {
+            var errorDescription: String? { "삭제 실패" }
+        }
+        var state = ConnectionFeature.State()
+        state.savedDevices = [savedMac]
+
+        let store = await TestStore(initialState: state) {
+            ConnectionFeature()
+        } withDependencies: { [savedMac] in
+            $0.connectionClient.forgetDevice = { _ in throw KeychainFailure() }
+            $0.connectionClient.savedDevices = { [savedMac] }
+        }
+
+        await store.send(.forgetSavedDevice(id: savedMac.id)) {
+            $0.savedDevices = []
+        }
+        await store.receive(\.errorOccurred) {
+            $0.lastError = .general("삭제 실패")
+        }
+        await store.receive(\.loadSavedDevices)
+        await store.receive(\.savedDevicesLoaded) {
+            $0.savedDevices = [savedMac]
+        }
     }
 }

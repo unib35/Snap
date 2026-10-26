@@ -15,6 +15,7 @@ struct AppFeatureTests {
             $0.connectionClient.startDiscovery = { .finished }
             $0.networkMonitorClient.startMonitoring = { .finished }
             $0.batteryClient.observeLowPowerMode = { .finished }
+            $0.connectionClient.savedDevices = { [] }
         }
 
         await store.send(.onAppear)
@@ -38,6 +39,9 @@ struct AppFeatureTests {
             if case .connection(.startNetworkMonitoring) = $0 { return true }
             return false
         }
+
+        await store.receive(\.connection.loadSavedDevices)
+        await store.receive(\.connection.savedDevicesLoaded)
     }
 
     @Test("Mac에서 받은 볼륨 상태를 미디어 화면에 전달")

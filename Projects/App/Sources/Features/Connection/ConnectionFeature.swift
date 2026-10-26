@@ -23,6 +23,10 @@ public struct ConnectionFeature: Sendable {
         public var reconnectAttempt: Int = 0
         public var networkInterface: NetworkInterface = .other
 
+        // Saved Macs
+        /// 페어링해 연결한 적 있는 Mac (이름, 페어링 날짜)
+        public var savedDevices: [TrustedDevice] = []
+
         public init() {}
     }
 
@@ -63,6 +67,11 @@ public struct ConnectionFeature: Sendable {
         // Pairing
         case pairingCodeScanned(String)
         case cancelPairing
+
+        // Saved Macs
+        case loadSavedDevices
+        case savedDevicesLoaded([TrustedDevice])
+        case forgetSavedDevice(id: String)
 
         // Settings
         case setAutoReconnect(Bool)
@@ -115,12 +124,15 @@ public struct ConnectionFeature: Sendable {
                 state.status = .discovering
                 state.discoveredDevices.removeAll()
 
-                return .run { send in
-                    for await event in await connectionClient.startDiscovery() {
-                        await send(.discoveryEvent(event))
+                return .merge(
+                    .run { send in
+                        for await event in await connectionClient.startDiscovery() {
+                            await send(.discoveryEvent(event))
+                        }
                     }
-                }
-                .cancellable(id: CancelID.discovery)
+                    .cancellable(id: CancelID.discovery),
+                    .send(.loadSavedDevices)
+                )
 
             case .stopDiscovery:
                 state.status = .disconnected
@@ -216,6 +228,7 @@ public struct ConnectionFeature: Sendable {
                         state.connectedDevice = device
                         state.lastConnectedDevice = device
                     }
+                    return .send(.loadSavedDevices)
 
                 case .disconnected(let errorMessage):
                     let previousDevice = state.connectedDevice ?? state.lastConnectedDevice
@@ -435,6 +448,42 @@ public struct ConnectionFeature: Sendable {
             case .clearError:
                 state.lastError = nil
                 return .none
+
+            // MARK: - Saved Macs
+
+            case .loadSavedDevices:
+                return .run { send in
+                    await send(.savedDevicesLoaded(await connectionClient.savedDevices()))
+                }
+
+            case .savedDevicesLoaded(let devices):
+                state.savedDevices = devices
+                return .none
+
+            case .forgetSavedDevice(let id):
+                state.savedDevices.removeAll { $0.id == id }
+                // 연결 중이거나 재연결하려던 Mac이면 끊고, 지운 Mac으로 자동 재연결하지 않는다.
+                var cancelConnection: Effect<Action> = .none
+                if state.connectedDevice?.id == id || state.lastConnectedDevice?.id == id {
+                    state.status = .disconnected
+                    state.connectedDevice = nil
+                    state.lastConnectedDevice = nil
+                    state.latency = 0
+                    state.signalStrength = .unknown
+                    state.reconnectAttempt = 0
+                    cancelConnection = .merge(.cancel(id: CancelID.connection), .cancel(id: CancelID.reconnect))
+                }
+                return .concatenate(
+                    cancelConnection,
+                    .run { send in
+                        do {
+                            try await connectionClient.forgetDevice(id)
+                        } catch {
+                            await send(.errorOccurred(.general(error.localizedDescription)))
+                        }
+                        await send(.loadSavedDevices)
+                    }
+                )
             }
         }
     }
