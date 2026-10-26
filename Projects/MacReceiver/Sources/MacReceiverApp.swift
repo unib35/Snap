@@ -381,6 +381,7 @@ final class ServerManager: ObservableObject {
     private var pairingWindow: NSWindow?
     private var nowPlayingTimer: Timer?
     private var lastNowPlayingInfo: NowPlayingInfo?
+    private var lastVolumeState: VolumeState?
 
     init() {
         startServer()
@@ -457,11 +458,13 @@ final class ServerManager: ObservableObject {
 
         // 즉시 한 번 전송
         sendNowPlayingInfoIfChanged()
+        sendVolumeStateIfChanged()
 
         // 2초마다 업데이트 전송
         nowPlayingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.sendNowPlayingInfoIfChanged()
+                self?.sendVolumeStateIfChanged()
             }
         }
     }
@@ -470,6 +473,7 @@ final class ServerManager: ObservableObject {
         nowPlayingTimer?.invalidate()
         nowPlayingTimer = nil
         lastNowPlayingInfo = nil
+        lastVolumeState = nil
     }
 
     private func sendNowPlayingInfoIfChanged() {
@@ -481,6 +485,14 @@ final class ServerManager: ObservableObject {
             server?.sendNowPlayingInfo(currentInfo)
             logPacket("NowPlaying: \(currentInfo.isEmpty ? "No media" : "\(currentInfo.title) - \(currentInfo.artist)")")
         }
+    }
+
+    private func sendVolumeStateIfChanged() {
+        guard let currentState = MediaController.shared.currentVolumeState(),
+              currentState != lastVolumeState else { return }
+        lastVolumeState = currentState
+        server?.sendVolumeState(currentState)
+        logPacket("Volume: \(Int(currentState.volume * 100))%\(currentState.isMuted ? " (muted)" : "")")
     }
 
     private func handlePacket(_ packet: DecodedPacket) {
@@ -532,6 +544,13 @@ final class ServerManager: ObservableObject {
         case .mediaControl(let media, _):
             MediaController.shared.execute(command: media.command, volume: media.volume)
             logPacket("MediaControl: \(media.command)")
+            if [.volumeUp, .volumeDown, .mute].contains(media.command) {
+                // 볼륨 키는 Mac이 정한 단계만큼 바뀌므로 실제 값을 바로 알려준다.
+                Task { @MainActor [weak self] in
+                    try? await Task.sleep(for: .milliseconds(200))
+                    self?.sendVolumeStateIfChanged()
+                }
+            }
 
         case .windowSnap(let snap, _):
             WindowController.shared.snap(to: snap.position)
