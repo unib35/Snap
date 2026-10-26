@@ -129,6 +129,21 @@ public struct ShortsCommand: Codable, Sendable, Equatable {
     }
 }
 
+// MARK: - VolumeState
+
+/// Mac 시스템 출력 볼륨 상태 (macOS → iOS)
+public struct VolumeState: Codable, Sendable, Equatable {
+    /// 출력 볼륨 (0.0 ~ 1.0)
+    public var volume: Float
+    /// 음소거 여부
+    public var isMuted: Bool
+
+    public init(volume: Float = 0, isMuted: Bool = false) {
+        self.volume = volume
+        self.isMuted = isMuted
+    }
+}
+
 // MARK: - NowPlayingInfo
 
 /// 현재 재생 중인 미디어 정보 (macOS → iOS)

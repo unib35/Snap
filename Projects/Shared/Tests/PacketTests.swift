@@ -248,6 +248,21 @@ struct PacketDecoderTests {
         #expect(message.isInertia == original.isInertia)
     }
 
+    @Test("Decode VolumeState round-trip")
+    func decodeVolumeStateRoundTrip() throws {
+        let original = VolumeState(volume: 0.375, isMuted: true)
+        let encoded = try PacketEncoder.encode(original)
+        let decoded = try PacketDecoder.decode(encoded)
+
+        guard case .volumeState(let message, let header) = decoded else {
+            Issue.record("Expected volumeState")
+            return
+        }
+
+        #expect(header.type == .volumeState)
+        #expect(message == original)
+    }
+
     @Test("Decode Handshake round-trip")
     func decodeHandshakeRoundTrip() throws {
         let original = Handshake(

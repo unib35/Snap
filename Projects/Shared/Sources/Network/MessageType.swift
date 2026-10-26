@@ -25,6 +25,8 @@ public enum MessageType: UInt8, Sendable {
     case mediaControl = 0x30
     /// Now Playing 정보 (macOS → iOS)
     case nowPlayingInfo = 0x31
+    /// 시스템 볼륨 상태 (macOS → iOS)
+    case volumeState = 0x32
     /// 윈도우 스냅
     case windowSnap = 0x40
     /// 앱 목록 요청
