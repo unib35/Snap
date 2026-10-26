@@ -9,6 +9,9 @@ public struct MediaFeature {
         public var isPlaying: Bool = false
         public var volume: Float = 0.5
         public var isMuted: Bool = false
+        /// Mac에서 실제 볼륨을 한 번이라도 받았는지 여부
+        /// 받기 전의 `volume`은 표시용 기본값입니다.
+        public var hasReceivedVolume: Bool = false
         public var isHardwareVolumeControlEnabled: Bool = true
 
         public init() {}
@@ -34,6 +37,7 @@ public struct MediaFeature {
         // State Updates
         case setIsPlaying(Bool)
         case nowPlayingInfoReceived(NowPlayingInfo)
+        case volumeStateReceived(VolumeState)
     }
 
     @Dependency(\.connectionClient) var connectionClient
@@ -98,6 +102,12 @@ public struct MediaFeature {
             case .nowPlayingInfoReceived(let info):
                 state.nowPlayingInfo = info
                 state.isPlaying = info.isPlaying
+                return .none
+
+            case .volumeStateReceived(let volumeState):
+                state.volume = volumeState.volume
+                state.isMuted = volumeState.isMuted
+                state.hasReceivedVolume = true
                 return .none
 
             case .hardwareVolumeUp:

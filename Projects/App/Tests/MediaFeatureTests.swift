@@ -453,4 +453,18 @@ struct StateUpdateTests {
             $0.isPlaying = false // NowPlaying 정보에 맞춰 동기화
         }
     }
+
+    @Test("Mac 실제 볼륨 수신")
+    func volumeStateReceived() async {
+        let store = await TestStore(initialState: MediaFeature.State()) {
+            MediaFeature()
+        }
+        #expect(MediaFeature.State().hasReceivedVolume == false)
+
+        await store.send(.volumeStateReceived(VolumeState(volume: 0.25, isMuted: true))) {
+            $0.volume = 0.25
+            $0.isMuted = true
+            $0.hasReceivedVolume = true
+        }
+    }
 }
