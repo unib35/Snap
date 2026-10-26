@@ -25,13 +25,18 @@ public final class TrustedDevicesManager: @unchecked Sendable {
     // MARK: - Private Properties
 
     private let persistence: PersistenceManager
-    private let trustedDevicesKey = "com.snap.trustedDevices"
+    private let trustedDevicesKey: String
     private let lock = NSRecursiveLock()
 
     // MARK: - Initialization
 
-    public init(persistence: PersistenceManager = UserDefaultsPersistence.shared) {
+    /// - Parameter storageKey: 목록을 저장할 키. iOS는 페어링한 Mac 목록을 따로 저장합니다.
+    public init(
+        persistence: PersistenceManager = UserDefaultsPersistence.shared,
+        storageKey: String = "com.snap.trustedDevices"
+    ) {
         self.persistence = persistence
+        self.trustedDevicesKey = storageKey
     }
 
     // MARK: - Public Methods
@@ -70,6 +75,22 @@ public final class TrustedDevicesManager: @unchecked Sendable {
     public func addTrustedDevice(deviceID: String, deviceName: String) {
         let device = TrustedDevice(deviceID: deviceID, deviceName: deviceName)
         addTrustedDevice(device)
+    }
+
+    /// 연결에 성공한 기기를 기록합니다.
+    ///
+    /// 처음 보는 기기면 지금 시각으로 추가하고, 이미 있으면 이름만 갱신해 페어링 날짜를 유지합니다.
+    public func recordConnection(deviceID: String, deviceName: String) {
+        lock.withLock {
+            var devices = self.loadTrustedDevices()
+            if let index = devices.firstIndex(where: { $0.deviceID == deviceID }) {
+                guard devices[index].deviceName != deviceName else { return }
+                devices[index].deviceName = deviceName
+            } else {
+                devices.append(TrustedDevice(deviceID: deviceID, deviceName: deviceName))
+            }
+            self.saveTrustedDevices(devices)
+        }
     }
 
     /// 신뢰된 디바이스 제거
