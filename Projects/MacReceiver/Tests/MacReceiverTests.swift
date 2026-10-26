@@ -181,3 +181,41 @@ extension ServerSessionTests {
         #expect(!TrustedDevicesManager.shared.isTrusted(deviceID: id))
     }
 }
+
+extension ServerSessionTests {
+    @Test func revokingTrustedDeviceDisconnectsAndRequiresPairingAgain() throws {
+        let store = TestCredentials()
+        let trusted = TrustedDevicesManager(persistence: MockPersistence())
+        let token = DatagramSession.makeKey()
+        let id = UUID().uuidString
+        trusted.addTrustedDevice(deviceID: id, deviceName: "Known phone")
+        trusted.addTrustedDevice(deviceID: "other", deviceName: "Other phone")
+        try store.save(PairingCredential(token: token), for: "server:" + id)
+        let server = SnapServer(
+            deviceName: "Test",
+            credentialStore: store,
+            certificateData: { Data("certificate".utf8) },
+            trustedDevicesManager: trusted
+        )
+        defer { server.stop() }
+        let spy = ServerSpy()
+        server.delegate = spy
+        let handshake = Handshake(deviceName: "Known phone", deviceID: id, authenticationToken: token)
+
+        let first = TCPConnection(host: "127.0.0.1", port: 1, useTLS: true)
+        server.acceptTransportConnection(first)
+        server.tcpConnection(first, didReceive: try PacketDecoder.decode(PacketEncoder.encode(handshake)))
+        #expect(spy.connected)
+
+        try server.revokeTrustedDevice(deviceID: id)
+        #expect(!spy.connected)
+        #expect(try store.load(for: "server:" + id) == nil)
+        #expect(server.trustedDevices.map(\.deviceID) == ["other"])
+
+        let second = TCPConnection(host: "127.0.0.1", port: 1, useTLS: true)
+        server.acceptTransportConnection(second)
+        server.tcpConnection(second, didReceive: try PacketDecoder.decode(PacketEncoder.encode(handshake)))
+        #expect(!spy.connected)
+        #expect(spy.pin != nil)
+    }
+}
