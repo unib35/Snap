@@ -8,6 +8,9 @@ struct SnapWidgetBundle: WidgetBundle {
         QuickConnectWidget()
         MacroWidget()
         MediaControlWidget()
+
+        // Lock Screen / Dynamic Island
+        SnapLiveActivity()
     }
 }
 

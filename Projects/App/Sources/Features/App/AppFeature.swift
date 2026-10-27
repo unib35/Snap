@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import Shared
 import SwiftUI
 
 @Reducer
@@ -72,6 +73,7 @@ public struct AppFeature {
 
     @Dependency(\.onboardingClient) var onboardingClient
     @Dependency(\.batteryClient) var batteryClient
+    @Dependency(\.widgetClient) var widgetClient
 
     public init() {}
 
@@ -80,6 +82,15 @@ public struct AppFeature {
     }
 
     public var body: some ReducerOf<Self> {
+        // 자식 기능이 바꾼 상태까지 감지하도록 전체 리듀서에 onChange를 붙임
+        core
+            .onChange(of: { WidgetConnectionState(status: $0.connection.status) }, updateWidget(\.updateConnection))
+            .onChange(of: { Self.widgetMacros(from: $0) }, updateWidget(\.updateMacros))
+            .onChange(of: { WidgetNowPlaying(info: $0.media.nowPlayingInfo) }, updateWidget(\.updateNowPlaying))
+    }
+
+    @ReducerBuilder<State, Action>
+    private var core: some ReducerOf<Self> {
         Scope(state: \.connection, action: \.connection) {
             ConnectionFeature()
         }
@@ -117,6 +128,7 @@ public struct AppFeature {
                     .send(.checkOnboardingStatus),
                     .send(.connection(.startDiscovery)),
                     .send(.connection(.startNetworkMonitoring)),
+                    syncWidgets(from: state),
                     .run { send in
                         for await isLowPower in client.observeLowPowerMode() {
                             await send(.lowPowerModeChanged(isLowPower))
@@ -236,6 +248,34 @@ public struct AppFeature {
             case .lowPowerModeChanged(let isLowPower):
                 return .send(.settings(.systemLowPowerModeChanged(isLowPower)))
             }
+        }
+    }
+
+    // MARK: - Widget Sync
+
+    /// 값이 바뀌었을 때 해당 위젯 데이터를 갱신하는 리듀서
+    private func updateWidget<Value: Sendable>(
+        _ update: KeyPath<WidgetClient, @Sendable (Value) async -> Void>
+    ) -> (Value, Value) -> Reduce<State, Action> {
+        { [widgetClient] _, newValue in
+            let send = widgetClient[keyPath: update]
+            return Reduce { _, _ in .run { _ in await send(newValue) } }
+        }
+    }
+
+    private static func widgetMacros(from state: State) -> [WidgetMacroItem] {
+        state.productivity.macro.macros.map(WidgetMacroItem.init(macro:))
+    }
+
+    /// 앱 시작 시 위젯 공유 데이터를 현재 상태로 덮어써 이전 실행의 값이 남지 않게 함
+    private func syncWidgets(from state: State) -> Effect<Action> {
+        let connection = WidgetConnectionState(status: state.connection.status)
+        let macros = Self.widgetMacros(from: state)
+        let nowPlaying = WidgetNowPlaying(info: state.media.nowPlayingInfo)
+        return .run { [widgetClient] _ in
+            await widgetClient.updateConnection(connection)
+            await widgetClient.updateMacros(macros)
+            await widgetClient.updateNowPlaying(nowPlaying)
         }
     }
 
