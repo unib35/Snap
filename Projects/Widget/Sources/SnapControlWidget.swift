@@ -10,6 +10,7 @@ import WidgetKit
 struct ToggleConnectionIntent: SetValueIntent {
     static let title: LocalizedStringResource = "Snap 연결 토글"
     static let description = IntentDescription("Mac과의 연결을 토글합니다.")
+    static let openAppWhenRun: Bool = true
 
     @Parameter(title: "연결됨")
     var value: Bool
@@ -22,10 +23,11 @@ struct ToggleConnectionIntent: SetValueIntent {
         self.value = value
     }
 
-    func perform() async throws -> some IntentResult {
-        // The toggle action is handled through URL scheme when the control is tapped
-        // Widget extensions can't directly control app state
-        .result()
+    func perform() async throws -> some IntentResult & OpensIntent {
+        // Widget extensions can't directly control app state, so the app handles it via URL scheme
+        // swiftlint:disable:next force_unwrapping
+        let url = URL(string: value ? "snap://connect" : "snap://disconnect")!
+        return .result(opensIntent: OpenURLIntent(url))
     }
 }
 

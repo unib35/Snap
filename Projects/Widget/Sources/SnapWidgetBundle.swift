@@ -11,10 +11,13 @@ struct SnapWidgetBundle: WidgetBundle {
 
         // Lock Screen / Dynamic Island
         SnapLiveActivity()
+
+        // Control Center (iOS 18+)
+        if #available(iOS 18.0, *) {
+            SnapControlWidget()
+            TrackpadControlWidget()
+            KeyboardControlWidget()
+            MediaControlControlWidget()
+        }
     }
 }
-
-// Note: Control Center widgets (SnapControlWidget, TrackpadControlWidget,
-// KeyboardControlWidget, MediaControlControlWidget) are defined in
-// SnapControlWidget.swift with @available(iOS 18.0, *).
-// They are automatically discovered by the system on iOS 18+.
