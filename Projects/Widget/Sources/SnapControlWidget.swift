@@ -1,4 +1,5 @@
 import AppIntents
+import Shared
 import SwiftUI
 import WidgetKit
 
@@ -14,7 +15,7 @@ struct ToggleConnectionIntent: SetValueIntent {
     var value: Bool
 
     init() {
-        self.value = WidgetDataManager.isConnected
+        self.value = WidgetDataStore.shared.isConnected
     }
 
     init(value: Bool) {
@@ -37,7 +38,7 @@ struct ConnectionValueProvider: ControlValueProvider {
     }
 
     func currentValue() async throws -> Bool {
-        WidgetDataManager.isConnected
+        WidgetDataStore.shared.isConnected
     }
 }
 
@@ -46,7 +47,7 @@ struct ConnectionValueProvider: ControlValueProvider {
 /// Control Center에 표시되는 연결 토글 컨트롤
 @available(iOS 18.0, *)
 struct SnapControlWidget: ControlWidget {
-    static let kind: String = "com.snap.app.control"
+    static let kind: String = WidgetKind.connectionControl
 
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(

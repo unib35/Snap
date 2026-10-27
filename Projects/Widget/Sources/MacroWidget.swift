@@ -1,10 +1,11 @@
+import Shared
 import SwiftUI
 import WidgetKit
 
 // MARK: - Macro Widget
 
 struct MacroWidget: Widget {
-    let kind: String = "MacroWidget"
+    let kind: String = WidgetKind.macro
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: MacroProvider()) { entry in
@@ -19,12 +20,7 @@ struct MacroWidget: Widget {
 
 // MARK: - Macro Item
 
-struct WidgetMacroItem: Identifiable, Codable {
-    let id: UUID
-    let name: String
-    let icon: String
-    let colorName: String
-
+extension WidgetMacroItem {
     var color: Color {
         switch colorName {
         case "blue": return .blue
@@ -56,13 +52,13 @@ struct MacroProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (MacroEntry) -> Void) {
-        let macros = WidgetDataManager.loadMacros()
+        let macros = WidgetDataStore.shared.loadMacros()
         let entry = MacroEntry(date: Date(), macros: macros.isEmpty ? defaultMacros : macros)
         completion(entry)
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<MacroEntry>) -> Void) {
-        let macros = WidgetDataManager.loadMacros()
+        let macros = WidgetDataStore.shared.loadMacros()
         let entry = MacroEntry(date: Date(), macros: macros.isEmpty ? defaultMacros : macros)
 
         // Update every 15 minutes

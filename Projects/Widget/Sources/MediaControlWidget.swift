@@ -1,3 +1,4 @@
+import Shared
 import SwiftUI
 import WidgetKit
 
@@ -5,7 +6,7 @@ import WidgetKit
 
 /// Large 사이즈 위젯으로 미디어 컨트롤 기능 제공
 struct MediaControlWidget: Widget {
-    let kind: String = "MediaControlWidget"
+    let kind: String = WidgetKind.mediaControl
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: MediaControlProvider()) { entry in
@@ -25,14 +26,6 @@ struct MediaControlEntry: TimelineEntry {
     let isConnected: Bool
     let deviceName: String?
     let nowPlaying: WidgetNowPlaying?
-}
-
-struct WidgetNowPlaying: Codable {
-    let title: String
-    let artist: String
-    let album: String
-    let isPlaying: Bool
-    let appName: String
 }
 
 // MARK: - Provider
@@ -56,9 +49,9 @@ struct MediaControlProvider: TimelineProvider {
     func getSnapshot(in context: Context, completion: @escaping (MediaControlEntry) -> Void) {
         let entry = MediaControlEntry(
             date: Date(),
-            isConnected: WidgetDataManager.isConnected,
-            deviceName: WidgetDataManager.connectedDeviceName,
-            nowPlaying: WidgetDataManager.loadNowPlaying()
+            isConnected: WidgetDataStore.shared.isConnected,
+            deviceName: WidgetDataStore.shared.connectedDeviceName,
+            nowPlaying: WidgetDataStore.shared.loadNowPlaying()
         )
         completion(entry)
     }
@@ -66,9 +59,9 @@ struct MediaControlProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<MediaControlEntry>) -> Void) {
         let entry = MediaControlEntry(
             date: Date(),
-            isConnected: WidgetDataManager.isConnected,
-            deviceName: WidgetDataManager.connectedDeviceName,
-            nowPlaying: WidgetDataManager.loadNowPlaying()
+            isConnected: WidgetDataStore.shared.isConnected,
+            deviceName: WidgetDataStore.shared.connectedDeviceName,
+            nowPlaying: WidgetDataStore.shared.loadNowPlaying()
         )
 
         // Update every minute for now playing info
