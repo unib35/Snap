@@ -312,8 +312,20 @@ public struct AppFeature {
 
         switch host {
         case "connect":
-            state.isConnectionSheetPresented = true
-            return .none
+            switch state.connection.status {
+            case .disconnected, .discovering:
+                if let device = state.connection.lastConnectedDevice {
+                    return .send(.connection(.connect(device)))
+                }
+                state.isConnectionSheetPresented = true
+                return .none
+            case .connecting, .connected, .reconnecting:
+                return .none
+            }
+
+        case "disconnect":
+            guard state.connection.status != .disconnected else { return .none }
+            return .send(.connection(.disconnect))
 
         case "trackpad":
             state.selectedTab = .trackpad
@@ -322,6 +334,20 @@ public struct AppFeature {
         case "keyboard":
             state.selectedTab = .keyboard
             return .none
+
+        case "media":
+            // snap://media, snap://media/{command}
+            state.selectedTab = .media
+            guard let command = pathComponents.first else { return .none }
+            switch command {
+            case "playpause": return .send(.media(.playPauseTapped))
+            case "next": return .send(.media(.nextTrackTapped))
+            case "previous": return .send(.media(.previousTrackTapped))
+            case "volumeup": return .send(.media(.volumeUpTapped))
+            case "volumedown": return .send(.media(.volumeDownTapped))
+            case "mute": return .send(.media(.muteTapped))
+            default: return .none
+            }
 
         case "macros":
             state.selectedTab = .productivity
