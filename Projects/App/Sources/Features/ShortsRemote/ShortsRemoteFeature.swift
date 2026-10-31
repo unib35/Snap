@@ -46,7 +46,8 @@ public struct ShortsRemoteFeature {
         public var selectedPlatform: Platform = .youtube
         public var isMuted: Bool = false
         public var isPaused: Bool = false
-        public var isLiked: Bool = false
+        /// 좋아요를 보낸 직후에만 잠시 켜진다. Mac의 실제 좋아요 상태는 알 수 없어 유지하지 않는다.
+        public var isShowingLikeConfirmation: Bool = false
 
         // Auto scroll
         public var isAutoScrollEnabled: Bool = false
@@ -76,7 +77,8 @@ public struct ShortsRemoteFeature {
         case seekBackward
 
         // Interaction
-        case toggleLike
+        case likeTapped
+        case likeConfirmationEnded
         case openComment
         case openShare
 
@@ -91,12 +93,15 @@ public struct ShortsRemoteFeature {
     @Dependency(\.connectionClient) var connectionClient
     @Dependency(\.continuousClock) var clock
 
+    static let likeConfirmationDuration: Duration = .seconds(1)
+
     public init() {}
 
     // MARK: - Cancel ID
 
     private enum CancelID {
         case autoScroll
+        case likeConfirmation
     }
 
     // MARK: - Body
@@ -108,8 +113,8 @@ public struct ShortsRemoteFeature {
                 state.isActive = true
                 state.isPaused = false
                 state.isMuted = false
-                state.isLiked = false
-                return .none
+                state.isShowingLikeConfirmation = false
+                return .cancel(id: CancelID.likeConfirmation)
 
             case .stop:
                 state.isActive = false
@@ -120,7 +125,6 @@ public struct ShortsRemoteFeature {
                 return .none
 
             case .nextVideo:
-                state.isLiked = false  // Reset like state for new video
                 let platform = state.selectedPlatform.commandPlatform
                 return .run { [connectionClient] _ in
                     await connectionClient.sendShortsCommand(platform, .nextVideo)
@@ -158,12 +162,23 @@ public struct ShortsRemoteFeature {
                     await connectionClient.sendShortsCommand(platform, .seekBackward)
                 }
 
-            case .toggleLike:
-                state.isLiked.toggle()
+            case .likeTapped:
+                state.isShowingLikeConfirmation = true
                 let platform = state.selectedPlatform.commandPlatform
-                return .run { [connectionClient] _ in
-                    await connectionClient.sendShortsCommand(platform, .like)
-                }
+                return .merge(
+                    .run { [connectionClient] _ in
+                        await connectionClient.sendShortsCommand(platform, .like)
+                    },
+                    .run { [clock] send in
+                        try await clock.sleep(for: Self.likeConfirmationDuration)
+                        await send(.likeConfirmationEnded)
+                    }
+                    .cancellable(id: CancelID.likeConfirmation, cancelInFlight: true)
+                )
+
+            case .likeConfirmationEnded:
+                state.isShowingLikeConfirmation = false
+                return .none
 
             case .openComment:
                 let platform = state.selectedPlatform.commandPlatform
