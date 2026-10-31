@@ -5,11 +5,36 @@ import UIKit
 
 @Reducer
 public struct VoiceTypingFeature {
+    // MARK: - Language
+
+    public enum Language: String, CaseIterable, Sendable {
+        case system
+        case korean
+        case english
+
+        public var title: String {
+            switch self {
+            case .system: return "기기 언어"
+            case .korean: return "한국어"
+            case .english: return "English"
+            }
+        }
+
+        public var locale: Locale {
+            switch self {
+            case .system: return .current
+            case .korean: return Locale(identifier: "ko-KR")
+            case .english: return Locale(identifier: "en-US")
+            }
+        }
+    }
+
     @ObservableState
     public struct State: Equatable {
         public var isRecording: Bool = false
         public var recognizedText: String = ""
         public var authorizationStatus: AuthorizationStatus = .notDetermined
+        @Shared(.appStorage("snapVoiceTypingLanguage")) public var language: Language = .system
         @Presents public var alert: AlertState<Action.Alert>?
 
         public enum AuthorizationStatus: Equatable, Sendable {
@@ -32,6 +57,7 @@ public struct VoiceTypingFeature {
         case recognitionEvent(SpeechRecognitionEvent)
         case sendText
         case clearText
+        case setLanguage(Language)
         case alert(PresentationAction<Alert>)
 
         @CasePathable
@@ -95,11 +121,18 @@ public struct VoiceTypingFeature {
                     return .none
                 }
 
+                let locale = state.language.locale
+                guard speechRecognizerClient.isLocaleSupported(locale) else {
+                    state.alert = AppError.speech(.languageNotSupported)
+                        .toSimpleAlertState(dismiss: .dismiss)
+                    return .none
+                }
+
                 state.isRecording = true
                 state.recognizedText = ""
 
                 return .run { [speechRecognizerClient] send in
-                    for await event in await speechRecognizerClient.startRecognition() {
+                    for await event in await speechRecognizerClient.startRecognition(locale) {
                         await send(.recognitionEvent(event))
                     }
                 }
@@ -144,6 +177,18 @@ public struct VoiceTypingFeature {
             case .clearText:
                 state.recognizedText = ""
                 return .none
+
+            case .setLanguage(let language):
+                guard language != state.language else { return .none }
+                guard speechRecognizerClient.isLocaleSupported(language.locale) else {
+                    state.alert = AppError.speech(.languageNotSupported)
+                        .toSimpleAlertState(dismiss: .dismiss)
+                    return .none
+                }
+                state.$language.withLock { $0 = language }
+                // 녹음 중이면 이전 언어 인식을 멈추고 새 언어로 다시 시작하게 함
+                guard state.isRecording else { return .none }
+                return .send(.stopRecording)
 
             case .alert(.presented(.openSettings)):
                 return .run { _ in

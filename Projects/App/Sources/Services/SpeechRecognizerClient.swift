@@ -6,7 +6,8 @@ import Speech
 public struct SpeechRecognizerClient: Sendable {
     public var requestAuthorization: @Sendable () async -> SFSpeechRecognizerAuthorizationStatus
     public var requestMicrophoneAuthorization: @Sendable () async -> Bool
-    public var startRecognition: @Sendable () async -> AsyncStream<SpeechRecognitionEvent>
+    public var startRecognition: @Sendable (Locale) async -> AsyncStream<SpeechRecognitionEvent>
+    public var isLocaleSupported: @Sendable (Locale) -> Bool
     public var stopRecognition: @Sendable () -> Void
 }
 
@@ -23,8 +24,11 @@ extension SpeechRecognizerClient: DependencyKey {
             requestMicrophoneAuthorization: {
                 await recognizer.value.requestMicrophoneAuthorization()
             },
-            startRecognition: {
-                recognizer.value.startRecognition()
+            startRecognition: { locale in
+                recognizer.value.startRecognition(locale: locale)
+            },
+            isLocaleSupported: { locale in
+                SpeechRecognizer.isSupported(locale)
             },
             stopRecognition: {
                 recognizer.value.stopRecognition()
@@ -36,7 +40,8 @@ extension SpeechRecognizerClient: DependencyKey {
         SpeechRecognizerClient(
             requestAuthorization: { .authorized },
             requestMicrophoneAuthorization: { true },
-            startRecognition: { .finished },
+            startRecognition: { _ in .finished },
+            isLocaleSupported: { _ in true },
             stopRecognition: {}
         )
     }
