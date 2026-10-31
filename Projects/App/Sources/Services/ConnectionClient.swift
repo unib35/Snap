@@ -300,6 +300,10 @@ public enum ConnectionEvent: Equatable, Sendable {
     ///   - success: 페어링 성공 여부
     ///   - message: 결과 메시지
     case pairingResult(success: Bool, message: String)
+
+    /// 하트비트 왕복 시간 측정
+    /// - Parameter latency: 왕복 시간 (초)
+    case latencyMeasured(TimeInterval)
 }
 
 /// Mac으로부터 수신한 패킷 이벤트.
@@ -710,6 +714,17 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
     private func handlePairingResult(_ result: PairingResult, source: SnapClient) {
         guard source === client else { return }
         connectionContinuation?.yield(.pairingResult(success: result.isSuccess, message: result.message))
+    }
+
+    nonisolated func client(_ client: SnapClient, didMeasureLatency latency: TimeInterval) {
+        Task {
+            await self.handleLatency(latency, source: client)
+        }
+    }
+
+    private func handleLatency(_ latency: TimeInterval, source: SnapClient) {
+        guard source === client else { return }
+        connectionContinuation?.yield(.latencyMeasured(latency))
     }
 
     // MARK: - BonjourBrowserDelegate
