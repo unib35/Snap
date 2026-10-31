@@ -481,6 +481,8 @@ struct ErrorHandlingTests {
         await store.receive(.startDiscovery) {
             $0.status = .discovering
         }
+        await store.receive(\.loadSavedDevices)
+        await store.receive(\.savedDevicesLoaded, [])
     }
 
     @Test("연결 중이면 다시 시도는 오류만 지움")
