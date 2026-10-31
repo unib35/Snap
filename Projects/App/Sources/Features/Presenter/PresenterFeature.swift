@@ -125,14 +125,6 @@ public struct PresenterFeature {
         case timer
     }
 
-    // MARK: - Key Codes
-
-    private enum KeyCode {
-        static let leftArrow: UInt32 = 123
-        static let rightArrow: UInt32 = 124
-        static let bKey: UInt32 = 11
-    }
-
     // MARK: - Body
 
     public var body: some ReducerOf<Self> {
@@ -141,7 +133,7 @@ public struct PresenterFeature {
             case .nextSlide:
                 state.slideNumber += 1
                 return .run { [connectionClient] send in
-                    await connectionClient.sendKeyEvent(KeyCode.rightArrow, .press, 0)
+                    await connectionClient.sendPresentation(.nextSlide)
                     await send(.triggerAlert(.slideChange))
                 }
 
@@ -150,7 +142,7 @@ public struct PresenterFeature {
                     state.slideNumber -= 1
                 }
                 return .run { [connectionClient] send in
-                    await connectionClient.sendKeyEvent(KeyCode.leftArrow, .press, 0)
+                    await connectionClient.sendPresentation(.prevSlide)
                     await send(.triggerAlert(.slideChange))
                 }
 
@@ -222,18 +214,27 @@ public struct PresenterFeature {
                 state.slideNumber = 1
                 state.isScreenBlank = false
                 state.triggeredAlerts = []  // Reset triggered alerts
-                return .send(.startTimer)
+                return .merge(
+                    .run { [connectionClient] _ in
+                        await connectionClient.sendPresentation(.start)
+                    },
+                    .send(.startTimer)
+                )
 
             case .endPresentation:
                 state.isPresenting = false
                 state.isScreenBlank = false
-                return .send(.stopTimer)
+                return .merge(
+                    .run { [connectionClient] _ in
+                        await connectionClient.sendPresentation(.end)
+                    },
+                    .send(.stopTimer)
+                )
 
             case .toggleScreenBlank:
                 state.isScreenBlank.toggle()
                 return .run { [connectionClient] _ in
-                    // B key blanks/unblanks screen in PowerPoint/Keynote
-                    await connectionClient.sendKeyEvent(KeyCode.bKey, .press, 0)
+                    await connectionClient.sendPresentation(.blankScreen)
                 }
 
             // Alert Settings

@@ -274,6 +274,16 @@ public final class SnapClient: @unchecked Sendable {
         tcpConnection?.send(shortsCommand, type: .shortsCommand)
     }
 
+    /// 발표 명령 전송 (TCP)
+    public func sendPresentation(command: Presentation.Command) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard isConnected else { return }
+
+        let presentation = Presentation(command: command)
+        tcpConnection?.send(presentation, type: .presentation)
+    }
+
     /// 페어링 응답 전송 (TCP)
     /// Only an out-of-band code matching this TLS leaf and challenge can
     /// authorize sending the one-time pairing secret to a provisional peer.
