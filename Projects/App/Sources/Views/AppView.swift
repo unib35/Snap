@@ -120,6 +120,11 @@ public struct AppView: View {
                     connectionPrompt
                 }
             }
+            .errorBanner(
+                store.connection.lastError,
+                onDismiss: { store.send(.connection(.clearError)) },
+                onRetry: { store.send(.connection(.retryAfterError)) }
+            )
             .navigationTitle(tab.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

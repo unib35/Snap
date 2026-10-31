@@ -443,6 +443,60 @@ struct ErrorHandlingTests {
             $0.lastError = .connection(.serverError("Server error"))
         }
     }
+
+    @Test("다시 시도하면 마지막 Mac에 다시 연결")
+    func retryReconnectsLastDevice() async {
+        var state = ConnectionFeature.State()
+        state.lastError = .connection(.connectionFailed)
+        state.lastConnectedDevice = testDevice
+
+        let store = await TestStore(initialState: state) {
+            ConnectionFeature()
+        } withDependencies: {
+            $0.connectionClient.connect = { _, _, _ in .finished }
+        }
+
+        await store.send(.retryAfterError) {
+            $0.lastError = nil
+        }
+        await store.receive(.connect(testDevice)) {
+            $0.status = .connecting(testDevice)
+        }
+    }
+
+    @Test("마지막 Mac이 없으면 다시 시도할 때 검색 시작")
+    func retryStartsDiscovery() async {
+        var state = ConnectionFeature.State()
+        state.lastError = .connection(.discoveryFailed)
+
+        let store = await TestStore(initialState: state) {
+            ConnectionFeature()
+        } withDependencies: {
+            $0.connectionClient.startDiscovery = { .finished }
+        }
+
+        await store.send(.retryAfterError) {
+            $0.lastError = nil
+        }
+        await store.receive(.startDiscovery) {
+            $0.status = .discovering
+        }
+    }
+
+    @Test("연결 중이면 다시 시도는 오류만 지움")
+    func retryWhileConnectingOnlyClearsError() async {
+        var state = ConnectionFeature.State()
+        state.status = .connecting(testDevice)
+        state.lastError = .connection(.timeout)
+
+        let store = await TestStore(initialState: state) {
+            ConnectionFeature()
+        }
+
+        await store.send(.retryAfterError) {
+            $0.lastError = nil
+        }
+    }
 }
 
 // MARK: - Network Monitoring Tests
@@ -471,6 +525,48 @@ struct NetworkMonitoringTests {
 
         await store.send(.networkStatusChanged(.disconnected)) {
             $0.networkInterface = .other
+            $0.lastError = .connection(.noLocalNetwork)
+        }
+    }
+
+    @Test("셀룰러만 연결되면 Wi-Fi 없음 안내")
+    func cellularOnlyShowsNoLocalNetwork() async {
+        let store = await TestStore(initialState: ConnectionFeature.State()) {
+            ConnectionFeature()
+        }
+
+        await store.send(.networkStatusChanged(.connected(.cellular))) {
+            $0.networkInterface = .cellular
+            $0.lastError = .connection(.noLocalNetwork)
+        }
+    }
+
+    @Test("Wi-Fi가 돌아오면 Wi-Fi 없음 안내를 지움")
+    func wifiRestoredClearsNoLocalNetwork() async {
+        var state = ConnectionFeature.State()
+        state.lastError = .connection(.noLocalNetwork)
+
+        let store = await TestStore(initialState: state) {
+            ConnectionFeature()
+        }
+
+        await store.send(.networkStatusChanged(.connected(.wifi))) {
+            $0.networkInterface = .wifi
+            $0.lastError = nil
+        }
+    }
+
+    @Test("Wi-Fi가 돌아와도 다른 오류는 유지")
+    func wifiRestoredKeepsOtherErrors() async {
+        var state = ConnectionFeature.State()
+        state.lastError = .connection(.connectionFailed)
+
+        let store = await TestStore(initialState: state) {
+            ConnectionFeature()
+        }
+
+        await store.send(.networkStatusChanged(.connected(.wifi))) {
+            $0.networkInterface = .wifi
         }
     }
 
