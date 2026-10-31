@@ -273,7 +273,7 @@ public struct ProductivityView: View {
                         Text("앱 목록 불러오기")
                             .font(SnapTypography.labelLarge)
                             .foregroundStyle(SnapColors.textPrimary)
-                        Text("Mac에서 실행 중인 앱 목록")
+                        Text(store.appListError?.message ?? "Mac에서 실행 중인 앱 목록")
                             .font(SnapTypography.labelSmall)
                             .foregroundStyle(SnapColors.textTertiary)
                     }
