@@ -41,11 +41,12 @@ public struct AppFeature {
             case .trackpad: return "hand.tap"
             case .keyboard: return "keyboard"
             case .media: return "music.note"
-            case .productivity: return "ellipsis"
+            case .productivity: return "square.grid.2x2"
             }
         }
     }
 
+    @CasePathable
     public enum Action {
         case connection(ConnectionFeature.Action)
         case trackpad(TrackpadFeature.Action)
@@ -73,6 +74,10 @@ public struct AppFeature {
     @Dependency(\.batteryClient) var batteryClient
 
     public init() {}
+
+    private enum CancelID {
+        case lowPowerModeObservation
+    }
 
     public var body: some ReducerOf<Self> {
         Scope(state: \.connection, action: \.connection) {
@@ -111,12 +116,14 @@ public struct AppFeature {
                 return .merge(
                     .send(.checkOnboardingStatus),
                     .send(.connection(.startDiscovery)),
+                    .send(.connection(.startNetworkMonitoring)),
                     .run { send in
                         for await isLowPower in client.observeLowPowerMode() {
                             await send(.lowPowerModeChanged(isLowPower))
                         }
                     }
                 )
+                .cancellable(id: CancelID.lowPowerModeObservation, cancelInFlight: true)
 
             case .checkOnboardingStatus:
                 let hasCompleted = onboardingClient.hasCompletedOnboarding()
@@ -148,13 +155,20 @@ public struct AppFeature {
             case .scenePhaseChanged(let phase):
                 switch phase {
                 case .active:
-                    break
+                    return .merge(
+                        .send(.connection(.startNetworkMonitoring)),
+                        .send(.connection(.appDidBecomeActive))
+                    )
+                case .inactive:
+                    return .send(.connection(.appWillResignActive))
                 case .background:
-                    break
+                    return .merge(
+                        .send(.connection(.appWillResignActive)),
+                        .send(.connection(.stopNetworkMonitoring))
+                    )
                 default:
-                    break
+                    return .none
                 }
-                return .none
 
             case .tabSelected(let tab):
                 state.selectedTab = tab
@@ -197,15 +211,14 @@ public struct AppFeature {
             case .productivity:
                 return .none
 
-            case .settings(.save), .settings(.toggleBatteryOptimization), .settings(.toggleAutoDetectLowPowerMode),
-                 .settings(.toggleReducedMotionUpdateRate), .settings(.toggleReducedAnimations), .settings(.systemLowPowerModeChanged):
-                // 배터리 절약 모드 상태를 TrackpadFeature에 전파
-                let isInPowerSavingMode = state.settings.isInPowerSavingMode
-                let reducedMotionUpdateRate = state.settings.reducedMotionUpdateRate
-                return .send(.trackpad(.updatePowerSavingMode(
-                    isInPowerSavingMode: isInPowerSavingMode,
-                    reducedMotionUpdateRate: reducedMotionUpdateRate
-                )))
+            case .settings(.delegate(.inputBehaviorChanged)):
+                return .merge(
+                    syncTrackpadSettings(from: state.settings),
+                    syncLaserPointerSettings(from: state.settings)
+                )
+
+            case .settings(.delegate(.powerSavingBehaviorChanged)):
+                return syncPowerSavingSettings(from: state.settings)
 
             case .settings:
                 return .none
@@ -220,6 +233,28 @@ public struct AppFeature {
     }
 
     // MARK: - Deep Link Handling
+
+    private func syncTrackpadSettings(from settings: SettingsFeature.State) -> Effect<Action> {
+        .send(.trackpad(.updateSettings(
+            sensitivity: settings.trackpadSensitivity,
+            scrollSensitivity: settings.scrollSensitivity,
+            isNaturalScrolling: settings.isNaturalScrolling,
+            isTapToClick: settings.isTapToClick
+        )))
+    }
+
+    private func syncLaserPointerSettings(from settings: SettingsFeature.State) -> Effect<Action> {
+        let baseSensitivity = Double(LaserPointerFeature.SensitivityPreset.medium.value)
+        let scaledSensitivity = Float(min(max(settings.laserSensitivity * baseSensitivity, 1.0), 50.0))
+        return .send(.trackpad(.laserPointer(.setSensitivity(scaledSensitivity))))
+    }
+
+    private func syncPowerSavingSettings(from settings: SettingsFeature.State) -> Effect<Action> {
+        .send(.trackpad(.updatePowerSavingMode(
+            isInPowerSavingMode: settings.isInPowerSavingMode,
+            reducedMotionUpdateRate: settings.reducedMotionUpdateRate
+        )))
+    }
 
     private func handleDeepLink(url: URL, state: inout State) -> Effect<Action> {
         guard url.scheme == "snap" else { return .none }

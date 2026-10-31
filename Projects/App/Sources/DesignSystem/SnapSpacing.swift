@@ -72,10 +72,10 @@ public enum SnapShadow {
     public static let lg = Shadow(color: .black.opacity(0.5), radius: 16, x: 0, y: 8)
 
     /// 네온 글로우 (라임)
-    public static let glowLime = Shadow(color: SnapColors.neonLime.opacity(0.4), radius: 12, x: 0, y: 0)
+    public static let glowLime = Shadow(color: SnapColors.accent.opacity(0.4), radius: 12, x: 0, y: 0)
 
     /// 네온 글로우 (블루)
-    public static let glowBlue = Shadow(color: SnapColors.cyberBlue.opacity(0.4), radius: 12, x: 0, y: 0)
+    public static let glowBlue = Shadow(color: SnapColors.accent.opacity(0.4), radius: 12, x: 0, y: 0)
 }
 
 /// 그림자 정의

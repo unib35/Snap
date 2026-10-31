@@ -77,7 +77,7 @@ public struct LaserPointerView: View {
                                 endPoint: .bottomTrailing
                             )
                             : LinearGradient(
-                                colors: [Color(.systemGray4), Color(.systemGray5)],
+                                colors: [SnapColors.backgroundHighlight, SnapColors.backgroundTertiary],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -169,7 +169,7 @@ public struct LaserPointerView: View {
                             .background(
                                 store.sensitivityPreset == preset
                                     ? SnapColors.laserPointer
-                                    : Color(.systemGray5)
+                                    : SnapColors.backgroundTertiary
                             )
                             .foregroundStyle(
                                 store.sensitivityPreset == preset
@@ -273,7 +273,7 @@ public struct LaserPointerView: View {
                 HStack(spacing: 8) {
                     ForEach(0..<3) { index in
                         Circle()
-                            .fill(index <= store.calibrationStep ? SnapColors.laserPointer : Color(.systemGray4))
+                            .fill(index <= store.calibrationStep ? SnapColors.laserPointer : SnapColors.backgroundHighlight)
                             .frame(width: 10, height: 10)
                     }
                 }
@@ -451,7 +451,7 @@ public struct LaserPointerSection: View {
                                     .background(
                                         store.sensitivityPreset == preset
                                             ? SnapColors.laserPointer
-                                            : Color(.systemGray5)
+                                            : SnapColors.backgroundTertiary
                                     )
                                     .foregroundStyle(
                                         store.sensitivityPreset == preset
@@ -556,7 +556,7 @@ public struct LaserPointerSection: View {
                 HStack(spacing: 6) {
                     ForEach(0..<3) { index in
                         Circle()
-                            .fill(index <= store.calibrationStep ? SnapColors.laserPointer : Color(.systemGray4))
+                            .fill(index <= store.calibrationStep ? SnapColors.laserPointer : SnapColors.backgroundHighlight)
                             .frame(width: 8, height: 8)
                     }
                 }

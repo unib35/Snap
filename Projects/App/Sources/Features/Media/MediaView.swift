@@ -10,32 +10,40 @@ public struct MediaView: View {
         self.store = store
     }
 
-    private var contentSpacing: CGFloat {
-        layoutMode == .compact ? 20 : 32
-    }
-
     public var body: some View {
-        iPadOptimizedContainer {
-            VStack(spacing: contentSpacing) {
-                Spacer()
+        ScrollView {
+            iPadOptimizedContainer {
+                VStack(spacing: 28) {
+                    VStack(spacing: 24) {
+                        nowPlayingArea
+                        playbackControls
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+                    .cardStyle()
 
-                // Now Playing Area (placeholder)
-                nowPlayingArea
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Text("Mac 볼륨").font(.headline)
+                            Spacer()
+                            Text(store.isMuted ? "음소거" : "\(Int(store.volume * 100))%")
+                                .font(.subheadline.monospacedDigit())
+                                .foregroundStyle(SnapColors.textSecondary)
+                        }
+                        volumeControls
+                    }
+                    .padding(SnapSpacing.lg)
+                    .cardStyle()
 
-                Spacer()
-
-                // Playback Controls
-                playbackControls
-
-                // Volume Controls
-                volumeControls
-
-                // Hardware Volume Toggle
-                hardwareVolumeToggle
-
-                Spacer()
+                    DisclosureGroup("기기 버튼으로 조절") {
+                        hardwareVolumeToggle.padding(.top, 12)
+                    }
+                    .font(.subheadline)
+                    .padding(SnapSpacing.lg)
+                    .cardStyle()
+                }
+                .padding(SnapSpacing.lg)
             }
-            .padding(layoutMode == .compact ? SnapSpacing.md : SnapSpacing.lg)
         }
         .background(SnapColors.systemBackground)
         .onAppear {
@@ -68,7 +76,7 @@ public struct MediaView: View {
     // MARK: - Now Playing Area
 
     private var albumArtSize: CGFloat {
-        layoutMode == .compact ? 160 : 200
+        layoutMode == .compact ? 96 : 140
     }
 
     private var nowPlayingArea: some View {
@@ -103,7 +111,6 @@ public struct MediaView: View {
             }
         }
         .frame(width: albumArtSize, height: albumArtSize)
-        .shadow(color: .black.opacity(0.1), radius: 10, y: 5)
     }
 
     private var appIcon: String {
@@ -133,11 +140,11 @@ public struct MediaView: View {
         if store.nowPlayingInfo.isEmpty {
             // Not Playing
             VStack(spacing: 8) {
-                Text("Not Playing")
+                Text("재생 중인 미디어 없음")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(SnapColors.label)
 
-                Text("Play music on your Mac")
+                Text("Mac에서 음악이나 동영상을 재생하세요")
                     .font(.subheadline)
                     .foregroundStyle(SnapColors.secondaryLabel)
             }
@@ -232,6 +239,7 @@ public struct MediaView: View {
                         .font(.callout)
                         .foregroundStyle(SnapColors.secondaryLabel)
                 }
+                .frame(minWidth: 44, minHeight: 44)
                 .accessibilityLabel("볼륨 줄이기")
 
                 // Volume Slider
@@ -251,6 +259,7 @@ public struct MediaView: View {
                         .font(.callout)
                         .foregroundStyle(SnapColors.secondaryLabel)
                 }
+                .frame(minWidth: 44, minHeight: 44)
                 .accessibilityLabel("볼륨 높이기")
             }
             .padding(.horizontal)
@@ -263,10 +272,10 @@ public struct MediaView: View {
                     Image(systemName: store.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                         .font(.subheadline)
 
-                    Text(store.isMuted ? "Unmute" : "Mute")
+                    Text(store.isMuted ? "음소거 해제" : "음소거")
                         .font(.subheadline.weight(.medium))
                 }
-                .foregroundStyle(store.isMuted ? .red : SnapColors.secondaryLabel)
+                .foregroundStyle(store.isMuted ? SnapColors.accent : SnapColors.secondaryLabel)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
                 .background(SnapColors.secondarySystemBackground)
@@ -291,11 +300,11 @@ public struct MediaView: View {
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Hardware Volume Buttons")
+                    Text("iPhone 볼륨 버튼 사용")
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(SnapColors.label)
 
-                    Text("Use iPhone volume buttons to control Mac")
+                    Text("iPhone의 버튼으로 Mac 볼륨을 조절합니다")
                         .font(.caption)
                         .foregroundStyle(SnapColors.tertiaryLabel)
                 }

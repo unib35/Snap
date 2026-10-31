@@ -1,6 +1,5 @@
 import Foundation
 import Security
-import CryptoKit
 
 /// ASN.1 DER 인코딩을 사용한 X.509 인증서 빌더
 /// iOS에서 자체 서명 인증서를 생성하기 위한 순수 Swift 구현
@@ -73,7 +72,7 @@ enum DERCertificateBuilder {
 
         // 시리얼 넘버 생성 (랜덤 20바이트)
         var serialNumber = [UInt8](repeating: 0, count: 20)
-        _ = SecRandomCopyBytes(kSecRandomDefault, serialNumber.count, &serialNumber)
+        guard SecRandomCopyBytes(kSecRandomDefault, serialNumber.count, &serialNumber) == errSecSuccess else { return nil }
         serialNumber[0] &= 0x7F // 양수로 만들기
 
         // TBSCertificate 생성
@@ -225,11 +224,7 @@ enum DERCertificateBuilder {
 
     /// ECDSA-SHA256 서명 생성
     private static func signData(_ data: Data, with privateKey: SecKey) -> Data? {
-        // SHA-256 해시
-        let hash = SHA256.hash(data: data)
-        let hashData = Data(hash)
-
-        // ECDSA 서명
+        // The message-signing algorithm performs SHA-256 internally.
         var error: Unmanaged<CFError>?
         guard let signature = SecKeyCreateSignature(
             privateKey,

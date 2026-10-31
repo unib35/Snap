@@ -11,28 +11,50 @@ public struct KeyboardView: View {
     }
 
     public var body: some View {
-        iPadOptimizedContainer {
-            VStack(spacing: 0) {
-                // Text Input Area
-                textInputArea
-                    .padding(layoutMode == .compact ? SnapSpacing.md : SnapSpacing.lg)
-
-                // Modifier Keys
-                modifierKeys
-                    .padding(.horizontal, layoutMode == .compact ? SnapSpacing.md : SnapSpacing.lg)
-
-                Spacer()
-
-                // Special Keys
-                specialKeys
-                    .padding(layoutMode == .compact ? SnapSpacing.md : SnapSpacing.lg)
-
-                // Arrow Keys
-                arrowKeys
-                    .padding(layoutMode == .compact ? SnapSpacing.md : SnapSpacing.lg)
+        ScrollView {
+            iPadOptimizedContainer {
+                VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Mac에 입력").font(.headline)
+                        textInputArea
+                        Text("입력하는 즉시 Mac으로 전송됩니다. Mac에서 입력할 곳을 먼저 선택하세요.")
+                            .font(.caption)
+                            .foregroundStyle(SnapColors.textSecondary)
+                    }
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("조합 키").font(.headline)
+                            Spacer()
+                            Button("모두 해제") { store.send(.clearModifiers) }
+                                .font(.subheadline)
+                                .disabled(store.activeModifiers.isEmpty)
+                                .frame(minHeight: 44)
+                        }
+                        modifierKeys
+                        Text("한 번 탭하여 선택 · 두 번 탭하여 잠금")
+                            .font(.caption)
+                            .foregroundStyle(SnapColors.textSecondary)
+                    }
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("특수 키").font(.headline)
+                        specialKeys
+                    }
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("방향 키").font(.headline)
+                        arrowKeys.frame(maxWidth: .infinity)
+                    }
+                }
+                .padding(SnapSpacing.lg)
             }
         }
+        .scrollDismissesKeyboard(.interactively)
         .background(SnapColors.systemBackground)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("키보드 닫기") { isTextFieldFocused = false }
+            }
+        }
     }
 
     // MARK: - Text Input Area
@@ -41,6 +63,9 @@ public struct KeyboardView: View {
         HStack(spacing: 16) {
             TextField(String(localized: "keyboard.placeholder"), text: $store.inputText.sending(\.textChanged))
                 .textFieldStyle(.plain)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .onSubmit { store.send(.returnPressed) }
                 .font(.body)
                 .padding()
                 .background(SnapColors.secondarySystemBackground)
@@ -61,8 +86,10 @@ public struct KeyboardView: View {
                     .font(.title2)
                     .foregroundStyle(SnapColors.tertiaryLabel)
             }
-            .opacity(store.inputText.isEmpty ? 0 : 1)
-            .accessibilityLabel(String(localized: "keyboard.clearText"))
+            .frame(minWidth: 44, minHeight: 44)
+            .disabled(store.inputText.isEmpty)
+            .accessibilityLabel("입력 표시 지우기")
+            .accessibilityHint("Mac에 이미 입력한 내용은 지워지지 않습니다")
         }
     }
 
@@ -206,7 +233,7 @@ struct ModifierKeyButton: View {
         }
         .foregroundStyle(foregroundColor)
         .frame(maxWidth: .infinity)
-        .frame(height: 60)
+        .frame(minHeight: 60)
         .background(backgroundColor)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
@@ -241,6 +268,9 @@ struct ModifierKeyButton: View {
         .accessibilityLabel(String(localized: "keyboard.key \(label)"))
         .accessibilityValue(isLocked ? String(localized: "keyboard.locked") : (isActive ? String(localized: "keyboard.active") : String(localized: "keyboard.inactive")))
         .accessibilityHint(String(localized: "keyboard.toggleHint"))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { onTap() }
+        .accessibilityAction(named: "잠금") { onDoubleTap() }
     }
 
     private var foregroundColor: Color {
@@ -286,7 +316,7 @@ struct SpecialKeyButton: View {
             }
             .foregroundStyle(SnapColors.label)
             .frame(maxWidth: .infinity)
-            .frame(height: 56)
+            .frame(minHeight: 56)
             .background(isPressed ? SnapColors.tertiarySystemFill : SnapColors.secondarySystemBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(

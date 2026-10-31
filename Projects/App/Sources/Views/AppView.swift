@@ -8,11 +8,19 @@ public struct AppView: View {
         self.store = store
     }
 
-    private var isDisconnected: Bool {
-        if case .disconnected = store.connection.status {
-            return true
-        }
+    private var isConnected: Bool {
+        if case .connected = store.connection.status { return true }
         return false
+    }
+
+    private var connectionTitle: String {
+        switch store.connection.status {
+        case .connected(let device): return device.name
+        case .disconnected: return "Mac 연결"
+        case .discovering: return "Mac 검색 중"
+        case .connecting: return "연결 중"
+        case .reconnecting: return "다시 연결 중"
+        }
     }
 
     private var connectionAccessibilityLabel: String {
@@ -31,95 +39,28 @@ public struct AppView: View {
     }
 
     public var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Connection Status Bar
-                ConnectionStatusBar(status: store.connection.status, signalStrength: store.connection.signalStrength)
-
-                // Main Content with connection blur
-                TabView(selection: $store.selectedTab.sending(\.tabSelected)) {
-                    TrackpadView(store: store.scope(state: \.trackpad, action: \.trackpad))
-                        .connectionBlur(isDisconnected: isDisconnected)
-                        .tag(AppFeature.Tab.trackpad)
-                        .tabItem {
-                            Label(
-                                AppFeature.Tab.trackpad.title,
-                                systemImage: AppFeature.Tab.trackpad.icon
-                            )
-                        }
-
-                    KeyboardView(store: store.scope(state: \.keyboard, action: \.keyboard))
-                        .connectionBlur(isDisconnected: isDisconnected)
-                        .tag(AppFeature.Tab.keyboard)
-                        .tabItem {
-                            Label(
-                                AppFeature.Tab.keyboard.title,
-                                systemImage: AppFeature.Tab.keyboard.icon
-                            )
-                        }
-
-                    MediaView(store: store.scope(state: \.media, action: \.media))
-                        .connectionBlur(isDisconnected: isDisconnected)
-                        .tag(AppFeature.Tab.media)
-                        .tabItem {
-                            Label(
-                                AppFeature.Tab.media.title,
-                                systemImage: AppFeature.Tab.media.icon
-                            )
-                        }
-
-                    ProductivityView(store: store.scope(state: \.productivity, action: \.productivity))
-                        .connectionBlur(isDisconnected: isDisconnected)
-                        .tag(AppFeature.Tab.productivity)
-                        .tabItem {
-                            Label(
-                                AppFeature.Tab.productivity.title,
-                                systemImage: AppFeature.Tab.productivity.icon
-                            )
-                        }
-                }
+        TabView(selection: $store.selectedTab.sending(\.tabSelected)) {
+            remoteTab(.trackpad) {
+                TrackpadView(store: store.scope(state: \.trackpad, action: \.trackpad))
             }
-            .navigationTitle("Snap")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        Task { @MainActor in
-                            HapticManager.shared.buttonTap()
-                        }
-                        store.send(.showConnectionSheet)
-                    } label: {
-                        connectionIcon
-                    }
-                    .accessibilityLabel(connectionAccessibilityLabel)
-                    .accessibilityHint(String(localized: "connection.hint"))
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task { @MainActor in
-                            HapticManager.shared.buttonTap()
-                        }
-                        store.send(.showSettings)
-                    } label: {
-                        Image(systemName: "gearshape")
-                            .foregroundStyle(SnapColors.textSecondary)
-                    }
-                    .accessibilityLabel(String(localized: "settings"))
-                }
+            remoteTab(.keyboard) {
+                KeyboardView(store: store.scope(state: \.keyboard, action: \.keyboard))
             }
-            .toolbarBackground(SnapColors.background, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
+            remoteTab(.media) {
+                MediaView(store: store.scope(state: \.media, action: \.media))
+            }
+            remoteTab(.productivity) {
+                ProductivityView(store: store.scope(state: \.productivity, action: \.productivity))
+            }
         }
         .adaptiveLayout()
-        .preferredColorScheme(.dark)
         .sheet(
             isPresented: Binding(
                 get: { store.isConnectionSheetPresented },
                 set: { if !$0 { store.send(.hideConnectionSheet) } }
             )
         ) {
-            ConnectionSheetView {
+            ConnectionSheetView(store: store.scope(state: \.connection, action: \.connection)) {
                 store.send(.hideConnectionSheet)
             }
         }
@@ -139,13 +80,10 @@ public struct AppView: View {
                 set: { if !$0 { store.send(.connection(.cancelPairing)) } }
             )
         ) {
-            PairingPinView(
+            PairingCodeView(
                 serverName: store.connection.pairingServerName,
-                pinCode: Binding(
-                    get: { store.connection.pairingPinCode },
-                    set: { store.send(.connection(.pairingPinCodeChanged($0))) }
-                ),
-                onSubmit: { store.send(.connection(.submitPairingPin)) },
+                errorMessage: store.connection.lastError?.localizedDescription,
+                onCode: { store.send(.connection(.pairingCodeScanned($0))) },
                 onCancel: { store.send(.connection(.cancelPairing)) }
             )
         }
@@ -166,7 +104,78 @@ public struct AppView: View {
             store.send(.settings(.onAppear))
         }
         .tint(store.settings.accentColor.color)
+        .accentColor(store.settings.accentColor.color)
         .reducedAnimations(store.settings.isInPowerSavingMode && store.settings.reducedAnimations)
+    }
+
+    private func remoteTab<Content: View>(
+        _ tab: AppFeature.Tab,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        NavigationStack {
+            Group {
+                if isConnected {
+                    content()
+                } else {
+                    connectionPrompt
+                }
+            }
+            .navigationTitle(tab.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { store.send(.showConnectionSheet) } label: {
+                        HStack(spacing: 6) {
+                            connectionIcon
+                            Text(connectionTitle)
+                                .font(.caption.weight(.medium))
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .frame(maxWidth: 100)
+                        }
+                    }
+                    .accessibilityLabel(connectionAccessibilityLabel)
+                    .accessibilityHint(String(localized: "connection.hint"))
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { store.send(.showSettings) } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel(String(localized: "settings"))
+                }
+            }
+            .toolbarBackground(SnapColors.background, for: .navigationBar)
+        }
+        .tag(tab)
+        .tabItem { Label(tab.title, systemImage: tab.icon) }
+    }
+
+    private var connectionPrompt: some View {
+        ContentUnavailableView {
+            Label(isConnectionPending ? "Mac에 연결하고 있어요" : "Mac을 연결해 시작하세요", systemImage: "desktopcomputer")
+        } description: {
+            Text(isConnectionPending
+                 ? "연결이 완료되면 바로 조작할 수 있습니다."
+                 : "Mac에서 Snap Receiver를 실행하고, 같은 Wi-Fi에 연결하세요.")
+        } actions: {
+            if isConnectionPending {
+                ProgressView().padding(.bottom, 8)
+            }
+            Button(isConnectionPending ? "연결 상태 보기" : "Mac 찾기") {
+                store.send(.showConnectionSheet)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(SnapColors.background)
+    }
+
+    private var isConnectionPending: Bool {
+        switch store.connection.status {
+        case .connecting, .reconnecting: return true
+        case .disconnected, .discovering, .connected: return false
+        }
     }
 
     @ViewBuilder
@@ -191,390 +200,97 @@ public struct AppView: View {
     }
 }
 
-// MARK: - Connection Status Bar
-
-struct ConnectionStatusBar: View {
-    let status: ConnectionStatus
-    let signalStrength: SignalStrength
-
-    var body: some View {
-        HStack(spacing: SnapSpacing.sm) {
-            statusIcon
-            statusText
-            Spacer()
-            if status.isConnected {
-                signalIndicator
-            }
-        }
-        .padding(.horizontal, SnapSpacing.lg)
-        .padding(.vertical, SnapSpacing.sm)
-        .background(backgroundColor)
-        .limitAccessibilitySize()
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabel)
-    }
-
-    private var accessibilityLabel: String {
-        var label = statusMessage
-        if status.isConnected {
-            label += String(localized: "signal.label \(signalStrengthLabel)")
-        }
-        return label
-    }
-
-    private var signalStrengthLabel: String {
-        switch signalStrength {
-        case .strong: return String(localized: "signal.strong")
-        case .moderate: return String(localized: "signal.moderate")
-        case .weak: return String(localized: "signal.weak")
-        case .unknown: return String(localized: "signal.unknown")
-        }
-    }
-
-    @ViewBuilder
-    private var statusIcon: some View {
-        switch status {
-        case .disconnected:
-            Image(systemName: "wifi.slash")
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(SnapColors.statusDisconnected)
-        case .discovering, .connecting:
-            ProgressView()
-                .scaleEffect(0.7)
-                .tint(SnapColors.statusConnecting)
-        case .connected:
-            Image(systemName: "checkmark.circle.fill")
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(SnapColors.statusConnected)
-        case .reconnecting:
-            Image(systemName: "arrow.triangle.2.circlepath")
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(SnapColors.statusConnecting)
-        }
-    }
-
-    private var statusText: some View {
-        Text(statusMessage)
-            .font(SnapTypography.labelMedium)
-            .foregroundStyle(SnapColors.textSecondary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-    }
-
-    private var statusMessage: String {
-        switch status {
-        case .disconnected:
-            String(localized: "status.notConnected")
-        case .discovering:
-            String(localized: "status.searching")
-        case .connecting(let device):
-            String(localized: "status.connectingTo \(device.name)")
-        case .connected(let device):
-            String(localized: "status.connectedTo \(device.name)")
-        case .reconnecting(_, let attempt):
-            String(localized: "status.reconnecting \(attempt)")
-        }
-    }
-
-    @ViewBuilder
-    private var signalIndicator: some View {
-        HStack(spacing: 2) {
-            ForEach(0..<3, id: \.self) { index in
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(signalColor(for: index))
-                    .frame(width: 3, height: CGFloat(4 + index * 3))
-            }
-        }
-    }
-
-    private func signalColor(for index: Int) -> Color {
-        switch signalStrength {
-        case .strong:
-            SnapColors.statusConnected
-        case .moderate:
-            index < 2 ? SnapColors.statusConnecting : SnapColors.textDisabled
-        case .weak:
-            index < 1 ? SnapColors.statusDisconnected : SnapColors.textDisabled
-        case .unknown:
-            SnapColors.textDisabled
-        }
-    }
-
-    private var backgroundColor: Color {
-        switch status {
-        case .disconnected:
-            SnapColors.statusDisconnected.opacity(0.1)
-        case .discovering, .connecting:
-            SnapColors.statusConnecting.opacity(0.1)
-        case .connected:
-            SnapColors.statusConnected.opacity(0.1)
-        case .reconnecting:
-            SnapColors.statusConnecting.opacity(0.1)
-        }
-    }
-}
-
-// MARK: - Tab Placeholder Views
-
-struct ProductivityTabView: View {
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "square.grid.2x2")
-                .font(.system(size: 60))
-                .foregroundStyle(.purple)
-
-            Text("Productivity")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Text("Window Snap, App Switcher, Macros")
-                .font(.subheadline)
-                .foregroundStyle(SnapColors.textSecondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(SnapColors.systemBackground)
-    }
-}
-
-struct PresenterTabView: View {
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "person.wave.2")
-                .font(.system(size: 60))
-                .foregroundStyle(.orange)
-
-            Text("Presenter")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Text("Laser Pointer, Slides, Voice Typing")
-                .font(.subheadline)
-                .foregroundStyle(SnapColors.textSecondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(SnapColors.systemBackground)
-    }
-}
-
-// MARK: - Sheet Views
+// MARK: - Connection Sheet
 
 struct ConnectionSheetView: View {
+    let store: StoreOf<ConnectionFeature>
     let onDismiss: () -> Void
+    @State private var deviceToReset: Device?
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: SnapSpacing.xxl) {
-                Spacer()
-
-                ZStack {
-                    Circle()
-                        .fill(SnapColors.cyberBlue.opacity(0.15))
-                        .frame(width: 100, height: 100)
-
-                    Image(systemName: "wifi")
-                        .font(.system(size: 44, weight: .medium))
-                        .foregroundStyle(SnapColors.cyberBlue)
+            List {
+                if case .connected(let device) = store.status {
+                    Section("연결된 Mac") {
+                        Label(device.name, systemImage: "checkmark.circle.fill")
+                        Button("연결 해제", role: .destructive) { store.send(.disconnect) }
+                    }
+                } else if case .connecting(let device) = store.status {
+                    Section {
+                        HStack { ProgressView(); Text("\(device.name)에 연결 중") }
+                        Button("연결 취소", role: .cancel) { store.send(.disconnect) }
+                    }
+                } else if case .reconnecting(let device, _) = store.status {
+                    Section {
+                        HStack { ProgressView(); Text("\(device.name)에 다시 연결 중") }
+                        Button("재연결 중지", role: .cancel) { store.send(.disconnect) }
+                    }
+                } else {
+                    availableDevices
                 }
-                .glowAnimation(color: SnapColors.cyberBlue, isActive: true)
-
-                VStack(spacing: SnapSpacing.sm) {
-                    Text("connection.connectToMac")
-                        .font(SnapTypography.headlineLarge)
-                        .foregroundStyle(SnapColors.textPrimary)
-
-                    Text("connection.ensureReceiverRunning")
-                        .font(SnapTypography.bodyMedium)
-                        .foregroundStyle(SnapColors.textSecondary)
-                        .multilineTextAlignment(.center)
+                if let error = store.lastError {
+                    Section("연결 안내") {
+                        Text(error.localizedDescription).foregroundStyle(.secondary)
+                    }
                 }
-
-                Spacer()
-
-                VStack(spacing: SnapSpacing.md) {
-                    ProgressView()
-                        .tint(SnapColors.cyberBlue)
-
-                    Text("connection.searchingDevices")
-                        .font(SnapTypography.labelMedium)
-                        .foregroundStyle(SnapColors.textTertiary)
-                }
-
-                Spacer()
             }
-            .padding(SnapSpacing.xl)
-            .background(SnapColors.background)
-            .navigationTitle(Text("connection.title"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(SnapColors.background, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
+            .navigationTitle("Mac 연결")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task { @MainActor in
-                            HapticManager.shared.buttonTap()
-                        }
+                ToolbarItem(placement: .confirmationAction) { Button("완료", action: onDismiss) }
+            }
+            .confirmationDialog(
+                "저장된 Mac 연결 정보를 삭제할까요?",
+                isPresented: Binding(get: { deviceToReset != nil }, set: { if !$0 { deviceToReset = nil } }),
+                titleVisibility: .visible
+            ) {
+                Button("삭제 후 다시 페어링", role: .destructive) {
+                    if let device = deviceToReset {
+                        store.send(.forgetAndPair(device))
+                        deviceToReset = nil
                         onDismiss()
-                    } label: {
-                        Text("done")
                     }
-                    .foregroundStyle(SnapColors.cyberBlue)
                 }
+            } message: {
+                Text("삭제 후에는 직접 보고 있는 Mac의 QR 코드로 다시 확인해야 합니다.")
             }
+            .onAppear { store.send(.startDiscovery) }
         }
-        .preferredColorScheme(.dark)
-    }
-}
-
-// MARK: - Pairing PIN View
-
-struct PairingPinView: View {
-    let serverName: String
-    @Binding var pinCode: String
-    let onSubmit: () -> Void
-    let onCancel: () -> Void
-
-    @FocusState private var isTextFieldFocused: Bool
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: SnapSpacing.xxl) {
-                Spacer()
-
-                // Icon
-                ZStack {
-                    Circle()
-                        .fill(SnapColors.neonLime.opacity(0.15))
-                        .frame(width: 100, height: 100)
-
-                    Image(systemName: "lock.shield")
-                        .font(.system(size: 44, weight: .medium))
-                        .foregroundStyle(SnapColors.neonLime)
-                }
-                .glowAnimation(color: SnapColors.neonLime, isActive: true)
-
-                // Title
-                VStack(spacing: SnapSpacing.sm) {
-                    Text("pairing.enterPin")
-                        .font(SnapTypography.headlineLarge)
-                        .foregroundStyle(SnapColors.textPrimary)
-
-                    Text("pairing.enterPinDescription \(serverName)")
-                        .font(SnapTypography.bodyMedium)
-                        .foregroundStyle(SnapColors.textSecondary)
-                        .multilineTextAlignment(.center)
-                }
-
-                // PIN Input
-                VStack(spacing: SnapSpacing.lg) {
-                    // Hidden text field
-                    TextField("", text: $pinCode)
-                        .keyboardType(.numberPad)
-                        .textContentType(.oneTimeCode)
-                        .focused($isTextFieldFocused)
-                        .opacity(0)
-                        .frame(width: 1, height: 1)
-                        .onChange(of: pinCode) { _, newValue in
-                            // 4자리로 제한
-                            if newValue.count > 4 {
-                                pinCode = String(newValue.prefix(4))
-                            }
-                            // 숫자만 허용
-                            pinCode = newValue.filter { $0.isNumber }
-
-                            // 입력 시 햅틱
-                            if !newValue.isEmpty {
-                                Task { @MainActor in
-                                    HapticManager.shared.lightImpact()
-                                }
-                            }
-                        }
-
-                    // PIN Display
-                    HStack(spacing: SnapSpacing.lg) {
-                        ForEach(0..<4, id: \.self) { index in
-                            pinDigitView(at: index)
-                        }
-                    }
-                    .onTapGesture {
-                        isTextFieldFocused = true
-                    }
-                }
-
-                Spacer()
-
-                // Submit Button
-                Button {
-                    Task { @MainActor in
-                        HapticManager.shared.success()
-                    }
-                    onSubmit()
-                } label: {
-                    Text("pairing.connect")
-                        .font(SnapTypography.labelLarge)
-                        .foregroundStyle(SnapColors.background)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(pinCode.count == 4 ? SnapColors.neonLime : SnapColors.textDisabled)
-                        .clipShape(RoundedRectangle(cornerRadius: SnapCornerRadius.md))
-                }
-                .disabled(pinCode.count != 4)
-                .padding(.horizontal, SnapSpacing.lg)
-                .pressEffect()
-
-                Spacer()
-            }
-            .padding(SnapSpacing.xl)
-            .background(SnapColors.background)
-            .navigationTitle(Text("pairing.title"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(SnapColors.background, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        Task { @MainActor in
-                            HapticManager.shared.buttonTap()
-                        }
-                        onCancel()
-                    } label: {
-                        Text("cancel")
-                    }
-                    .foregroundStyle(SnapColors.neonRed)
-                }
-            }
-            .onAppear {
-                isTextFieldFocused = true
-            }
-        }
-        .preferredColorScheme(.dark)
-        .interactiveDismissDisabled()
     }
 
-    @ViewBuilder
-    private func pinDigitView(at index: Int) -> some View {
-        let digit = pinCode.count > index ? String(pinCode[pinCode.index(pinCode.startIndex, offsetBy: index)]) : ""
-        let isFilled = !digit.isEmpty
-
-        ZStack {
-            RoundedRectangle(cornerRadius: SnapCornerRadius.md)
-                .stroke(isFilled ? SnapColors.neonLime : SnapColors.border, lineWidth: isFilled ? 2 : 1)
-                .frame(width: 56, height: 72)
-                .background(
-                    RoundedRectangle(cornerRadius: SnapCornerRadius.md)
-                        .fill(SnapColors.backgroundElevated)
-                )
-
-            if isFilled {
-                Text(digit)
-                    .font(.system(size: 32, weight: .semibold, design: .rounded))
-                    .foregroundStyle(SnapColors.neonLime)
-            } else {
-                Circle()
-                    .fill(SnapColors.textDisabled)
-                    .frame(width: 10, height: 10)
+    private var availableDevices: some View {
+        Group {
+            Section("사용 가능한 Mac") {
+                ForEach(store.discoveredDevices) { device in
+                    HStack {
+                        Button {
+                            store.send(.connect(device))
+                            onDismiss()
+                        } label: {
+                            Label(device.name, systemImage: "desktopcomputer")
+                        }
+                        Spacer()
+                        Menu {
+                            Button("연결 정보 삭제 후 다시 페어링", role: .destructive) { deviceToReset = device }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                        }
+                        .accessibilityLabel("\(device.name) 연결 옵션")
+                    }
+                }
+                if store.status == .disconnected {
+                    Button("Mac 다시 검색") { store.send(.startDiscovery) }
+                } else if store.discoveredDevices.isEmpty {
+                    HStack {
+                        ProgressView()
+                        Text("같은 네트워크의 Mac을 찾고 있습니다")
+                    }
+                }
+            }
+            Section {
+                Text("Mac에서 Snap Receiver를 실행하세요. 처음 연결할 때 Mac에 표시된 QR 코드를 스캔합니다.")
+                    .foregroundStyle(.secondary)
             }
         }
-        .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isFilled)
     }
 }
 

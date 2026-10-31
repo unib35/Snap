@@ -7,7 +7,7 @@ private let logger = NetworkLogger.udp
 /// UDP 소켓 델리게이트
 public protocol UDPSocketDelegate: AnyObject, Sendable {
     func udpSocketDidReady(_ socket: UDPSocket)
-    func udpSocket(_ socket: UDPSocket, didReceive packet: DecodedPacket, from endpoint: NWEndpoint)
+    func udpSocket(_ socket: UDPSocket, didReceive packet: DecodedPacket, from endpoint: NWEndpoint, sessionID: UUID)
     func udpSocket(_ socket: UDPSocket, didFailWithError error: Error)
 }
 
@@ -21,6 +21,26 @@ public final class UDPSocket: @unchecked Sendable {
 
     private var connection: NWConnection?
     private var listener: NWListener?
+    private var lastActivity: [ObjectIdentifier: Date] = [:]
+    private var acceptedConnections: [ObjectIdentifier: NWConnection] = [:]
+    private let sessionLock = NSLock()
+    private var session: DatagramSession?
+    private let sessionRole: DatagramSession.Role
+
+    @discardableResult
+    public func setSessionKey(_ key: Data?) -> UUID? {
+        sessionLock.lock()
+        session = key.flatMap { DatagramSession(key: $0, role: sessionRole) }
+        let id = session?.id
+        sessionLock.unlock()
+        return id
+    }
+
+    private func currentSession() -> DatagramSession? {
+        sessionLock.lock()
+        defer { sessionLock.unlock() }
+        return session
+    }
     private let queue: DispatchQueue
 
     private let port: UInt16
@@ -30,11 +50,13 @@ public final class UDPSocket: @unchecked Sendable {
 
     public private(set) var isReady: Bool = false
     public let isSecure: Bool
+    public var localPort: UInt16? { listener?.port?.rawValue }
 
     // MARK: - Initialization
 
-    public init(port: UInt16 = NetworkConstants.udpPort, useDTLS: Bool = false, dtlsOptions: NWProtocolTLS.Options? = nil) {
+    public init(port: UInt16 = NetworkConstants.udpPort, role: DatagramSession.Role = .client, useDTLS: Bool = false, dtlsOptions: NWProtocolTLS.Options? = nil) {
         self.port = port
+        self.sessionRole = role
         self.useDTLS = useDTLS
         self.dtlsOptions = dtlsOptions
         self.isSecure = useDTLS
@@ -119,6 +141,13 @@ public final class UDPSocket: @unchecked Sendable {
         listener?.cancel()
         listener = nil
         isReady = false
+        setSessionKey(nil)
+        queue.async { [weak self] in
+            guard let self else { return }
+            for connection in self.acceptedConnections.values { connection.cancel() }
+            self.acceptedConnections.removeAll()
+            self.lastActivity.removeAll()
+        }
     }
 
     /// 데이터 전송 (클라이언트 모드)
@@ -128,8 +157,12 @@ public final class UDPSocket: @unchecked Sendable {
             return
         }
 
+        guard let datagram = currentSession()?.seal(data) else {
+            completion?(NetworkError.notConnected)
+            return
+        }
         connection.send(
-            content: data,
+            content: datagram,
             completion: .contentProcessed { error in
                 completion?(error)
             }
@@ -152,14 +185,17 @@ public final class UDPSocket: @unchecked Sendable {
 
     /// 특정 엔드포인트로 데이터 전송 (서버 모드)
     public func send(_ data: Data, to endpoint: NWEndpoint, completion: (@Sendable (Error?) -> Void)? = nil) {
+        guard let datagram = currentSession()?.seal(data) else {
+            completion?(NetworkError.notConnected)
+            return
+        }
         let parameters: NWParameters
         if useDTLS {
-            let options = dtlsOptions ?? SecurityManager.shared.createServerDTLSOptions()
-            if let options {
-                parameters = NWParameters(dtls: options, udp: NWProtocolUDP.Options())
-            } else {
-                parameters = NWParameters.udp
+            guard let options = dtlsOptions ?? SecurityManager.shared.createServerDTLSOptions() else {
+                completion?(NetworkError.notConnected)
+                return
             }
+            parameters = NWParameters(dtls: options, udp: NWProtocolUDP.Options())
         } else {
             parameters = NWParameters.udp
         }
@@ -167,7 +203,7 @@ public final class UDPSocket: @unchecked Sendable {
 
         conn.stateUpdateHandler = { state in
             if case .ready = state {
-                conn.send(content: data, completion: .contentProcessed { error in
+                conn.send(content: datagram, completion: .contentProcessed { error in
                     completion?(error)
                     conn.cancel()
                 })
@@ -220,13 +256,28 @@ public final class UDPSocket: @unchecked Sendable {
     }
 
     private func handleNewConnection(_ newConnection: NWConnection) {
+        let id = ObjectIdentifier(newConnection)
+        guard acceptedConnections.count < 32 else {
+            newConnection.cancel()
+            return
+        }
+        acceptedConnections[id] = newConnection
+        lastActivity[id] = Date()
+        scheduleExpiry(for: newConnection)
         newConnection.stateUpdateHandler = { [weak self, weak newConnection] state in
             guard let self, let conn = newConnection else { return }
 
-            if case .ready = state {
+            switch state {
+            case .ready:
                 self.receiveFromConnection(conn)
+            case .failed, .cancelled:
+                self.acceptedConnections.removeValue(forKey: id)
+                self.lastActivity.removeValue(forKey: id)
+            default:
+                break
             }
         }
+
 
         newConnection.start(queue: queue)
     }
@@ -237,7 +288,7 @@ public final class UDPSocket: @unchecked Sendable {
     }
 
     private func receiveFromConnection(_ conn: NWConnection) {
-        conn.receiveMessage { [weak self] content, _, isComplete, error in
+        conn.receiveMessage { [weak self] content, _, _, error in
             guard let self else { return }
 
             if let error {
@@ -245,27 +296,45 @@ public final class UDPSocket: @unchecked Sendable {
                     return
                 }
                 logger.error("Receive error: \(error.localizedDescription)")
+                conn.cancel()
                 return
             }
 
             if let data = content {
-                self.processPacket(data, from: conn.endpoint)
+                if self.processPacket(data, from: conn.endpoint) {
+                    self.lastActivity[ObjectIdentifier(conn)] = Date()
+                }
             }
+            // isComplete means the datagram is complete, not that the flow ended.
+            self.receiveFromConnection(conn)
+        }
+    }
 
-            if !isComplete {
-                self.receiveFromConnection(conn)
+    private func scheduleExpiry(for connection: NWConnection) {
+        let id = ObjectIdentifier(connection)
+        queue.asyncAfter(deadline: .now() + 15) { [weak self, weak connection] in
+            guard let self, let connection, self.acceptedConnections[id] != nil else { return }
+            if Date().timeIntervalSince(self.lastActivity[id] ?? .distantPast) >= 15 {
+                self.acceptedConnections.removeValue(forKey: id)
+                self.lastActivity.removeValue(forKey: id)
+                connection.cancel()
+            } else {
+                self.scheduleExpiry(for: connection)
             }
         }
     }
 
-    private func processPacket(_ data: Data, from endpoint: NWEndpoint?) {
+    private func processPacket(_ data: Data, from endpoint: NWEndpoint?) -> Bool {
         do {
-            let packet = try PacketDecoder.decode(data)
+            guard let session = currentSession(), let payload = session.open(data) else { return false }
+            let packet = try PacketDecoder.decode(payload)
             if let endpoint {
-                delegate?.udpSocket(self, didReceive: packet, from: endpoint)
+                delegate?.udpSocket(self, didReceive: packet, from: endpoint, sessionID: session.id)
             }
+            return true
         } catch {
             logger.error("Packet decode error: \(error.localizedDescription)")
+            return false
         }
     }
 }

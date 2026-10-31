@@ -1,3 +1,4 @@
+import Shared
 import SwiftUI
 
 // MARK: - Power Saving Mode Environment
@@ -43,16 +44,18 @@ public extension View {
     }
 }
 
-// MARK: - Connection Blur Modifier
+// MARK: - Connection Required Modifier
 
-/// 연결 끊김 시 블러 효과
+/// 연결 전에는 입력 영역을 비활성화하고 연결 안내를 표시
 struct ConnectionBlurModifier: ViewModifier {
     let isDisconnected: Bool
     let message: String
+    let onConnect: () -> Void
 
     func body(content: Content) -> some View {
         content
-            .blur(radius: isDisconnected ? 8 : 0)
+            .opacity(isDisconnected ? 0.18 : 1)
+            .allowsHitTesting(!isDisconnected)
             .overlay {
                 if isDisconnected {
                     disconnectedOverlay
@@ -63,18 +66,18 @@ struct ConnectionBlurModifier: ViewModifier {
 
     private var disconnectedOverlay: some View {
         ZStack {
-            Color.black.opacity(0.6)
+            SnapColors.background.opacity(0.75)
                 .ignoresSafeArea()
 
             VStack(spacing: SnapSpacing.lg) {
                 ZStack {
                     Circle()
-                        .fill(SnapColors.neonRed.opacity(0.15))
+                        .fill(SnapColors.statusDisconnected.opacity(0.15))
                         .frame(width: 80, height: 80)
 
                     Image(systemName: "wifi.slash")
                         .font(.system(size: 32, weight: .medium))
-                        .foregroundStyle(SnapColors.neonRed)
+                        .foregroundStyle(SnapColors.statusDisconnected)
                 }
 
                 Text(message)
@@ -82,9 +85,14 @@ struct ConnectionBlurModifier: ViewModifier {
                     .foregroundStyle(SnapColors.textPrimary)
                     .multilineTextAlignment(.center)
 
-                Text("Mac에 다시 연결해주세요")
+                Text("같은 네트워크에서 Snap Receiver를 실행하세요")
                     .font(SnapTypography.bodyMedium)
                     .foregroundStyle(SnapColors.textSecondary)
+                    .multilineTextAlignment(.center)
+
+                Button("Mac 연결", systemImage: "desktopcomputer", action: onConnect)
+                    .buttonStyle(SnapActionButtonStyle())
+                    .frame(maxWidth: 240)
             }
             .padding(SnapSpacing.xxl)
         }
@@ -93,9 +101,9 @@ struct ConnectionBlurModifier: ViewModifier {
 }
 
 extension View {
-    /// 연결 끊김 시 블러 효과 적용
-    func connectionBlur(isDisconnected: Bool, message: String = "연결이 끊어졌습니다") -> some View {
-        modifier(ConnectionBlurModifier(isDisconnected: isDisconnected, message: message))
+    /// 연결 전에는 입력 영역을 비활성화하고 연결 안내를 표시 적용
+    func connectionBlur(isDisconnected: Bool, message: String = "Mac에 연결하세요", onConnect: @escaping () -> Void) -> some View {
+        modifier(ConnectionBlurModifier(isDisconnected: isDisconnected, message: message, onConnect: onConnect))
     }
 }
 
@@ -168,7 +176,7 @@ struct GlowAnimationModifier: ViewModifier {
 
 extension View {
     /// 네온 글로우 애니메이션 적용
-    func glowAnimation(color: Color = SnapColors.neonLime, isActive: Bool = true) -> some View {
+    func glowAnimation(color: Color = SnapColors.accent, isActive: Bool = true) -> some View {
         modifier(GlowAnimationModifier(color: color, isActive: isActive))
     }
 }
@@ -195,7 +203,7 @@ struct CardStyleModifier: ViewModifier {
 
 extension View {
     /// 카드 스타일 적용
-    func cardStyle(cornerRadius: CGFloat = SnapCornerRadius.lg, hasBorder: Bool = true) -> some View {
+    func cardStyle(cornerRadius: CGFloat = SnapCornerRadius.lg, hasBorder: Bool = false) -> some View {
         modifier(CardStyleModifier(cornerRadius: cornerRadius, hasBorder: hasBorder))
     }
 }

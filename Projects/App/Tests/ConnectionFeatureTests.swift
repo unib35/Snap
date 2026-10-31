@@ -96,7 +96,27 @@ struct DiscoveryTests {
             ConnectionFeature()
         }
 
-        await store.send(.discoveryEvent(.deviceLost("Test Mac"))) {
+        await store.send(.discoveryEvent(.deviceLost("test-device-id"))) {
+            $0.discoveredDevices.removeAll()
+        }
+    }
+
+    @Test("deviceID와 이름이 다를 때도 손실 이벤트는 stable ID로 제거")
+    func deviceLostUsesStableID() async {
+        var state = ConnectionFeature.State()
+        state.status = .discovering
+        state.discoveredDevices.append(Device(
+            id: "stable-device-id",
+            name: "Conference Room Mac",
+            host: "192.168.1.120",
+            port: 12_345
+        ))
+
+        let store = await TestStore(initialState: state) {
+            ConnectionFeature()
+        }
+
+        await store.send(.discoveryEvent(.deviceLost("stable-device-id"))) {
             $0.discoveredDevices.removeAll()
         }
     }
@@ -141,7 +161,7 @@ struct ConnectionTests {
         let store = await TestStore(initialState: ConnectionFeature.State()) {
             ConnectionFeature()
         } withDependencies: {
-            $0.connectionClient.connect = { _, _ in .finished }
+            $0.connectionClient.connect = { _, _, _ in .finished }
         }
 
         await store.send(.connect(testDevice)) {
@@ -208,7 +228,7 @@ struct ConnectionTests {
             ConnectionFeature()
         } withDependencies: {
             $0.continuousClock = ImmediateClock()
-            $0.connectionClient.connect = { _, _ in .finished }
+            $0.connectionClient.connect = { _, _, _ in .finished }
         }
 
         await store.send(.connectionEvent(.disconnected(error: "Connection lost"))) {
@@ -389,6 +409,7 @@ struct PairingTests {
         }
 
         await store.send(.cancelPairing) {
+            $0.status = .disconnected
             $0.isPairingRequired = false
             $0.pairingPinCode = ""
         }
@@ -409,7 +430,7 @@ struct ErrorHandlingTests {
             ConnectionFeature()
         } withDependencies: {
             $0.continuousClock = ImmediateClock()
-            $0.connectionClient.connect = { _, _ in .finished }
+            $0.connectionClient.connect = { _, _, _ in .finished }
         }
 
         await store.send(.connectionEvent(.error("Connection refused"))) {
@@ -520,7 +541,7 @@ struct NetworkMonitoringTests {
         let store = await TestStore(initialState: state) {
             ConnectionFeature()
         } withDependencies: {
-            $0.connectionClient.connect = { _, _ in .finished }
+            $0.connectionClient.connect = { _, _, _ in .finished }
         }
 
         await store.send(.networkStatusChanged(.connected(.wifi))) {
@@ -551,7 +572,7 @@ struct AppLifecycleTests {
         let store = await TestStore(initialState: state) {
             ConnectionFeature()
         } withDependencies: {
-            $0.connectionClient.connect = { _, _ in .finished }
+            $0.connectionClient.connect = { _, _, _ in .finished }
         }
 
         await store.send(.appDidBecomeActive) {
@@ -627,5 +648,31 @@ struct SettingsTests {
             $0.status = .disconnected
             $0.reconnectAttempt = 0
         }
+    }
+}
+
+@Suite("QR 페어링 테스트")
+struct QRPairingTests {
+    @Test("현재 페어링의 스캔 코드만 연결 클라이언트에 전달한다")
+    func forwardsScannedCodeOnlyWhilePairing() async {
+        let received = LockIsolated<String?>(nil)
+        var state = ConnectionFeature.State()
+        state.isPairingRequired = true
+        let store = await TestStore(initialState: state) { ConnectionFeature() } withDependencies: {
+            $0.connectionClient.sendPairingResponse = { received.setValue($0) }
+        }
+        await store.send(.pairingCodeScanned("snap-pair:test"))
+        await store.finish()
+        #expect(received.value == "snap-pair:test")
+    }
+
+    @Test("페어링 화면 밖의 스캔 코드는 무시한다")
+    func ignoresScannedCodeOutsidePairing() async {
+        let received = LockIsolated(false)
+        let store = await TestStore(initialState: ConnectionFeature.State()) { ConnectionFeature() } withDependencies: {
+            $0.connectionClient.sendPairingResponse = { _ in received.setValue(true) }
+        }
+        await store.send(.pairingCodeScanned("snap-pair:test"))
+        #expect(!received.value)
     }
 }

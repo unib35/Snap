@@ -383,8 +383,7 @@ public struct ShortsRemoteSection: View {
             autoScrollSection
         }
         .padding()
-        .background(SnapColors.secondarySystemBackground.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .cardStyle()
     }
 
     // MARK: - Auto Scroll Section
@@ -592,7 +591,7 @@ public struct ShortsRemoteFullScreenView: View {
         GeometryReader { geometry in
             ZStack {
                 // Background
-                Color.black.ignoresSafeArea()
+                SnapColors.focusBackground.ignoresSafeArea()
 
                 // Full Screen Swipe Area
                 fullScreenSwipeArea(geometry: geometry)
@@ -616,6 +615,7 @@ public struct ShortsRemoteFullScreenView: View {
             }
         }
         .statusBarHidden()
+        .environment(\.colorScheme, .dark)
         .onAppear {
             startAutoScrollTimerIfNeeded()
         }

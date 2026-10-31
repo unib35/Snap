@@ -13,6 +13,18 @@ public struct VoiceTypingView: View {
             // 상태 표시
             statusIndicator
 
+            if store.authorizationStatus == .denied || store.authorizationStatus == .restricted {
+                VStack(spacing: 8) {
+                    Text("음성 입력에는 마이크와 음성 인식 권한이 필요합니다.")
+                        .font(.subheadline)
+                        .foregroundStyle(SnapColors.textSecondary)
+                    Button("설정에서 권한 확인") {
+                        store.send(.alert(.presented(.openSettings)))
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+
             // 인식된 텍스트
             recognizedTextView
 
@@ -22,6 +34,9 @@ public struct VoiceTypingView: View {
         .padding()
         .onAppear {
             store.send(.onAppear)
+        }
+        .onDisappear {
+            if store.isRecording { store.send(.stopRecording) }
         }
         .alert($store.scope(state: \.alert, action: \.alert))
     }
@@ -58,7 +73,7 @@ public struct VoiceTypingView: View {
         case .notDetermined:
             return "권한 확인 중..."
         case .authorized:
-            return store.isRecording ? "듣고 있어요..." : "마이크를 탭하여 시작"
+            return store.isRecording ? "듣고 있어요..." : "녹음한 내용을 확인한 뒤 Mac으로 전송하세요"
         case .denied:
             return "권한이 거부됨"
         case .restricted:
@@ -125,7 +140,7 @@ public struct VoiceTypingView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .tint(SnapColors.success)
+            .tint(.accentColor)
             .controlSize(.large)
             .disabled(store.recognizedText.isEmpty || store.isRecording)
         }

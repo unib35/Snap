@@ -9,6 +9,8 @@
 
 Snap은 iOS 디바이스를 Mac의 트랙패드, 키보드, 리모컨으로 변환합니다. 저지연 통신과 직관적인 인터페이스로 어디서든 Mac을 제어하세요.
 
+> 프로토콜 v3는 iOS 앱과 macOS 수신기를 함께 업데이트해야 합니다. 최초 연결 시 Mac의 QR 코드를 확인하며, 기존 연결도 한 번 다시 페어링해야 합니다. TCP는 TLS 1.3, UDP는 AES-GCM을 사용합니다. [페어링·마이그레이션 안내](docs/dev/secure-pairing.md)를 참고하세요.
+
 ## 주요 기능
 
 ### Essentials (기본 제어)
@@ -60,12 +62,17 @@ cd Snap
 # Xcode 프로젝트 생성
 tuist generate
 
+# Xcode에서는 외부 의존성이 포함된 워크스페이스 열기
+open Snap.xcworkspace
+
 # iOS 앱 빌드
 tuist build App
 
 # macOS 앱 빌드
 tuist build MacReceiver
 ```
+
+`Snap.xcodeproj`만 열면 외부 라이브러리와 리소스 번들 생성 타깃이 빠집니다. `ComposableArchitecture` 모듈 또는 `swift-sharing_Sharing.bundle` 누락 오류가 나면 `Snap.xcworkspace`에서 `App` 스킴으로 빌드하세요.
 
 ### 4. 실행
 1. Mac에서 **Snap Receiver** 실행
@@ -105,12 +112,13 @@ Snap/
 | UDP | 마우스, 자이로 | 저지연, 손실 허용 |
 | TCP | 키보드, 시스템 명령 | 신뢰성 보장 |
 | Bonjour | 디바이스 발견 | Zero-config |
-| Protobuf | 패킷 직렬화 | 바이너리, 고효율 |
+| Codable JSON | 현재 패킷 본문 | 공통 바이너리 헤더 사용 (Protobuf는 설계 파일만 존재) |
 
 ### 보안
 - TLS 1.3 (TCP 연결)
-- DTLS (UDP 연결)
-- 페어링 코드 인증
+- AES-GCM (UDP 본문, 방향별 세션 키·재전송 방지)
+- Mac의 일회성 QR 코드로 TLS 인증서와 현재 페어링 요청 확인
+- Keychain에 재연결 토큰과 서버 인증서 저장
 
 ## 기여 방법
 

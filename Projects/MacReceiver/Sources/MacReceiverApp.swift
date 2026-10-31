@@ -1,3 +1,4 @@
+import CoreImage
 import SwiftUI
 import Shared
 import ServiceManagement
@@ -9,6 +10,7 @@ struct MacReceiverApp: App {
     var body: some Scene {
         MenuBarExtra {
             MenuBarView(serverManager: serverManager)
+                .tint(SnapPalette.defaultAccent)
         } label: {
             MenuBarLabel(serverManager: serverManager)
         }
@@ -16,6 +18,7 @@ struct MacReceiverApp: App {
 
         Settings {
             SettingsView(serverManager: serverManager)
+                .tint(SnapPalette.defaultAccent)
         }
     }
 }
@@ -85,7 +88,7 @@ struct MenuBarView: View {
     private var accessibilityWarningSection: some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
+                .foregroundStyle(SnapPalette.warning)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("접근성 권한 필요")
@@ -105,7 +108,7 @@ struct MenuBarView: View {
             .controlSize(.small)
         }
         .padding(8)
-        .background(Color.orange.opacity(0.1))
+        .background(SnapPalette.warning.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
@@ -131,11 +134,11 @@ struct MenuBarView: View {
 
     private var statusColor: Color {
         if serverManager.connectedDevice != nil {
-            return .green
+            return SnapPalette.statusConnected
         } else if serverManager.isRunning {
-            return .orange
+            return SnapPalette.statusDiscovering
         } else {
-            return .red
+            return SnapPalette.statusDisconnected
         }
     }
 
@@ -155,7 +158,7 @@ struct MenuBarView: View {
             if let device = serverManager.connectedDevice {
                 HStack {
                     Image(systemName: "iphone")
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(SnapPalette.accent)
                     Text(device)
                         .font(.subheadline)
                     Spacer()
@@ -180,7 +183,7 @@ struct MenuBarView: View {
             if let error = serverManager.lastError {
                 Text(error)
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(SnapPalette.destructive)
             }
 
             Text("포트: \(NetworkConstants.tcpPort)")
@@ -233,11 +236,13 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             GeneralSettingsView(serverManager: serverManager)
+                .tint(SnapPalette.defaultAccent)
                 .tabItem {
                     Label("일반", systemImage: "gear")
                 }
 
             LogSettingsView(serverManager: serverManager)
+                .tint(SnapPalette.defaultAccent)
                 .tabItem {
                     Label("로그", systemImage: "doc.text")
                 }
@@ -263,7 +268,7 @@ struct GeneralSettingsView: View {
             Section {
                 LabeledContent("서버 상태") {
                     Text(serverManager.isRunning ? "실행 중" : "중지됨")
-                        .foregroundStyle(serverManager.isRunning ? .green : .red)
+                        .foregroundStyle(serverManager.isRunning ? SnapPalette.statusDiscovering : SnapPalette.statusDisconnected)
                 }
 
                 LabeledContent("TCP 포트") {
@@ -288,10 +293,10 @@ struct GeneralSettingsView: View {
                             Image(systemName: accessibilityManager.isAccessibilityEnabled
                                   ? "checkmark.circle.fill"
                                   : "exclamationmark.triangle.fill")
-                                .foregroundStyle(accessibilityManager.isAccessibilityEnabled ? .green : .orange)
+                                .foregroundStyle(accessibilityManager.isAccessibilityEnabled ? SnapPalette.success : SnapPalette.warning)
 
                             Text(accessibilityManager.isAccessibilityEnabled ? "허용됨" : "필요함")
-                                .foregroundStyle(accessibilityManager.isAccessibilityEnabled ? .green : .orange)
+                                .foregroundStyle(accessibilityManager.isAccessibilityEnabled ? SnapPalette.success : SnapPalette.warning)
                         }
                     }
 
@@ -373,6 +378,7 @@ final class ServerManager: ObservableObject {
     @Published var pairingPinCode: String = ""
 
     private var server: SnapServer?
+    private var pairingWindow: NSWindow?
     private var nowPlayingTimer: Timer?
     private var lastNowPlayingInfo: NowPlayingInfo?
 
@@ -381,10 +387,11 @@ final class ServerManager: ObservableObject {
     }
 
     func startServer() {
-        guard server == nil else { return }
-
-        server = SnapServer()
-        server?.delegate = self
+        guard !isRunning else { return }
+        if server == nil {
+            server = SnapServer()
+            server?.delegate = self
+        }
 
         do {
             try server?.start()
@@ -394,8 +401,20 @@ final class ServerManager: ObservableObject {
     }
 
     func stopServer() {
+        InputSimulator.shared.releaseAllInputs()
+        stopNowPlayingUpdates()
         server?.stop()
         server = nil
+        isRunning = false
+        connectedDevice = nil
+        clearPairingPresentation()
+    }
+
+    private func clearPairingPresentation() {
+        isPairingInProgress = false
+        pairingPinCode = ""
+        pairingWindow?.close()
+        pairingWindow = nil
     }
 
     func toggleServer() {
@@ -408,6 +427,27 @@ final class ServerManager: ObservableObject {
 
     func disconnectClient() {
         server?.disconnectClient()
+    }
+
+    func cancelPairing() {
+        server?.cancelPairing()
+    }
+
+    private func showPairingWindow() {
+        pairingWindow?.close()
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 460),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Snap 기기 페어링"
+        window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: PairingView(serverManager: self))
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        pairingWindow = window
     }
 
     // MARK: - Now Playing
@@ -563,21 +603,27 @@ final class ServerManager: ObservableObject {
 
 extension ServerManager: SnapServerDelegate {
     nonisolated func serverDidStart(_ server: SnapServer) {
-        Task { @MainActor in
+        DispatchQueue.main.async {
+            guard self.server === server else { return }
             self.isRunning = true
             self.lastError = nil
         }
     }
 
     nonisolated func serverDidStop(_ server: SnapServer) {
-        Task { @MainActor in
+        DispatchQueue.main.async {
+            guard self.server === server else { return }
             self.isRunning = false
             self.connectedDevice = nil
+            InputSimulator.shared.releaseAllInputs()
+            self.stopNowPlayingUpdates()
+            self.clearPairingPresentation()
         }
     }
 
     nonisolated func server(_ server: SnapServer, didAcceptConnection deviceName: String) {
-        Task { @MainActor in
+        DispatchQueue.main.async {
+            guard self.server === server else { return }
             self.connectedDevice = deviceName
             self.logPacket("Connected: \(deviceName)")
             self.startNowPlayingUpdates()
@@ -585,7 +631,9 @@ extension ServerManager: SnapServerDelegate {
     }
 
     nonisolated func server(_ server: SnapServer, didDisconnectFrom deviceName: String) {
-        Task { @MainActor in
+        DispatchQueue.main.async {
+            guard self.server === server else { return }
+            InputSimulator.shared.releaseAllInputs()
             self.connectedDevice = nil
             self.logPacket("Disconnected: \(deviceName)")
             self.stopNowPlayingUpdates()
@@ -593,36 +641,87 @@ extension ServerManager: SnapServerDelegate {
     }
 
     nonisolated func server(_ server: SnapServer, didReceivePacket packet: DecodedPacket) {
-        Task { @MainActor in
+        DispatchQueue.main.async {
+            guard self.server === server else { return }
+            guard self.isRunning, self.connectedDevice != nil else { return }
             self.handlePacket(packet)
         }
     }
 
     nonisolated func server(_ server: SnapServer, didFailWithError error: Error) {
-        Task { @MainActor in
+        DispatchQueue.main.async {
+            guard self.server === server else { return }
             self.lastError = error.localizedDescription
             self.logPacket("Error: \(error.localizedDescription)")
         }
     }
 
-    nonisolated func server(_ server: SnapServer, showPairingPIN pin: String, forDevice deviceName: String) {
-        Task { @MainActor in
+    nonisolated func server(_ server: SnapServer, showPairingCode code: String, forDevice deviceName: String) {
+        DispatchQueue.main.async {
+            guard self.server === server else { return }
             self.isPairingInProgress = true
             self.pairingDeviceName = deviceName
-            self.pairingPinCode = pin
-            self.logPacket("Pairing: PIN \(pin) for \(deviceName)")
+            self.pairingPinCode = code
+            self.showPairingWindow()
+            self.logPacket("Pairing requested: \(deviceName)")
         }
     }
 
     nonisolated func server(_ server: SnapServer, didCompletePairing success: Bool, deviceName: String) {
-        Task { @MainActor in
-            self.isPairingInProgress = false
-            self.pairingPinCode = ""
+        DispatchQueue.main.async {
+            guard self.server === server else { return }
+            self.clearPairingPresentation()
             if success {
                 self.logPacket("Pairing successful: \(deviceName)")
             } else {
                 self.logPacket("Pairing failed: \(deviceName)")
             }
         }
+    }
+}
+
+
+private struct PairingView: View {
+    @ObservedObject var serverManager: ServerManager
+
+    private var qrImage: NSImage? {
+        guard let data = serverManager.pairingPinCode.data(using: .utf8),
+              let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
+        filter.setValue(data, forKey: "inputMessage")
+        filter.setValue("M", forKey: "inputCorrectionLevel")
+        guard let output = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 8, y: 8)),
+              let image = CIContext().createCGImage(output, from: output.extent) else { return nil }
+        return NSImage(cgImage: image, size: NSSize(width: 260, height: 260))
+    }
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text(serverManager.pairingDeviceName).font(.headline)
+            Text("iPhone의 Snap으로 이 코드를 스캔하세요")
+                .multilineTextAlignment(.center)
+            if let image = qrImage {
+                Image(nsImage: image)
+                    .interpolation(.none)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 240, height: 240)
+                    .padding(12)
+                    .background(SnapPalette.qrBackground)
+                    .accessibilityLabel("Snap 보안 페어링 QR 코드. 코드 복사 버튼으로도 연결할 수 있습니다.")
+            }
+            Text("코드는 60초 동안 이 연결에서만 사용할 수 있습니다.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack {
+                Button("코드 복사") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(serverManager.pairingPinCode, forType: .string)
+                }
+                Button("연결 거부", role: .cancel) { serverManager.cancelPairing() }
+                    .keyboardShortcut(.cancelAction)
+            }
+        }
+        .padding(24)
+        .frame(minWidth: 350)
     }
 }

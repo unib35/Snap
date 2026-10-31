@@ -8,7 +8,7 @@ private let logger = Logger(subsystem: "com.snap.shared", category: "SecurityMan
 
 /// 보안 관리자 - TLS/DTLS 인증서 관리
 ///
-/// - Note: `@unchecked Sendable` - 내부 DispatchQueue(`queue`)를 통해 모든 상태 접근이 직렬화되어 스레드 안전함
+/// - Note: `@unchecked Sendable` - 인증서 생성과 재조회는 `identityLock`으로 직렬화됨
 public final class SecurityManager: @unchecked Sendable {
     // MARK: - Singleton
 
@@ -16,22 +16,26 @@ public final class SecurityManager: @unchecked Sendable {
 
     // MARK: - Constants
 
-    private let keychainServiceName = "com.snap.security"
-    private let identityLabel = "Snap TLS Identity"
-    private let certificateLabel = "Snap TLS Certificate"
+    private let identityLabel: String
+    private let certificateLabel: String
 
     // MARK: - Properties
 
-    private let queue = DispatchQueue(label: "com.snap.security", attributes: .concurrent)
+    private let identityLock = NSRecursiveLock()
 
     // MARK: - Initialization
 
-    private init() {}
+    init(identityLabel: String = "Snap TLS Identity", certificateLabel: String = "Snap TLS Certificate") {
+        self.identityLabel = identityLabel
+        self.certificateLabel = certificateLabel
+    }
 
     // MARK: - Public Methods
 
     /// 서버용 TLS Identity 가져오기 (없으면 생성)
     public func getOrCreateServerIdentity() -> SecIdentity? {
+        identityLock.lock()
+        defer { identityLock.unlock() }
         // 기존 Identity 검색
         if let identity = loadIdentity() {
             logger.debug("Loaded existing TLS identity")
@@ -160,22 +164,39 @@ public final class SecurityManager: @unchecked Sendable {
     // MARK: - Private Methods
 
     private func loadIdentity() -> SecIdentity? {
+        // Identity matching is based on the certificate's public key, not on
+        // the private key label (which is not an identity query attribute).
+        #if os(macOS)
         let query: [String: Any] = [
-            kSecClass as String: kSecClassIdentity,
-            kSecAttrLabel as String: identityLabel,
+            kSecClass as String: kSecClassCertificate,
+            kSecAttrLabel as String: certificateLabel,
+            kSecMatchLimit as String: kSecMatchLimitAll,
             kSecReturnRef as String: true
         ]
-
         var result: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-
-        guard status == errSecSuccess, let identity = result else {
-            return nil
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let certificates = result as? [SecCertificate] else { return nil }
+        // An orphan certificate from an interrupted save must not hide a
+        // later certificate that has a usable private key.
+        for certificate in certificates {
+            var identity: SecIdentity?
+            if SecIdentityCreateWithCertificate(nil, certificate, &identity) == errSecSuccess {
+                return identity
+            }
         }
-
-        // Keychain에서 kSecClassIdentity로 쿼리했으므로 SecIdentity 타입이 보장됨
+        return nil
+        #else
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassIdentity,
+            kSecAttrLabel as String: certificateLabel,
+            kSecReturnRef as String: true
+        ]
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let result, CFGetTypeID(result) == SecIdentityGetTypeID() else { return nil }
         // swiftlint:disable:next force_cast
-        return (identity as! SecIdentity)
+        return (result as! SecIdentity)
+        #endif
     }
 
     private func createSelfSignedIdentity() -> SecIdentity? {
@@ -188,6 +209,7 @@ public final class SecurityManager: @unchecked Sendable {
         // 2. 자체 서명 인증서 생성
         guard let certificate = createSelfSignedCertificate(privateKey: privateKey) else {
             logger.error("Failed to create self-signed certificate")
+            SecItemDelete([kSecClass: kSecClassKey, kSecValueRef: privateKey] as CFDictionary)
             return nil
         }
 
@@ -199,7 +221,8 @@ public final class SecurityManager: @unchecked Sendable {
         let attributes: [String: Any] = [
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
             kSecAttrKeySizeInBits as String: 256,
-            kSecAttrIsPermanent as String: false
+            kSecAttrIsPermanent as String: true,
+            kSecAttrLabel as String: identityLabel
         ]
 
         var error: Unmanaged<CFError>?
@@ -214,30 +237,6 @@ public final class SecurityManager: @unchecked Sendable {
     }
 
     private func createSelfSignedCertificate(privateKey: SecKey) -> SecCertificate? {
-        // macOS와 iOS에서 자체 서명 인증서 생성이 다르므로
-        // Security framework의 제한으로 인해 DER 인코딩된 인증서 직접 생성
-
-        guard let publicKey = SecKeyCopyPublicKey(privateKey) else {
-            return nil
-        }
-
-        // 인증서 유효 기간 (1년)
-        let validFrom = Date()
-        let validTo = Calendar.current.date(byAdding: .year, value: 1, to: validFrom) ?? validFrom
-
-        // 인증서 생성을 위한 데이터 구조
-        // 실제 구현에서는 ASN.1 DER 인코딩이 필요하지만,
-        // Apple의 Security framework에서는 직접적인 인증서 생성 API가 제한적
-        // 대안: Keychain에서 기존 인증서를 사용하거나 번들에 포함
-
-        // 간단한 자체 서명 인증서 생성 (테스트용)
-        // 실제 프로덕션에서는 사전 생성된 인증서 사용 권장
-        return createCertificateUsingKeychain(privateKey: privateKey, publicKey: publicKey)
-    }
-
-    private func createCertificateUsingKeychain(privateKey: SecKey, publicKey: SecKey) -> SecCertificate? {
-        // ASN.1 DER 인코딩을 사용하여 자체 서명 인증서 생성
-        // iOS와 macOS 모두에서 동작
         guard let certificate = DERCertificateBuilder.createSelfSignedCertificate(
             privateKey: privateKey,
             commonName: "Snap Server",
@@ -253,43 +252,31 @@ public final class SecurityManager: @unchecked Sendable {
     }
 
     private func saveIdentity(privateKey: SecKey, certificate: SecCertificate) -> SecIdentity? {
-        // 개인키 저장
-        let keyQuery: [String: Any] = [
-            kSecClass as String: kSecClassKey,
-            kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
-            kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
-            kSecAttrLabel as String: identityLabel,
-            kSecValueRef as String: privateKey,
-            kSecAttrIsPermanent as String: true,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
-        ]
-
-        SecItemDelete(keyQuery as CFDictionary)
-        var status = SecItemAdd(keyQuery as CFDictionary, nil)
-
-        guard status == errSecSuccess else {
-            logger.error("Failed to save private key: \(status)")
-            return nil
-        }
-
-        // 인증서 저장
+        // SecItemAdd does not persist a transient SecKey reference in the
+        // macOS file-based keychain. The key is made permanent at creation.
         let certQuery: [String: Any] = [
             kSecClass as String: kSecClassCertificate,
-            kSecAttrLabel as String: certificateLabel,
             kSecValueRef as String: certificate,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
+            kSecAttrLabel as String: certificateLabel
         ]
-
-        SecItemDelete(certQuery as CFDictionary)
-        status = SecItemAdd(certQuery as CFDictionary, nil)
-
+        let status = SecItemAdd(certQuery as CFDictionary, nil)
         guard status == errSecSuccess else {
             logger.error("Failed to save certificate: \(status)")
+            SecItemDelete([kSecClass: kSecClassKey, kSecValueRef: privateKey] as CFDictionary)
             return nil
         }
 
-        // Identity 로드
-        return loadIdentity()
+        // macOS initially derives the certificate label from its subject.
+        // Set our stable lookup label explicitly after adding the certificate.
+        let match = [kSecClass: kSecClassCertificate, kSecValueRef: certificate] as CFDictionary
+        let labelStatus = SecItemUpdate(match, [kSecAttrLabel: certificateLabel] as CFDictionary)
+        guard labelStatus == errSecSuccess, let identity = loadIdentity() else {
+            logger.error("Failed to reload saved TLS identity (label status: \(labelStatus))")
+            SecItemDelete(match)
+            SecItemDelete([kSecClass: kSecClassKey, kSecValueRef: privateKey] as CFDictionary)
+            return nil
+        }
+        return identity
     }
 }
 
@@ -326,47 +313,37 @@ public extension SecurityManager {
         return tlsOptions
     }
 
-    /// 클라이언트용 TLS 옵션 생성 (iOS) - 신뢰된 인증서 기반
-    @available(macOS 10.15, iOS 13.0, *)
+    /// Known-peer TLS is fail-closed: a missing pin never trusts every peer.
     func createClientTLSOptions(trustedCertificate: SecCertificate? = nil) -> NWProtocolTLS.Options {
-        let tlsOptions = NWProtocolTLS.Options()
+        let pinned = trustedCertificate.map { SecCertificateCopyData($0) as Data }
+        return clientTLSOptions { certificate in pinned == certificate }
+    }
 
-        // TLS 1.3 요구
-        sec_protocol_options_set_min_tls_protocol_version(
-            tlsOptions.securityProtocolOptions,
-            .TLSv13
-        )
+    /// Explicit provisional mode, exclusively for the QR-verified pairing flow.
+    func createClientTLSOptions(verifier: PairingCertificateVerifier) -> NWProtocolTLS.Options {
+        clientTLSOptions { verifier.verify($0) }
+    }
 
-        sec_protocol_options_set_max_tls_protocol_version(
-            tlsOptions.securityProtocolOptions,
-            .TLSv13
-        )
-
-        // 인증서 검증 콜백 설정
+    private func clientTLSOptions(verify: @escaping @Sendable (Data) -> Bool) -> NWProtocolTLS.Options {
+        let options = NWProtocolTLS.Options()
+        sec_protocol_options_set_tls_resumption_enabled(options.securityProtocolOptions, false)
+        sec_protocol_options_set_tls_tickets_enabled(options.securityProtocolOptions, false)
+        sec_protocol_options_set_min_tls_protocol_version(options.securityProtocolOptions, .TLSv13)
+        sec_protocol_options_set_max_tls_protocol_version(options.securityProtocolOptions, .TLSv13)
         sec_protocol_options_set_verify_block(
-            tlsOptions.securityProtocolOptions,
-            { _, trust, completionHandler in
-                // 로컬 네트워크 자체 서명 인증서 허용
-                // 프로덕션에서는 신뢰된 인증서 목록과 비교 필요
-                if let trustedCertificate {
-                    // 신뢰된 인증서와 비교
-                    let serverTrust = sec_trust_copy_ref(trust).takeRetainedValue()
-                    if let serverCert = SecTrustGetCertificateAtIndex(serverTrust, 0) {
-                        let serverData = SecCertificateCopyData(serverCert) as Data
-                        let trustedData = SecCertificateCopyData(trustedCertificate) as Data
-                        completionHandler(serverData == trustedData)
-                        return
-                    }
+            options.securityProtocolOptions,
+            { _, trust, complete in
+                let serverTrust = sec_trust_copy_ref(trust).takeRetainedValue()
+                guard let chain = SecTrustCopyCertificateChain(serverTrust) as? [SecCertificate],
+                      let certificate = chain.first else {
+                    complete(false)
+                    return
                 }
-
-                // 신뢰된 인증서가 없으면 기본적으로 허용 (페어링 전)
-                // 실제로는 페어링 과정에서 인증서 교환 필요
-                completionHandler(true)
+                complete(verify(SecCertificateCopyData(certificate) as Data))
             },
             DispatchQueue.global()
         )
-
-        return tlsOptions
+        return options
     }
 
     /// 서버용 DTLS 옵션 생성

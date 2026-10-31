@@ -36,6 +36,7 @@ public final class BonjourBrowser: @unchecked Sendable {
     public weak var delegate: BonjourBrowserDelegate?
 
     private var browser: NWBrowser?
+    private var resolvingConnections: [ObjectIdentifier: NWConnection] = [:]
     private let serviceType: String
     private let queue: DispatchQueue
 
@@ -82,6 +83,11 @@ public final class BonjourBrowser: @unchecked Sendable {
         guard isSearching else { return }
         browser?.cancel()
         browser = nil
+        queue.async { [weak self] in
+            guard let self else { return }
+            for connection in self.resolvingConnections.values { connection.cancel() }
+            self.resolvingConnections.removeAll()
+        }
         isSearching = false
         discoveredServices.removeAll()
     }
@@ -166,6 +172,8 @@ public final class BonjourBrowser: @unchecked Sendable {
 
         let connection = NWConnection(to: result.endpoint, using: parameters)
         let resolveState = ResolveState()
+        let id = ObjectIdentifier(connection)
+        resolvingConnections[id] = connection
 
         connection.stateUpdateHandler = { [weak self, weak connection] state in
             guard let self, !resolveState.isResolved else { return }
@@ -173,6 +181,7 @@ public final class BonjourBrowser: @unchecked Sendable {
             switch state {
             case .ready:
                 resolveState.markResolved()
+                defer { self.resolvingConnections.removeValue(forKey: id) }
                 if let path = connection?.currentPath,
                    let endpoint = path.remoteEndpoint,
                    case .hostPort(let host, let port) = endpoint {
@@ -196,6 +205,7 @@ public final class BonjourBrowser: @unchecked Sendable {
                 connection?.cancel()
 
             case .failed, .cancelled:
+                self.resolvingConnections.removeValue(forKey: id)
                 resolveState.markResolved()
                 connection?.cancel()
 
@@ -207,7 +217,8 @@ public final class BonjourBrowser: @unchecked Sendable {
         connection.start(queue: queue)
 
         // 타임아웃: 일정 시간 후에도 리졸브되지 않으면 연결 취소
-        queue.asyncAfter(deadline: .now() + Self.resolveTimeout) { [weak connection] in
+        queue.asyncAfter(deadline: .now() + Self.resolveTimeout) { [weak self, weak connection] in
+            defer { self?.resolvingConnections.removeValue(forKey: id) }
             guard !resolveState.isResolved else { return }
             logger.debug("Service resolve timeout for: \(name)")
             connection?.cancel()

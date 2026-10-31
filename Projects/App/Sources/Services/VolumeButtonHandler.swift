@@ -70,7 +70,6 @@ public final class VolumeButtonHandler: ObservableObject {
     private func setupVolumeView() {
         // MPVolumeView를 화면 밖에 배치하여 시스템 볼륨 UI 숨기기
         let volumeView = MPVolumeView(frame: CGRect(x: -1000, y: -1000, width: 1, height: 1))
-        volumeView.setRouteButtonImage(nil, for: .normal)
         volumeView.showsVolumeSlider = true
         volumeView.alpha = 0.01
 

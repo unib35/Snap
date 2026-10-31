@@ -6,7 +6,7 @@ public enum MessageType: UInt8, Sendable {
 
     /// 마우스 이동 (상대 좌표)
     case mouseMove = 0x01
-    /// 마우스 클릭
+    /// 마우스 클릭 (v2부터 TCP로 전송; wire ID 유지)
     case mouseClick = 0x02
     /// 스크롤 (2D)
     case scroll = 0x03
@@ -69,12 +69,12 @@ public enum MessageType: UInt8, Sendable {
 
     /// UDP 메시지 여부
     public var isUDP: Bool {
-        rawValue < 0x20
+        rawValue < 0x20 && self != .mouseClick
     }
 
     /// TCP 메시지 여부
     public var isTCP: Bool {
-        rawValue >= 0x20 && rawValue < 0x80
+        self == .mouseClick || (rawValue >= 0x20 && rawValue < 0x80)
     }
 
     /// 시스템 메시지 여부

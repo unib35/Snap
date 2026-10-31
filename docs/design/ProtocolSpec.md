@@ -1,5 +1,23 @@
 # 통신 프로토콜 명세서 (Protocol Specification)
 
+## 현재 구현: wire protocol v3 (2026-09-12)
+
+아래 v1 문서는 초기 설계입니다. 현재 `PacketEncoder`/`PacketDecoder`는 16바이트 공통 헤더와 Codable JSON 본문을 사용하며, Protobuf 정의는 실제 직렬화 경로에 연결되지 않았습니다.
+
+- TCP는 TLS 1.3을 필수로 사용합니다. 정확한 버전 `0x03`과 최대 4 MiB 본문 길이를 확인하고 분할·연속 프레임을 처리합니다. 불완전 프레임으로 끝나거나 헤더가 잘못되면 연결을 종료합니다.
+- 마우스 클릭은 메시지 ID `0x02`를 유지하되 TCP로 전송합니다. 이동·스크롤·자이로·핀치는 UDP를 사용합니다.
+- 처음 연결하는 TLS 인증서는 임시로 관찰하되 아직 신뢰하지 않습니다. 이때 보내는 Handshake에는 기기 식별 정보만 포함하며, 제어 명령과 인증 토큰은 전송하지 않습니다.
+- Mac의 QR 코드는 `snap-pair:` + Base64(JSON)입니다. version=3, serverID, 실제 TLS 인증서의 SHA-256 digest, 32바이트 challenge, 32바이트 일회성 비밀의 Base64 문자열(`pin`)을 포함합니다. 코드는 네트워크로 전송하지 않으며 60초 동안 해당 연결에서만 유효합니다.
+- PairingChallenge에는 기기 이름·ID와 nonce만 보냅니다. 클라이언트는 직접 스캔하거나 붙여넣은 코드의 인증서·서버 ID·nonce가 현재 연결과 일치해야 PairingResponse에 비밀(`pinCode`)과 nonce를 전송합니다. 4자리 PIN은 지원하지 않습니다.
+- 페어링 성공 시 서버가 새 32바이트 `authenticationToken`을 Keychain에 저장하고 TLS Handshake로 전달합니다. 클라이언트는 토큰과 인증서를 함께 Keychain에 저장합니다. 재연결 시 TLS 인증서를 고정 검증하고 토큰을 제출하며, 서버는 신뢰 기기 메타데이터와 토큰을 모두 확인합니다. ID만으로 수락하지 않습니다.
+- 수락된 매 연결마다 새 32바이트 `udpSessionKey`를 TLS Handshake로 전달합니다. HKDF-SHA256(salt=`Snap UDP v3`, info=`client-to-server` 또는 `server-to-client`, output=32)으로 방향별 AES-GCM 키를 파생합니다.
+- UDP wire format: `nonce (12 bytes) | encrypted packet | tag (16 bytes)`. nonce는 `53 4e 00 03` + big-endian UInt64 시퀀스(1부터)이며 AAD는 UTF-8 `Snap UDP v3`입니다. 인증 성공 후 마지막 수락 시퀀스 이하를 폐기합니다. 지연된 역순 데이터그램도 폐기하며, 세션 교체 시 이전 키와 카운터를 버립니다.
+- 인증되지 않은 TCP 제어 명령과 암호화·인증되지 않은 UDP는 거부합니다. UDP 허용 메시지는 이동·스크롤·자이로·핀치로 제한합니다.
+
+v1/v2와 직접 연결되지 않으므로 두 앱을 함께 업데이트하고 다시 페어링해야 합니다. 자세한 운영·검증 범위는 [보안 페어링 문서](../dev/secure-pairing.md)에 기록합니다.
+
+---
+
 | 버전 | v1.0.0 |
 | --- | --- |
 | **작성일** | 2025년 12월 27일 |

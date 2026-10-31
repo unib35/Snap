@@ -65,6 +65,7 @@ let project = Project(
                 "NSBonjourServices": ["_snap._tcp.", "_snap._udp."],
                 "NSSpeechRecognitionUsageDescription": "Snap uses speech recognition for voice typing.",
                 "NSMicrophoneUsageDescription": "Snap uses microphone for voice typing.",
+                "NSCameraUsageDescription": "Snap scans the pairing code displayed on your Mac to verify a secure connection.",
                 "NSSupportsLiveActivities": true,
                 "CFBundleURLTypes": [
                     [
@@ -141,6 +142,8 @@ let project = Project(
             sources: ["Projects/App/Tests/**"],
             dependencies: [
                 .target(name: "App"),
+                // Avoid IssueReporting's ABI-dependent Swift Testing fallback.
+                .external(name: "IssueReportingTestSupport"),
             ]
         ),
 
