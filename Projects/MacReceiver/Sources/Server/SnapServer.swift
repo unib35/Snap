@@ -44,6 +44,7 @@ public final class SnapServer: @unchecked Sendable {
 
     public private(set) var isRunning: Bool = false
     public private(set) var connectedDeviceName: String?
+    private var connectedDeviceID: String?
 
     // Pairing State
     private var pendingPairingConnection: TCPConnection?
@@ -54,7 +55,7 @@ public final class SnapServer: @unchecked Sendable {
     private var pendingPairingDeadline: DispatchTime?
     private let credentialStore: any PairingCredentialStore
     private let certificateData: @Sendable () -> Data?
-    private var trustedDevicesManager = TrustedDevicesManager.shared
+    private let trustedDevicesManager: TrustedDevicesManager
 
     /// Production transports cannot opt out of TLS or pairing.
     public let useSecureConnection = true
@@ -64,12 +65,14 @@ public final class SnapServer: @unchecked Sendable {
     public init(
         deviceName: String? = nil,
         credentialStore: any PairingCredentialStore = KeychainPairingCredentialStore.shared,
-        certificateData: @escaping @Sendable () -> Data? = { SecurityManager.shared.exportCertificateData() }
+        certificateData: @escaping @Sendable () -> Data? = { SecurityManager.shared.exportCertificateData() },
+        trustedDevicesManager: TrustedDevicesManager = .shared
     ) {
         self.deviceName = deviceName ?? Host.current().localizedName ?? "Mac"
         self.deviceID = Self.getDeviceID()
         self.credentialStore = credentialStore
         self.certificateData = certificateData
+        self.trustedDevicesManager = trustedDevicesManager
     }
 
     // MARK: - Public Methods
@@ -140,6 +143,7 @@ public final class SnapServer: @unchecked Sendable {
         connectedClient = nil
         let name = connectedDeviceName
         connectedDeviceName = nil
+        connectedDeviceID = nil
         udpSessionKey = nil
         udpSessionID = nil
         udpSocket?.setSessionKey(nil)
@@ -147,6 +151,27 @@ public final class SnapServer: @unchecked Sendable {
         heartbeatManager = nil
         client.disconnect()
         if let name { delegate?.server(self, didDisconnectFrom: name) }
+    }
+
+    // MARK: - Trusted Devices
+
+    /// 신뢰한 iPhone 목록 (페어링한 순서)
+    public var trustedDevices: [TrustedDevice] {
+        trustedDevicesManager.trustedDevices
+    }
+
+    /// 신뢰한 iPhone을 지웁니다.
+    ///
+    /// 인증 토큰도 함께 지우므로 그 기기는 다음 연결 때 QR 페어링을 다시 해야 합니다.
+    /// 지금 연결된 기기면 연결을 끊습니다.
+    public func revokeTrustedDevice(deviceID: String) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        trustedDevicesManager.removeTrustedDevice(deviceID: deviceID)
+        try credentialStore.remove(for: "server:" + deviceID)
+        if connectedDeviceID == deviceID {
+            disconnectClient()
+        }
     }
 
     /// 앱 목록 응답 전송
@@ -341,6 +366,7 @@ public final class SnapServer: @unchecked Sendable {
         connectionTimeouts.removeValue(forKey: ObjectIdentifier(connection))?.cancel()
         connectedClient = connection
         connectedDeviceName = handshake.deviceName
+        connectedDeviceID = handshake.deviceID
         udpSessionKey = DatagramSession.makeKey()
         udpSessionID = udpSocket?.setSessionKey(udpSessionKey)
 

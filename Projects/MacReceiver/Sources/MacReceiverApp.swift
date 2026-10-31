@@ -376,6 +376,7 @@ final class ServerManager: ObservableObject {
     @Published var isPairingInProgress: Bool = false
     @Published var pairingDeviceName: String = ""
     @Published var pairingPinCode: String = ""
+    @Published private(set) var trustedDevices: [TrustedDevice] = TrustedDevicesManager.shared.trustedDevices
 
     private var server: SnapServer?
     private var pairingWindow: NSWindow?
@@ -432,6 +433,34 @@ final class ServerManager: ObservableObject {
 
     func cancelPairing() {
         server?.cancelPairing()
+    }
+
+    // MARK: - Trusted Devices
+
+    /// 신뢰한 iPhone 하나를 지웁니다. 다음 연결 때 QR 페어링을 다시 해야 합니다.
+    func forgetTrustedDevice(deviceID: String) {
+        do {
+            if let server {
+                try server.revokeTrustedDevice(deviceID: deviceID)
+            } else {
+                TrustedDevicesManager.shared.removeTrustedDevice(deviceID: deviceID)
+                try KeychainPairingCredentialStore.shared.remove(for: "server:" + deviceID)
+            }
+        } catch {
+            lastError = error.localizedDescription
+        }
+        refreshTrustedDevices()
+    }
+
+    /// 신뢰한 iPhone을 모두 지웁니다.
+    func forgetAllTrustedDevices() {
+        for device in trustedDevices {
+            forgetTrustedDevice(deviceID: device.deviceID)
+        }
+    }
+
+    func refreshTrustedDevices() {
+        trustedDevices = TrustedDevicesManager.shared.trustedDevices
     }
 
     private func showPairingWindow() {
@@ -690,6 +719,7 @@ extension ServerManager: SnapServerDelegate {
         DispatchQueue.main.async {
             guard self.server === server else { return }
             self.clearPairingPresentation()
+            self.refreshTrustedDevices()
             if success {
                 self.logPacket("Pairing successful: \(deviceName)")
             } else {

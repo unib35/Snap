@@ -201,7 +201,13 @@ public struct ConnectionClient: Sendable {
     ///
     /// - Parameter code: Mac에 표시된 `snap-pair:` 페어링 코드
     public var sendPairingResponse: @Sendable (String) async -> Void
+    /// 저장된 Mac의 페어링 정보를 지웁니다.
+    ///
+    /// 지금 연결된 Mac이면 연결도 끊습니다. 다음 연결 때 QR 페어링을 다시 해야 합니다.
     public var forgetDevice: @Sendable (String) async throws -> Void = { _ in }
+
+    /// 페어링해 연결한 적 있는 Mac 목록을 불러옵니다.
+    public var savedDevices: @Sendable () async -> [TrustedDevice] = { [] }
 }
 
 // MARK: - Discovery Events
@@ -336,7 +342,8 @@ extension ConnectionClient: DependencyKey {
             sendSystemCommand: { command in await actor.sendSystemCommand(command: command) },
             sendShortsCommand: { platform, action in await actor.sendShortsCommand(platform: platform, action: action) },
             sendPairingResponse: { code in await actor.sendPairingResponse(code: code) },
-            forgetDevice: { id in try await actor.forgetDevice(serverID: id) }
+            forgetDevice: { id in try await actor.forgetDevice(serverID: id) },
+            savedDevices: { await actor.savedDevices() }
         )
     }
 
@@ -379,6 +386,9 @@ public extension DependencyValues {
 private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
     private var client: SnapClient?
     private var connectionID: UUID?
+    private var serverID: String?
+    /// 페어링해 연결한 Mac 목록 (Mac의 신뢰한 iPhone 목록과 다른 키에 저장)
+    private let pairedMacs = TrustedDevicesManager(storageKey: "com.snap.pairedMacs")
     private var browser: BonjourBrowser?
 
     private var discoveryContinuation: AsyncStream<DiscoveryEvent>.Continuation?
@@ -473,6 +483,7 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
         disconnect()
         let id = UUID()
         connectionID = id
+        self.serverID = serverID
         setupBatcher(for: id)
 
         return AsyncStream { continuation in
@@ -497,6 +508,7 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
 
     func disconnect() {
         connectionID = nil
+        serverID = nil
         // 배칭 중지
         stopBatcher()
 
@@ -585,8 +597,15 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
     }
 
     func forgetDevice(serverID: String) throws {
-        disconnect()
+        if self.serverID == serverID {
+            disconnect()
+        }
         try KeychainPairingCredentialStore.shared.remove(for: "client:" + serverID)
+        pairedMacs.removeTrustedDevice(deviceID: serverID)
+    }
+
+    func savedDevices() -> [TrustedDevice] {
+        pairedMacs.trustedDevices
     }
 
     func sendPairingResponse(code: String) {
@@ -603,6 +622,9 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
 
     private func handleConnect(serverName: String, source: SnapClient) {
         guard source === client else { return }
+        if let serverID {
+            pairedMacs.recordConnection(deviceID: serverID, deviceName: serverName)
+        }
         connectionContinuation?.yield(.connected(serverName: serverName))
     }
 
@@ -615,6 +637,7 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
     private func handleDisconnect(error: Error?, source: SnapClient) {
         guard source === client else { return }
         connectionID = nil
+        serverID = nil
         stopBatcher()
         connectionContinuation?.yield(.disconnected(error: error?.localizedDescription))
         connectionContinuation?.finish()

@@ -293,3 +293,32 @@ struct TrustedDevicesManagerTests {
         #expect(manager.trustedDevices.count == 50)
     }
 }
+// MARK: - Connection Record Tests
+
+@Suite("TrustedDevicesManager 연결 기록")
+struct TrustedDevicesConnectionRecordTests {
+    @Test("처음 연결한 기기는 추가하고, 다시 연결하면 이름만 갱신")
+    func recordConnectionKeepsPairedAt() throws {
+        let manager = TrustedDevicesManager(persistence: MockPersistence(), storageKey: "test.pairedMacs")
+        manager.recordConnection(deviceID: "mac-1", deviceName: "MacBook")
+        let pairedAt = try #require(manager.trustedDevices.first?.pairedAt)
+
+        manager.recordConnection(deviceID: "mac-1", deviceName: "MacBook Pro")
+
+        #expect(manager.trustedDevices.count == 1)
+        #expect(manager.trustedDevices.first?.deviceName == "MacBook Pro")
+        #expect(manager.trustedDevices.first?.pairedAt == pairedAt)
+    }
+
+    @Test("저장 키가 다르면 목록을 섞지 않음")
+    func storageKeysAreIndependent() {
+        let persistence = MockPersistence()
+        let phones = TrustedDevicesManager(persistence: persistence)
+        let macs = TrustedDevicesManager(persistence: persistence, storageKey: "test.pairedMacs")
+        phones.addTrustedDevice(deviceID: "phone", deviceName: "iPhone")
+        macs.recordConnection(deviceID: "mac", deviceName: "Mac")
+
+        #expect(phones.trustedDevices.map(\.deviceID) == ["phone"])
+        #expect(macs.trustedDevices.map(\.deviceID) == ["mac"])
+    }
+}
