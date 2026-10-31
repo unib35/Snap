@@ -489,8 +489,7 @@ public struct ConnectionFeature: Sendable {
                     state.status = .disconnected
                     state.connectedDevice = nil
                     state.lastConnectedDevice = nil
-                    state.latency = 0
-                    state.signalStrength = .unknown
+                    state.latency = nil
                     state.reconnectAttempt = 0
                     cancelConnection = .merge(.cancel(id: CancelID.connection), .cancel(id: CancelID.reconnect))
                 }
