@@ -195,29 +195,10 @@ public struct ProductivityView: View {
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: SnapSpacing.md) {
-                WindowSnapButton(icon: "rectangle.lefthalf.filled", label: "왼쪽") {
-                    store.send(.windowSnapTapped(.leftHalf))
-                }
-                WindowSnapButton(icon: "rectangle.righthalf.filled", label: "오른쪽") {
-                    store.send(.windowSnapTapped(.rightHalf))
-                }
-                WindowSnapButton(icon: "rectangle.tophalf.filled", label: "상단") {
-                    store.send(.windowSnapTapped(.topHalf))
-                }
-                WindowSnapButton(icon: "rectangle.bottomhalf.filled", label: "하단") {
-                    store.send(.windowSnapTapped(.bottomHalf))
-                }
-                WindowSnapButton(icon: "arrow.up.left.and.arrow.down.right", label: "전체화면") {
-                    store.send(.windowSnapTapped(.fullScreen))
-                }
-                WindowSnapButton(icon: "rectangle.center.inset.filled", label: "가운데") {
-                    store.send(.windowSnapTapped(.center))
-                }
-                WindowSnapButton(icon: "rectangle.topthird.inset.filled", label: "좌상단") {
-                    store.send(.windowSnapTapped(.topLeft))
-                }
-                WindowSnapButton(icon: "rectangle.bottomthird.inset.filled", label: "우하단") {
-                    store.send(.windowSnapTapped(.bottomRight))
+                ForEach(WindowSnap.Position.displayOrder, id: \.self) { position in
+                    WindowSnapButton(icon: position.systemImage, label: position.label) {
+                        store.send(.windowSnapTapped(position))
+                    }
                 }
             }
         }
@@ -481,4 +462,45 @@ struct WindowSnapButton: View {
             ProductivityFeature()
         }
     )
+}
+
+// MARK: - Window Snap Options
+
+extension WindowSnap.Position {
+    /// 반쪽, 4분할, 전체·가운데 순서로 버튼에 표시한다.
+    static let displayOrder: [Self] = [
+        .leftHalf, .rightHalf, .topHalf, .bottomHalf,
+        .topLeft, .topRight, .bottomLeft, .bottomRight,
+        .fullScreen, .center
+    ]
+
+    var label: String {
+        switch self {
+        case .leftHalf: return "왼쪽"
+        case .rightHalf: return "오른쪽"
+        case .topHalf: return "상단"
+        case .bottomHalf: return "하단"
+        case .topLeft: return "좌상단"
+        case .topRight: return "우상단"
+        case .bottomLeft: return "좌하단"
+        case .bottomRight: return "우하단"
+        case .fullScreen: return "전체화면"
+        case .center: return "가운데"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .leftHalf: return "rectangle.lefthalf.filled"
+        case .rightHalf: return "rectangle.righthalf.filled"
+        case .topHalf: return "rectangle.tophalf.filled"
+        case .bottomHalf: return "rectangle.bottomhalf.filled"
+        case .topLeft: return "rectangle.inset.topleft.filled"
+        case .topRight: return "rectangle.inset.topright.filled"
+        case .bottomLeft: return "rectangle.inset.bottomleft.filled"
+        case .bottomRight: return "rectangle.inset.bottomright.filled"
+        case .fullScreen: return "arrow.up.left.and.arrow.down.right"
+        case .center: return "rectangle.center.inset.filled"
+        }
+    }
 }
