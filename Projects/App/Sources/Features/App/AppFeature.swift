@@ -196,6 +196,9 @@ public struct AppFeature {
             case .connection(.nowPlayingInfoReceived(let info)):
                 return .send(.media(.nowPlayingInfoReceived(info)))
 
+            case .connection(.volumeStateReceived(let volumeState)):
+                return .send(.media(.volumeStateReceived(volumeState)))
+
             case .connection:
                 return .none
 

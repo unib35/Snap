@@ -299,6 +299,10 @@ public enum PacketEvent: Equatable, Sendable {
     /// - Parameter info: Now Playing 정보
     case nowPlayingInfo(NowPlayingInfo)
 
+    /// Mac 시스템 볼륨 상태 수신
+    /// - Parameter state: 출력 볼륨과 음소거 여부
+    case volumeState(VolumeState)
+
     /// 오류 패킷 수신
     /// - Parameter message: 오류 메시지
     case error(String)
@@ -631,6 +635,8 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
             connectionContinuation?.yield(.packet(.appList(response.apps)))
         case .nowPlayingInfo(let info, _):
             connectionContinuation?.yield(.packet(.nowPlayingInfo(info)))
+        case .volumeState(let volumeState, _):
+            connectionContinuation?.yield(.packet(.volumeState(volumeState)))
         case .error(let snapError, _):
             connectionContinuation?.yield(.packet(.error(snapError.message)))
         default:

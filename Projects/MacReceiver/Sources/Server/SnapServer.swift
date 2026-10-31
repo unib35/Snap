@@ -165,6 +165,14 @@ public final class SnapServer: @unchecked Sendable {
         client.send(info, type: .nowPlayingInfo)
     }
 
+    /// 시스템 볼륨 상태 전송
+    public func sendVolumeState(_ state: VolumeState) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let client = connectedClient else { return }
+        client.send(state, type: .volumeState)
+    }
+
     // MARK: - Private Methods
 
     private static func getDeviceID() -> String {

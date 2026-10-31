@@ -26,7 +26,7 @@ public struct MediaView: View {
                         HStack {
                             Text("Mac 볼륨").font(.headline)
                             Spacer()
-                            Text(store.isMuted ? "음소거" : "\(Int(store.volume * 100))%")
+                            Text(volumeText)
                                 .font(.subheadline.monospacedDigit())
                                 .foregroundStyle(SnapColors.textSecondary)
                         }
@@ -228,6 +228,12 @@ public struct MediaView: View {
 
     // MARK: - Volume Controls
 
+    /// Mac에서 실제 볼륨을 받기 전에는 추정치 대신 확인 중임을 보여준다.
+    private var volumeText: String {
+        if !store.hasReceivedVolume { return "확인 중" }
+        return store.isMuted ? "음소거" : "\(Int((store.volume * 100).rounded()))%"
+    }
+
     private var volumeControls: some View {
         VStack(spacing: layoutMode == .compact ? 12 : 16) {
             HStack(spacing: layoutMode == .compact ? 12 : 16) {
@@ -249,7 +255,7 @@ public struct MediaView: View {
                 )
                 .tint(.accentColor)
                 .accessibilityLabel("볼륨")
-                .accessibilityValue("\(Int(store.volume * 100))%")
+                .accessibilityValue(volumeText)
 
                 // Volume Up
                 Button {

@@ -93,6 +93,8 @@ v1/v2와 직접 연결되지 않으므로 두 앱을 함께 업데이트하고 �
 | `0x20` | `KEY_EVENT` | 키보드 입력 | iOS → Mac |
 | `0x21` | `KEY_COMBO` | 단축키 조합 | iOS → Mac |
 | `0x30` | `MEDIA_CONTROL` | 재생/정지/볼륨 | iOS → Mac |
+| `0x31` | `NOW_PLAYING_INFO` | 재생 중인 미디어 정보 | Mac → iOS |
+| `0x32` | `VOLUME_STATE` | 시스템 출력 볼륨·음소거 상태 | Mac → iOS |
 | `0x40` | `WINDOW_SNAP` | 윈도우 정렬 | iOS → Mac |
 | `0x50` | `APP_LIST_REQUEST` | 실행 중인 앱 목록 요청 | iOS → Mac |
 | `0x51` | `APP_LIST_RESPONSE` | 앱 목록 응답 | Mac → iOS |
@@ -227,6 +229,13 @@ message MediaControl {
 
   Command command = 1;
   float volume = 2;      // SET_VOLUME 시 0.0 ~ 1.0
+}
+
+// Mac → iOS. 연결 직후 한 번, 이후 값이 바뀔 때만 보낸다.
+// 출력 장치가 볼륨을 지원하지 않으면 보내지 않는다.
+message VolumeState {
+  float volume = 1;      // 0.0 ~ 1.0
+  bool is_muted = 2;
 }
 ```
 

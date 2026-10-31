@@ -58,6 +58,7 @@ public struct ConnectionFeature: Sendable {
 
         // Now Playing
         case nowPlayingInfoReceived(NowPlayingInfo)
+        case volumeStateReceived(VolumeState)
 
         // Pairing
         case pairingCodeScanned(String)
@@ -243,6 +244,8 @@ public struct ConnectionFeature: Sendable {
                         return .send(.appListReceived(apps))
                     case .nowPlayingInfo(let info):
                         return .send(.nowPlayingInfoReceived(info))
+                    case .volumeState(let volumeState):
+                        return .send(.volumeStateReceived(volumeState))
                     case .error(let message):
                         state.lastError = .connection(.serverError(message))
                     }
@@ -380,7 +383,7 @@ public struct ConnectionFeature: Sendable {
             case .appListReceived:
                 return .none
 
-            case .nowPlayingInfoReceived:
+            case .nowPlayingInfoReceived, .volumeStateReceived:
                 return .none
 
             case .focusApp(let bundleID, let pid):

@@ -68,6 +68,7 @@ public enum DecodedPacket: Sendable {
     case keyCombo(KeyCombo, header: PacketHeader)
     case mediaControl(MediaControl, header: PacketHeader)
     case nowPlayingInfo(NowPlayingInfo, header: PacketHeader)
+    case volumeState(VolumeState, header: PacketHeader)
     case windowSnap(WindowSnap, header: PacketHeader)
     case appListRequest(AppListRequest, header: PacketHeader)
     case appListResponse(AppListResponse, header: PacketHeader)
@@ -101,6 +102,7 @@ public enum DecodedPacket: Sendable {
         case .keyCombo: return .keyCombo
         case .mediaControl: return .mediaControl
         case .nowPlayingInfo: return .nowPlayingInfo
+        case .volumeState: return .volumeState
         case .windowSnap: return .windowSnap
         case .appListRequest: return .appListRequest
         case .appListResponse: return .appListResponse
@@ -134,6 +136,7 @@ public enum DecodedPacket: Sendable {
              .keyCombo(_, let header),
              .mediaControl(_, let header),
              .nowPlayingInfo(_, let header),
+             .volumeState(_, let header),
              .windowSnap(_, let header),
              .appListRequest(_, let header),
              .appListResponse(_, let header),
@@ -265,6 +268,9 @@ public enum PacketDecoder {
             case .nowPlayingInfo:
                 let message = try decoder.decode(NowPlayingInfo.self, from: payload)
                 return .nowPlayingInfo(message, header: header)
+            case .volumeState:
+                let message = try decoder.decode(VolumeState.self, from: payload)
+                return .volumeState(message, header: header)
             case .windowSnap:
                 let message = try decoder.decode(WindowSnap.self, from: payload)
                 return .windowSnap(message, header: header)

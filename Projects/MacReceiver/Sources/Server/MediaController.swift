@@ -95,29 +95,25 @@ public final class MediaController {
         runAppleScript(script)
     }
 
-    /// 현재 볼륨 가져오기
-    public func getVolume() -> Float {
+    /// 현재 출력 볼륨과 음소거 상태
+    /// - Returns: 출력 장치가 볼륨을 지원하지 않으면 nil
+    public func currentVolumeState() -> VolumeState? {
         let script = """
-            output volume of (get volume settings)
+            set settings to get volume settings
+            return ((output volume of settings) as text) & "," & ((output muted of settings) as text)
         """
 
-        if let result = runAppleScript(script),
-           let volume = Float(result) {
-            return volume / 100.0
-        }
-        return 0
+        return runAppleScript(script).flatMap(Self.parseVolumeSettings)
     }
 
-    /// 음소거 상태 확인
-    public func isMuted() -> Bool {
-        let script = """
-            output muted of (get volume settings)
-        """
-
-        if let result = runAppleScript(script) {
-            return result.lowercased() == "true"
-        }
-        return false
+    /// AppleScript `get volume settings` 결과("볼륨,음소거")를 해석합니다.
+    nonisolated static func parseVolumeSettings(_ output: String) -> VolumeState? {
+        let parts = output.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        guard parts.count == 2, let percent = Float(parts[0]) else { return nil }
+        return VolumeState(
+            volume: max(0, min(1, percent / 100)),
+            isMuted: parts[1].lowercased() == "true"
+        )
     }
 
     // MARK: - Now Playing Info

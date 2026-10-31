@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import Shared
 import SwiftUI
 import Testing
 @testable import App
@@ -36,6 +37,20 @@ struct AppFeatureTests {
         await store.receive {
             if case .connection(.startNetworkMonitoring) = $0 { return true }
             return false
+        }
+    }
+
+    @Test("Mac에서 받은 볼륨 상태를 미디어 화면에 전달")
+    func volumeStateIsRoutedToMedia() async {
+        let store = await TestStore(initialState: AppFeature.State()) {
+            AppFeature()
+        }
+        let volumeState = VolumeState(volume: 0.6, isMuted: false)
+
+        await store.send(.connection(.volumeStateReceived(volumeState)))
+        await store.receive(\.media.volumeStateReceived) {
+            $0.media.volume = 0.6
+            $0.media.hasReceivedVolume = true
         }
     }
 
