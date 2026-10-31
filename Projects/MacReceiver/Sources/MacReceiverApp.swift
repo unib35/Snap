@@ -596,8 +596,8 @@ final class ServerManager: ObservableObject {
             logPacket("AppFocus: \(focus.bundleID) - \(success ? "success" : "failed")")
 
         case .presentation(let pres, _):
-            // TODO: Presentation control
-            logPacket("Presentation: \(pres.command)")
+            let executed = PresentationController.shared.execute(command: pres.command)
+            logPacket("Presentation: \(pres.command)\(executed ? "" : " - unsupported app")")
 
         case .voiceText(let voice, _):
             if voice.isFinal && !voice.text.isEmpty {

@@ -582,7 +582,17 @@ public struct PresenterFullScreenView: View {
                         .font(.system(size: 72, weight: .bold, design: .monospaced))
                         .foregroundStyle(store.isOvertime ? SnapColors.warning : .white)
                         .padding(.top, 24)
-                        .accessibilityLabel("경과 시간 \(store.displayTime)")
+                        .accessibilityLabel(
+                            store.timerMode == .countDown
+                                ? "남은 시간 \(store.remainingTime)"
+                                : "경과 시간 \(store.displayTime)"
+                        )
+
+                    if store.timerMode == .countDown {
+                        fullScreenProgress
+                            .padding(.horizontal, 40)
+                            .padding(.top, 12)
+                    }
 
                     // Slide Number
                     Text("Slide \(store.slideNumber)")
@@ -636,6 +646,23 @@ public struct PresenterFullScreenView: View {
                     store.send(.nextSlide)
                     autoSlideCountdown = store.autoSlideInterval
                 }
+            }
+        }
+    }
+
+    // MARK: - Progress
+
+    private var fullScreenProgress: some View {
+        VStack(spacing: 8) {
+            ProgressView(value: store.progress)
+                .tint(store.isOvertime || store.progress >= 0.9 ? SnapColors.warning : SnapColors.success)
+                .accessibilityLabel("발표 진행률")
+                .accessibilityValue("\(Int(store.progress * 100))%")
+
+            if store.isOvertime {
+                Label("시간 초과", systemImage: "exclamationmark.triangle.fill")
+                    .font(.headline)
+                    .foregroundStyle(SnapColors.warning)
             }
         }
     }

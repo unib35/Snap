@@ -188,6 +188,13 @@ public struct ConnectionClient: Sendable {
     /// - Warning: 일부 명령(재시작, 종료)은 즉시 시스템에 적용됩니다.
     public var sendSystemCommand: @Sendable (SystemCommand.Command) async -> Void
 
+    /// 발표 명령을 전송합니다.
+    ///
+    /// Mac이 앞에 있는 발표 앱(Keynote, PowerPoint, 브라우저)에 맞는 단축키로 실행합니다.
+    ///
+    /// - Parameter command: 발표 명령 (다음/이전 슬라이드, 시작, 종료, 화면 가리기)
+    public var sendPresentation: @Sendable (Presentation.Command) async -> Void = { _ in }
+
     /// 숏폼 영상 컨트롤 명령을 전송합니다.
     ///
     /// - Parameters:
@@ -340,6 +347,7 @@ extension ConnectionClient: DependencyKey {
             sendVoiceText: { text, isFinal in await actor.sendVoiceText(text: text, isFinal: isFinal) },
             sendOpenURL: { url in await actor.sendOpenURL(url: url) },
             sendSystemCommand: { command in await actor.sendSystemCommand(command: command) },
+            sendPresentation: { command in await actor.sendPresentation(command: command) },
             sendShortsCommand: { platform, action in await actor.sendShortsCommand(platform: platform, action: action) },
             sendPairingResponse: { code in await actor.sendPairingResponse(code: code) },
             forgetDevice: { id in try await actor.forgetDevice(serverID: id) },
@@ -594,6 +602,10 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
 
     func sendShortsCommand(platform: ShortsCommand.Platform, action: ShortsCommand.Action) {
         client?.sendShortsCommand(platform: platform, action: action)
+    }
+
+    func sendPresentation(command: Presentation.Command) {
+        client?.sendPresentation(command: command)
     }
 
     func forgetDevice(serverID: String) throws {
