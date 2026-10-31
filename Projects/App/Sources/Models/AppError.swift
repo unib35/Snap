@@ -114,7 +114,7 @@ extension AppError.ConnectionErrorType {
         case .timeout:
             return "연결 시간이 초과되었습니다. 다시 시도해주세요."
         case .pairingFailed:
-            return "페어링에 실패했습니다. PIN 코드를 다시 확인해주세요."
+            return "페어링에 실패했습니다. Mac에 표시된 QR 코드를 다시 스캔해주세요. 코드가 만료되었다면 다시 연결해 새 코드를 받으세요."
         case .serverError(let detail):
             return "서버 오류: \(detail)"
         }

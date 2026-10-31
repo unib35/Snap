@@ -13,7 +13,7 @@ import Shared
 /// - **디바이스 탐색**: Bonjour를 통한 로컬 네트워크 Mac 탐색
 /// - **연결 관리**: TCP 연결 수립/해제 및 재연결
 /// - **입력 전송**: 마우스, 키보드, 미디어 컨트롤 등 입력 이벤트 전송
-/// - **페어링**: PIN 코드 기반 디바이스 인증
+/// - **페어링**: Mac의 QR 코드 기반 디바이스 인증
 ///
 /// ## 사용 예제
 /// ```swift
@@ -197,9 +197,9 @@ public struct ConnectionClient: Sendable {
 
     // MARK: - Pairing
 
-    /// 페어링 PIN 코드 응답을 전송합니다.
+    /// 스캔하거나 붙여넣은 페어링 코드를 전송합니다.
     ///
-    /// - Parameter pinCode: 사용자가 입력한 4자리 PIN 코드
+    /// - Parameter code: Mac에 표시된 `snap-pair:` 페어링 코드
     public var sendPairingResponse: @Sendable (String) async -> Void
     public var forgetDevice: @Sendable (String) async throws -> Void = { _ in }
 }
@@ -278,7 +278,7 @@ public enum ConnectionEvent: Equatable, Sendable {
     /// - Parameter message: 오류 메시지
     case error(String)
 
-    /// Mac에서 페어링 요청 (PIN 입력 필요)
+    /// Mac에서 페어링 요청 (QR 코드 확인 필요)
     /// - Parameter serverName: 페어링 요청한 Mac 이름
     case pairingRequired(serverName: String)
 
@@ -331,7 +331,7 @@ extension ConnectionClient: DependencyKey {
             sendOpenURL: { url in await actor.sendOpenURL(url: url) },
             sendSystemCommand: { command in await actor.sendSystemCommand(command: command) },
             sendShortsCommand: { platform, action in await actor.sendShortsCommand(platform: platform, action: action) },
-            sendPairingResponse: { code in await actor.sendPairingResponse(pinCode: code) },
+            sendPairingResponse: { code in await actor.sendPairingResponse(code: code) },
             forgetDevice: { id in try await actor.forgetDevice(serverID: id) }
         )
     }
@@ -585,8 +585,8 @@ private actor ConnectionActor: SnapClientDelegate, BonjourBrowserDelegate {
         try KeychainPairingCredentialStore.shared.remove(for: "client:" + serverID)
     }
 
-    func sendPairingResponse(pinCode: String) {
-        client?.sendPairingCode(pinCode)
+    func sendPairingResponse(code: String) {
+        client?.sendPairingCode(code)
     }
 
     // MARK: - SnapClientDelegate

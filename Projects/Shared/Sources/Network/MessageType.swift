@@ -54,9 +54,9 @@ public enum MessageType: UInt8, Sendable {
     case heartbeat = 0x81
     /// 연결 종료
     case disconnect = 0x82
-    /// 페어링 챌린지 (macOS → iOS: PIN 입력 요청)
+    /// 페어링 챌린지 (macOS → iOS: QR 코드 확인 요청)
     case pairingChallenge = 0x83
-    /// 페어링 응답 (iOS → macOS: PIN 입력 결과)
+    /// 페어링 응답 (iOS → macOS: 페어링 코드 응답)
     case pairingResponse = 0x84
     /// 페어링 결과 (macOS → iOS: 성공/실패)
     case pairingResult = 0x85

@@ -511,40 +511,6 @@
         }
       }
     },
-    "pairing.enterPin" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enter PIN Code"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PIN 코드 입력"
-          }
-        }
-      }
-    },
-    "pairing.enterPinDescription %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enter the 4-digit PIN shown on %@"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@에 표시된\n4자리 PIN을 입력하세요"
-          }
-        }
-      }
-    },
     "pairing.connect" : {
       "extractionState" : "manual",
       "localizations" : {

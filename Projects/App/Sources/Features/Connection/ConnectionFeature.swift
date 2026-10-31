@@ -16,7 +16,6 @@ public struct ConnectionFeature: Sendable {
         // Pairing
         public var isPairingRequired: Bool = false
         public var pairingServerName: String = ""
-        public var pairingPinCode: String = ""
 
         // Reconnection
         public var isAutoReconnectEnabled: Bool = true
@@ -61,8 +60,6 @@ public struct ConnectionFeature: Sendable {
         case nowPlayingInfoReceived(NowPlayingInfo)
 
         // Pairing
-        case pairingPinCodeChanged(String)
-        case submitPairingPin
         case pairingCodeScanned(String)
         case cancelPairing
 
@@ -206,7 +203,6 @@ public struct ConnectionFeature: Sendable {
                 switch event {
                 case .connected(let serverName):
                     state.isPairingRequired = false
-                    state.pairingPinCode = ""
                     state.reconnectAttempt = 0
                     if case .connecting(var device) = state.status {
                         device.name = serverName
@@ -224,7 +220,6 @@ public struct ConnectionFeature: Sendable {
                     let previousDevice = state.connectedDevice ?? state.lastConnectedDevice
                     state.connectedDevice = nil
                     state.isPairingRequired = false
-                    state.pairingPinCode = ""
 
                     if errorMessage != nil {
                         state.lastError = .connection(.connectionLost)
@@ -280,16 +275,13 @@ public struct ConnectionFeature: Sendable {
                 case .pairingRequired(let serverName):
                     state.isPairingRequired = true
                     state.pairingServerName = serverName
-                    state.pairingPinCode = ""
                     state.reconnectAttempt = 0
 
                 case .pairingResult(let success, _):
                     if success {
                         state.isPairingRequired = false
-                        state.pairingPinCode = ""
                     } else {
                         state.lastError = .connection(.pairingFailed)
-                        state.pairingPinCode = ""
                     }
                 }
                 return .none
@@ -402,21 +394,8 @@ public struct ConnectionFeature: Sendable {
                 guard state.isPairingRequired else { return .none }
                 return .run { _ in await connectionClient.sendPairingResponse(code) }
 
-            case .pairingPinCodeChanged(let pin):
-                let filtered = String(pin.filter { $0.isNumber }.prefix(4))
-                state.pairingPinCode = filtered
-                return .none
-
-            case .submitPairingPin:
-                guard state.pairingPinCode.count == 4 else { return .none }
-                let pinCode = state.pairingPinCode
-                return .run { _ in
-                    await connectionClient.sendPairingResponse(pinCode)
-                }
-
             case .cancelPairing:
                 state.isPairingRequired = false
-                state.pairingPinCode = ""
                 state.status = .disconnected
                 state.connectedDevice = nil
                 state.lastConnectedDevice = nil

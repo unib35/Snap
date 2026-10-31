@@ -188,7 +188,6 @@ struct ConnectionTests {
             $0.connectedDevice = updatedDevice
             $0.lastConnectedDevice = updatedDevice
             $0.isPairingRequired = false
-            $0.pairingPinCode = ""
             $0.reconnectAttempt = 0
         }
     }
@@ -295,70 +294,8 @@ struct PairingTests {
         await store.send(.connectionEvent(.pairingRequired(serverName: "My Mac"))) {
             $0.isPairingRequired = true
             $0.pairingServerName = "My Mac"
-            $0.pairingPinCode = ""
             $0.reconnectAttempt = 0
         }
-    }
-
-    @Test("PIN 코드 입력 - 숫자만 허용")
-    func pairingPinCodeChanged() async {
-        var state = ConnectionFeature.State()
-        state.isPairingRequired = true
-
-        let store = await TestStore(initialState: state) {
-            ConnectionFeature()
-        }
-
-        await store.send(.pairingPinCodeChanged("12ab34")) {
-            $0.pairingPinCode = "1234"
-        }
-    }
-
-    @Test("PIN 코드 입력 - 4자리 제한")
-    func pairingPinCodeMaxLength() async {
-        var state = ConnectionFeature.State()
-        state.isPairingRequired = true
-
-        let store = await TestStore(initialState: state) {
-            ConnectionFeature()
-        }
-
-        await store.send(.pairingPinCodeChanged("123456")) {
-            $0.pairingPinCode = "1234"
-        }
-    }
-
-    @Test("PIN 코드 제출 - 4자리 미만이면 무시")
-    func submitPairingPinInvalid() async {
-        var state = ConnectionFeature.State()
-        state.isPairingRequired = true
-        state.pairingPinCode = "123"
-
-        let store = await TestStore(initialState: state) {
-            ConnectionFeature()
-        }
-
-        await store.send(.submitPairingPin)
-        // 아무 동작 없음
-    }
-
-    @Test("PIN 코드 제출 - 4자리면 전송")
-    func submitPairingPinValid() async {
-        var state = ConnectionFeature.State()
-        state.isPairingRequired = true
-        state.pairingPinCode = "1234"
-
-        let sentPinCode = LockIsolated<String?>(nil)
-        let store = await TestStore(initialState: state) {
-            ConnectionFeature()
-        } withDependencies: {
-            $0.connectionClient.sendPairingResponse = { pin in
-                sentPinCode.setValue(pin)
-            }
-        }
-
-        await store.send(.submitPairingPin)
-        #expect(sentPinCode.value == "1234")
     }
 
     @Test("페어링 성공")
@@ -366,7 +303,6 @@ struct PairingTests {
         var state = ConnectionFeature.State()
         state.status = .connecting(testDevice)
         state.isPairingRequired = true
-        state.pairingPinCode = "1234"
 
         let store = await TestStore(initialState: state) {
             ConnectionFeature()
@@ -374,7 +310,6 @@ struct PairingTests {
 
         await store.send(.connectionEvent(.pairingResult(success: true, message: "Success"))) {
             $0.isPairingRequired = false
-            $0.pairingPinCode = ""
         }
     }
 
@@ -383,15 +318,13 @@ struct PairingTests {
         var state = ConnectionFeature.State()
         state.status = .connecting(testDevice)
         state.isPairingRequired = true
-        state.pairingPinCode = "1234"
 
         let store = await TestStore(initialState: state) {
             ConnectionFeature()
         }
 
-        await store.send(.connectionEvent(.pairingResult(success: false, message: "Wrong PIN"))) {
+        await store.send(.connectionEvent(.pairingResult(success: false, message: "Invalid pairing code"))) {
             $0.lastError = .connection(.pairingFailed)
-            $0.pairingPinCode = ""
         }
     }
 
@@ -400,7 +333,6 @@ struct PairingTests {
         var state = ConnectionFeature.State()
         state.status = .connecting(testDevice)
         state.isPairingRequired = true
-        state.pairingPinCode = "12"
 
         let store = await TestStore(initialState: state) {
             ConnectionFeature()
@@ -411,7 +343,6 @@ struct PairingTests {
         await store.send(.cancelPairing) {
             $0.status = .disconnected
             $0.isPairingRequired = false
-            $0.pairingPinCode = ""
         }
     }
 }
@@ -420,6 +351,13 @@ struct PairingTests {
 
 @Suite("에러 핸들링 테스트")
 struct ErrorHandlingTests {
+    @Test("페어링 실패 문구는 PIN이 아닌 QR 코드를 안내")
+    func pairingFailedMessageGuidesQRCode() {
+        let message = AppError.connection(.pairingFailed).userMessage
+        #expect(!message.contains("PIN"))
+        #expect(message.contains("QR 코드"))
+    }
+
     @Test("연결 에러 발생 시 재연결 시도")
     func connectionErrorWithRetry() async {
         var state = ConnectionFeature.State()
