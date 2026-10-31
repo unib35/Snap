@@ -218,6 +218,7 @@ struct ConnectionSheetView: View {
                 if case .connected(let device) = store.status {
                     Section("연결된 Mac") {
                         Label(device.name, systemImage: "checkmark.circle.fill")
+                        LabeledContent("응답 시간", value: store.latency.map { "\(Int(($0 * 1000).rounded()))ms" } ?? "측정 중")
                         Button("연결 해제", role: .destructive) { store.send(.disconnect) }
                     }
                 } else if case .connecting(let device) = store.status {

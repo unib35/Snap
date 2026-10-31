@@ -10,8 +10,8 @@ public struct ConnectionFeature: Sendable {
         public var discoveredDevices: IdentifiedArrayOf<Device> = []
         public var connectedDevice: Device?
         public var lastError: AppError?
-        public var latency: TimeInterval = 0
-        public var signalStrength: SignalStrength = .unknown
+        /// 최근 하트비트 왕복 시간 (초), 측정 전이거나 연결되지 않았으면 nil
+        public var latency: TimeInterval?
 
         // Pairing
         public var isPairingRequired: Bool = false
@@ -204,8 +204,7 @@ public struct ConnectionFeature: Sendable {
                 state.status = .disconnected
                 state.connectedDevice = nil
                 state.lastConnectedDevice = nil
-                state.latency = 0
-                state.signalStrength = .unknown
+                state.latency = nil
                 state.reconnectAttempt = 0
                 return .merge(
                     .cancel(id: CancelID.connection),
@@ -234,6 +233,7 @@ public struct ConnectionFeature: Sendable {
                 case .disconnected(let errorMessage):
                     let previousDevice = state.connectedDevice ?? state.lastConnectedDevice
                     state.connectedDevice = nil
+                    state.latency = nil
                     state.isPairingRequired = false
 
                     if errorMessage != nil {
@@ -251,6 +251,10 @@ public struct ConnectionFeature: Sendable {
                         state.status = .disconnected
                         state.reconnectAttempt = 0
                     }
+
+                case .latencyMeasured(let latency):
+                    guard state.status.isConnected else { return .none }
+                    state.latency = latency
 
                 case .packet(let packetEvent):
                     switch packetEvent {
@@ -485,8 +489,7 @@ public struct ConnectionFeature: Sendable {
                     state.status = .disconnected
                     state.connectedDevice = nil
                     state.lastConnectedDevice = nil
-                    state.latency = 0
-                    state.signalStrength = .unknown
+                    state.latency = nil
                     state.reconnectAttempt = 0
                     cancelConnection = .merge(.cancel(id: CancelID.connection), .cancel(id: CancelID.reconnect))
                 }

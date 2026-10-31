@@ -14,6 +14,8 @@ public protocol SnapClientDelegate: AnyObject {
     func client(_ client: SnapClient, didReceivePairingChallenge challenge: PairingChallenge)
     /// 페어링 결과 수신
     func client(_ client: SnapClient, didReceivePairingResult result: PairingResult)
+    /// 하트비트 왕복 시간 측정 (초)
+    func client(_ client: SnapClient, didMeasureLatency latency: TimeInterval)
 }
 
 /// Snap 클라이언트 (iOS)
@@ -452,9 +454,12 @@ extension SnapClient: TCPConnectionDelegate {
             let ack = Ack(originalTimestamp: heartbeat.timestamp)
             connection.send(ack, type: .ack)
 
-        case .ack:
-            // 하트비트 Ack 수신
-            break
+        case .ack(let ack, _):
+            // 내가 보낸 하트비트의 타임스탬프가 그대로 돌아오므로 왕복 시간을 계산할 수 있음
+            let now = HeartbeatManager.currentTimestamp()
+            guard isConnected, ack.originalTimestamp > 0, now >= ack.originalTimestamp else { return }
+            let latency = TimeInterval(now - ack.originalTimestamp) / 1_000_000
+            delegate?.client(self, didMeasureLatency: latency)
 
         case .error(let snapError, _):
             delegate?.client(self, didFailWithError: snapError)

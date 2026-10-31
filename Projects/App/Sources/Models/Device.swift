@@ -38,25 +38,6 @@ public enum ConnectionStatus: Equatable, Sendable {
     }
 }
 
-/// 신호 강도
-public enum SignalStrength: Equatable, Sendable {
-    case unknown
-    case weak      // > 100ms
-    case moderate  // 50-100ms
-    case strong    // < 50ms
-
-    public init(latency: TimeInterval) {
-        switch latency {
-        case ..<0.05:
-            self = .strong
-        case 0.05..<0.1:
-            self = .moderate
-        default:
-            self = .weak
-        }
-    }
-}
-
 /// 연결 에러
 public enum ConnectionError: Error, Equatable, Sendable {
     case discoveryFailed(String)

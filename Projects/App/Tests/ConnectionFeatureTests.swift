@@ -215,8 +215,6 @@ struct ConnectionTests {
             $0.status = .disconnected
             $0.connectedDevice = nil
             $0.lastConnectedDevice = nil
-            $0.latency = 0
-            $0.signalStrength = .unknown
             $0.reconnectAttempt = 0
         }
     }
@@ -280,6 +278,51 @@ struct ConnectionTests {
         await store.send(.cancelReconnect) {
             $0.status = .disconnected
             $0.reconnectAttempt = 0
+        }
+    }
+
+    @Test("연결 중 응답 시간 측정값을 반영")
+    func latencyMeasuredWhileConnected() async {
+        var state = ConnectionFeature.State()
+        state.status = .connected(testDevice)
+
+        let store = await TestStore(initialState: state) {
+            ConnectionFeature()
+        }
+
+        await store.send(.connectionEvent(.latencyMeasured(0.023))) {
+            $0.latency = 0.023
+        }
+    }
+
+    @Test("연결되지 않았으면 응답 시간을 무시")
+    func latencyIgnoredWhenNotConnected() async {
+        var state = ConnectionFeature.State()
+        state.status = .connecting(testDevice)
+
+        let store = await TestStore(initialState: state) {
+            ConnectionFeature()
+        }
+
+        await store.send(.connectionEvent(.latencyMeasured(0.023)))
+    }
+
+    @Test("연결이 끊기면 응답 시간을 지움")
+    func latencyClearedOnDisconnect() async {
+        var state = ConnectionFeature.State()
+        state.status = .connected(testDevice)
+        state.connectedDevice = testDevice
+        state.latency = 0.023
+        state.isAutoReconnectEnabled = false
+
+        let store = await TestStore(initialState: state) {
+            ConnectionFeature()
+        }
+
+        await store.send(.connectionEvent(.disconnected(error: nil))) {
+            $0.connectedDevice = nil
+            $0.latency = nil
+            $0.status = .disconnected
         }
     }
 }
