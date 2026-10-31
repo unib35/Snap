@@ -1,4 +1,5 @@
 import ActivityKit
+import Shared
 import SwiftUI
 import WidgetKit
 

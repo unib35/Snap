@@ -76,6 +76,7 @@ let project = Project(
             ]),
             sources: ["Projects/App/Sources/**"],
             resources: ["Projects/App/Resources/**"],
+            entitlements: .file(path: "Projects/App/App.entitlements"),
             scripts: [swiftLintScript],
             dependencies: [
                 .target(name: "Shared"),
@@ -107,6 +108,7 @@ let project = Project(
                 "NSSupportsLiveActivities": true,
             ]),
             sources: ["Projects/Widget/Sources/**"],
+            entitlements: .file(path: "Projects/Widget/SnapWidget.entitlements"),
             dependencies: [
                 .target(name: "Shared"),
             ],

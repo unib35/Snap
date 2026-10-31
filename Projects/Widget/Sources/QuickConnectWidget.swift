@@ -1,10 +1,11 @@
+import Shared
 import SwiftUI
 import WidgetKit
 
 // MARK: - Quick Connect Widget
 
 struct QuickConnectWidget: Widget {
-    let kind: String = "QuickConnectWidget"
+    let kind: String = WidgetKind.quickConnect
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: QuickConnectProvider()) { entry in
@@ -35,8 +36,8 @@ struct QuickConnectProvider: TimelineProvider {
     func getSnapshot(in context: Context, completion: @escaping (QuickConnectEntry) -> Void) {
         let entry = QuickConnectEntry(
             date: Date(),
-            isConnected: WidgetDataManager.isConnected,
-            deviceName: WidgetDataManager.connectedDeviceName
+            isConnected: WidgetDataStore.shared.isConnected,
+            deviceName: WidgetDataStore.shared.connectedDeviceName
         )
         completion(entry)
     }
@@ -44,8 +45,8 @@ struct QuickConnectProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<QuickConnectEntry>) -> Void) {
         let entry = QuickConnectEntry(
             date: Date(),
-            isConnected: WidgetDataManager.isConnected,
-            deviceName: WidgetDataManager.connectedDeviceName
+            isConnected: WidgetDataStore.shared.isConnected,
+            deviceName: WidgetDataStore.shared.connectedDeviceName
         )
 
         // Update every 5 minutes

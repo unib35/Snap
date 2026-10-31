@@ -1,4 +1,5 @@
 import AppIntents
+import Shared
 import SwiftUI
 import WidgetKit
 
@@ -9,22 +10,24 @@ import WidgetKit
 struct ToggleConnectionIntent: SetValueIntent {
     static let title: LocalizedStringResource = "Snap 연결 토글"
     static let description = IntentDescription("Mac과의 연결을 토글합니다.")
+    static let openAppWhenRun: Bool = true
 
     @Parameter(title: "연결됨")
     var value: Bool
 
     init() {
-        self.value = WidgetDataManager.isConnected
+        self.value = WidgetDataStore.shared.isConnected
     }
 
     init(value: Bool) {
         self.value = value
     }
 
-    func perform() async throws -> some IntentResult {
-        // The toggle action is handled through URL scheme when the control is tapped
-        // Widget extensions can't directly control app state
-        .result()
+    func perform() async throws -> some IntentResult & OpensIntent {
+        // Widget extensions can't directly control app state, so the app handles it via URL scheme
+        // swiftlint:disable:next force_unwrapping
+        let url = URL(string: value ? "snap://connect" : "snap://disconnect")!
+        return .result(opensIntent: OpenURLIntent(url))
     }
 }
 
@@ -37,7 +40,7 @@ struct ConnectionValueProvider: ControlValueProvider {
     }
 
     func currentValue() async throws -> Bool {
-        WidgetDataManager.isConnected
+        WidgetDataStore.shared.isConnected
     }
 }
 
@@ -46,7 +49,7 @@ struct ConnectionValueProvider: ControlValueProvider {
 /// Control Center에 표시되는 연결 토글 컨트롤
 @available(iOS 18.0, *)
 struct SnapControlWidget: ControlWidget {
-    static let kind: String = "com.snap.app.control"
+    static let kind: String = WidgetKind.connectionControl
 
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(
