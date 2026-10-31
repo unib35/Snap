@@ -199,6 +199,10 @@ public struct AppFeature {
             case .connection:
                 return .none
 
+            case .trackpad(.laserPointer(.delegate(.sensitivityChanged(let sensitivity)))):
+                let multiplier = LaserPointerFeature.settingsMultiplier(for: sensitivity)
+                return .send(.settings(.setLaserSensitivity(multiplier)))
+
             case .trackpad:
                 return .none
 
@@ -245,7 +249,8 @@ public struct AppFeature {
 
     private func syncLaserPointerSettings(from settings: SettingsFeature.State) -> Effect<Action> {
         let baseSensitivity = Double(LaserPointerFeature.SensitivityPreset.medium.value)
-        let scaledSensitivity = Float(min(max(settings.laserSensitivity * baseSensitivity, 1.0), 50.0))
+        let range = LaserPointerFeature.sensitivityRange
+        let scaledSensitivity = min(max(Float(settings.laserSensitivity * baseSensitivity), range.lowerBound), range.upperBound)
         return .send(.trackpad(.laserPointer(.setSensitivity(scaledSensitivity))))
     }
 
