@@ -17,6 +17,7 @@ public enum AppError: Equatable, Sendable, LocalizedError {
         case connectionLost
         case timeout
         case pairingFailed
+        case noLocalNetwork
         case serverError(String)
     }
 
@@ -73,7 +74,7 @@ public enum AppError: Equatable, Sendable, LocalizedError {
             switch type {
             case .discoveryFailed, .connectionFailed, .timeout, .pairingFailed:
                 return true
-            case .connectionLost, .serverError:
+            case .connectionLost, .noLocalNetwork, .serverError:
                 return false
             }
         case .permission:
@@ -117,6 +118,8 @@ extension AppError.ConnectionErrorType {
             return "페어링에 실패했습니다. Mac에 표시된 QR 코드를 다시 스캔해주세요. 코드가 만료되었다면 다시 연결해 새 코드를 받으세요."
         case .serverError(let detail):
             return "서버 오류: \(detail)"
+        case .noLocalNetwork:
+            return "Wi-Fi에 연결되어 있지 않습니다. Mac과 같은 Wi-Fi에 연결해주세요."
         }
     }
 }

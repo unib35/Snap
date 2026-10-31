@@ -9,6 +9,7 @@ public struct ProductivityFeature {
         public var isSiriActive: Bool = false
         public var runningApps: [AppInfo] = []
         public var isLoadingApps: Bool = false
+        public var appListError: AppListError?
         public var isAppSwitcherEditing: Bool = false
         public var appOrder: [String] = []  // bundleID 순서
         public var macro: MacroFeature.State = .init()
@@ -30,6 +31,17 @@ public struct ProductivityFeature {
         }
     }
 
+    public enum AppListError: Equatable, Sendable {
+        case timeout
+
+        public var message: String {
+            switch self {
+            case .timeout:
+                return "Mac에서 응답이 없습니다. Snap Receiver가 실행 중인지 확인해주세요."
+            }
+        }
+    }
+
     public enum Action: Equatable, Sendable {
         // Siri
         case siriTapped
@@ -43,6 +55,7 @@ public struct ProductivityFeature {
         // App Switcher
         case requestAppListTapped
         case appListReceived([AppInfo])
+        case appListTimedOut
         case appTapped(AppInfo)
         case toggleAppSwitcherEditMode
         case appMoved(from: IndexSet, to: Int)
@@ -66,6 +79,14 @@ public struct ProductivityFeature {
     }
 
     @Dependency(\.connectionClient) var connectionClient
+    @Dependency(\.continuousClock) var clock
+
+    /// 앱 목록 응답을 기다리는 최대 시간
+    static let appListTimeout: Duration = .seconds(5)
+
+    private enum CancelID {
+        case appListTimeout
+    }
 
     public init() {}
 
@@ -128,13 +149,27 @@ public struct ProductivityFeature {
 
             case .requestAppListTapped:
                 state.isLoadingApps = true
-                return .run { _ in
-                    await client.requestAppList()
-                }
+                state.appListError = nil
+                return .merge(
+                    .run { _ in
+                        await client.requestAppList()
+                    },
+                    .run { [clock] send in
+                        try await clock.sleep(for: Self.appListTimeout)
+                        await send(.appListTimedOut)
+                    }
+                    .cancellable(id: CancelID.appListTimeout, cancelInFlight: true)
+                )
 
             case .appListReceived(let apps):
                 state.isLoadingApps = false
+                state.appListError = nil
                 state.runningApps = apps
+                return .cancel(id: CancelID.appListTimeout)
+
+            case .appListTimedOut:
+                state.isLoadingApps = false
+                state.appListError = .timeout
                 return .none
 
             case .appTapped(let app):

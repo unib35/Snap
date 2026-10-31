@@ -77,6 +77,7 @@ public struct ConnectionFeature: Sendable {
         case setAutoReconnect(Bool)
 
         // Error
+        case retryAfterError
         case errorOccurred(AppError)
         case clearError
     }
@@ -361,6 +362,13 @@ public struct ConnectionFeature: Sendable {
                     let previousInterface = state.networkInterface
                     state.networkInterface = interface
 
+                    // 셀룰러만 있으면 같은 네트워크의 Mac에 닿을 수 없음
+                    if interface == .cellular {
+                        state.lastError = .connection(.noLocalNetwork)
+                    } else if state.lastError == .connection(.noLocalNetwork) {
+                        state.lastError = nil
+                    }
+
                     // 네트워크 인터페이스가 변경되었고, 이전에 연결된 디바이스가 있으면 재연결 시도
                     if previousInterface != interface,
                        state.status == .disconnected,
@@ -372,6 +380,7 @@ public struct ConnectionFeature: Sendable {
 
                 case .disconnected:
                     state.networkInterface = .other
+                    state.lastError = .connection(.noLocalNetwork)
                 }
                 return .none
 
@@ -440,6 +449,14 @@ public struct ConnectionFeature: Sendable {
                 return .none
 
             // MARK: - Error
+
+            case .retryAfterError:
+                state.lastError = nil
+                guard state.status == .disconnected else { return .none }
+                if let device = state.lastConnectedDevice {
+                    return .send(.connect(device))
+                }
+                return .send(.startDiscovery)
 
             case .errorOccurred(let error):
                 state.lastError = error
