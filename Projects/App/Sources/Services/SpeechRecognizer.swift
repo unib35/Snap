@@ -15,7 +15,7 @@ public enum SpeechRecognitionEvent: Equatable, Sendable {
 public final class SpeechRecognizer: @unchecked Sendable {
     // MARK: - Properties
 
-    private let speechRecognizer: SFSpeechRecognizer?
+    private var speechRecognizer: SFSpeechRecognizer?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private let audioEngine = AVAudioEngine()
@@ -57,6 +57,12 @@ public final class SpeechRecognizer: @unchecked Sendable {
         SFSpeechRecognizer.authorizationStatus()
     }
 
+    /// 해당 언어를 음성 인식이 지원하는지 여부
+    public static func isSupported(_ locale: Locale) -> Bool {
+        // 지원하지 않는 언어면 SFSpeechRecognizer 생성이 실패함
+        SFSpeechRecognizer(locale: locale) != nil
+    }
+
     /// 음성 인식 사용 가능 여부
     public var isAvailable: Bool {
         speechRecognizer?.isAvailable ?? false
@@ -65,8 +71,11 @@ public final class SpeechRecognizer: @unchecked Sendable {
     // MARK: - Recognition
 
     /// 음성 인식 시작
-    public func startRecognition() -> AsyncStream<SpeechRecognitionEvent> {
+    public func startRecognition(locale: Locale) -> AsyncStream<SpeechRecognitionEvent> {
         AsyncStream { continuation in
+            if self.speechRecognizer?.locale.identifier(.bcp47) != locale.identifier(.bcp47) {
+                self.speechRecognizer = SFSpeechRecognizer(locale: locale)
+            }
             do {
                 try self.startRecognitionInternal(continuation: continuation)
 

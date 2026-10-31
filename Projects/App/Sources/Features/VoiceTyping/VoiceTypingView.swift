@@ -13,6 +13,16 @@ public struct VoiceTypingView: View {
             // 상태 표시
             statusIndicator
 
+            Picker(
+                "인식 언어",
+                selection: Binding(get: { store.language }, set: { store.send(.setLanguage($0)) })
+            ) {
+                ForEach(VoiceTypingFeature.Language.allCases, id: \.self) { language in
+                    Text(language.title).tag(language)
+                }
+            }
+            .pickerStyle(.menu)
+
             if store.authorizationStatus == .denied || store.authorizationStatus == .restricted {
                 VStack(spacing: 8) {
                     Text("음성 입력에는 마이크와 음성 인식 권한이 필요합니다.")

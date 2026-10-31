@@ -32,6 +32,7 @@ public enum AppError: Equatable, Sendable, LocalizedError {
         case alreadyRecording
         case requestCreationFailed
         case audioEngineError
+        case languageNotSupported
     }
 
     // MARK: - User Friendly Message
@@ -81,7 +82,7 @@ public enum AppError: Equatable, Sendable, LocalizedError {
             return false
         case .speech(let type):
             switch type {
-            case .notAvailable, .alreadyRecording:
+            case .notAvailable, .alreadyRecording, .languageNotSupported:
                 return false
             case .requestCreationFailed, .audioEngineError:
                 return true
@@ -152,6 +153,8 @@ extension AppError.SpeechErrorType {
             return "음성 인식 요청을 생성할 수 없습니다."
         case .audioEngineError:
             return "오디오 엔진 오류가 발생했습니다."
+        case .languageNotSupported:
+            return "선택한 언어는 이 기기에서 음성 인식을 지원하지 않습니다. 다른 언어를 선택해주세요."
         }
     }
 }
